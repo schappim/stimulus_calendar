@@ -70,6 +70,16 @@ const TOKEN_RENDERERS = {
     btn.addEventListener('click', () => actions?.next?.());
     return btn;
   },
+  today(state, actions, theme) {
+    const options = state.get('options');
+    const label = options.buttonText?.today ?? 'today';
+    const btn = createElement('button', `${theme.button} ec-today`, label, [
+      ['type', 'button'],
+      ['data-toolbar-action', 'today'],
+    ]);
+    btn.addEventListener('click', () => actions?.today?.());
+    return btn;
+  },
 };
 
 // Exposed for testing — lets tests assert which tokens are registered without

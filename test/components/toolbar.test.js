@@ -74,4 +74,16 @@ describe('toolbar', () => {
     const after = el.calendarApi.getOption('date').getTime();
     expect(after).toBeGreaterThan(before);
   });
+
+  it('today button uses buttonText.today and snaps the date to now', async () => {
+    const el = await mount(`<div data-controller="calendar"
+      data-calendar-date-value="2020-01-01"
+      data-calendar-header-toolbar-value='{"start":"today","center":"title","end":""}'>
+    </div>`);
+    const todayBtn = el.querySelector('[data-toolbar-action="today"]');
+    expect(todayBtn.textContent).toBe('today');
+    todayBtn.click();
+    const date = el.calendarApi.getOption('date');
+    expect(date.getFullYear()).toBeGreaterThan(2024);
+  });
 });

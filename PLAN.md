@@ -210,7 +210,7 @@ matching ERB usage example in `gem/demo` if the option is server-renderable.
       `docs/images/cal-toolbar-title.png`
 - [x] `prev` button + click behaviour
 - [x] `next` button + click behaviour
-- [ ] `today` button + click behaviour
+- [x] `today` button + click behaviour
 - [ ] View switcher buttons (one per registered view name)
 - [ ] `customButtons` rendering and click dispatch
 - [ ] `headerToolbar` slot layout (`start` / `center` / `end`)
