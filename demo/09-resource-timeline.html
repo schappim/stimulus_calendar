@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>stimulus_calendar — Resource timeline week</title>
+  <link rel="stylesheet" href="../src/styles/calendar.css">
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; margin: 2rem; }
+    .ec { width: 920px; }
+  </style>
+</head>
+<body>
+  <h1>Resource timeline (week)</h1>
+  <div data-controller="calendar"
+       data-calendar-plugins-value='["ResourceTimeline"]'
+       data-calendar-view-value="resourceTimelineWeek"
+       data-calendar-date-value="2026-05-25"
+       data-calendar-resources-value='[
+         {"id":"r1","title":"Studio A"},
+         {"id":"r2","title":"Studio B"},
+         {"id":"r3","title":"Conference room"}
+       ]'
+       data-calendar-options-value='{"slotWidth":110}'
+       data-calendar-header-toolbar-value='{"start":"today","center":"title","end":"prev,next"}'>
+  </div>
+  <script type="module">
+    import { Application } from '/node_modules/@hotwired/stimulus/dist/stimulus.js';
+    import CalendarController from '/src/controllers/calendar_controller.js';
+    const app = Application.start();
+    app.register('calendar', CalendarController);
+    await new Promise((r) => setTimeout(r, 80));
+    const el = document.querySelector('[data-controller="calendar"]');
+    el.calendarApi.addEvent({ id:'e1', title:'Tracking session',  resourceIds:['r1'], start:'2026-05-25', end:'2026-05-26', allDay:true });
+    el.calendarApi.addEvent({ id:'e2', title:'Vocal record',      resourceIds:['r1'], start:'2026-05-27', end:'2026-05-29', allDay:true });
+    el.calendarApi.addEvent({ id:'e3', title:'Band rehearsal',    resourceIds:['r2'], start:'2026-05-25', end:'2026-05-27', allDay:true });
+    el.calendarApi.addEvent({ id:'e4', title:'Mix session',       resourceIds:['r2'], start:'2026-05-28', end:'2026-05-30', allDay:true });
+    el.calendarApi.addEvent({ id:'e5', title:'Client meeting',    resourceIds:['r3'], start:'2026-05-26', end:'2026-05-27', allDay:true });
+    el.calendarApi.addEvent({ id:'e6', title:'Sprint planning',   resourceIds:['r3'], start:'2026-05-28', end:'2026-05-29', allDay:true });
+    el.calendarApi.addEvent({ id:'e7', title:'1-1s',              resourceIds:['r3'], start:'2026-05-29', end:'2026-05-30', allDay:true });
+  </script>
+</body>
+</html>

@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>stimulus_calendar — overview</title>
+  <link rel="stylesheet" href="../src/styles/calendar.css">
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; margin: 1.5rem; background: #f8fafc; }
+    .ec { width: 1080px; }
+    .ec-toolbar { margin-bottom: 1rem; }
+  </style>
+</head>
+<body>
+  <div data-controller="calendar"
+       data-calendar-plugins-value='["DayGrid"]'
+       data-calendar-view-value="dayGridMonth"
+       data-calendar-date-value="2026-05-15"
+       data-calendar-week-numbers-value="true"
+       data-calendar-header-toolbar-value='{"start":"today","center":"title","end":"prev,next"}'>
+  </div>
+  <script type="module">
+    import { Application } from '/node_modules/@hotwired/stimulus/dist/stimulus.js';
+    import CalendarController from '/src/controllers/calendar_controller.js';
+    const app = Application.start();
+    app.register('calendar', CalendarController);
+    await new Promise((r) => setTimeout(r, 60));
+    const el = document.querySelector('[data-controller="calendar"]');
+    const events = [
+      { id:'a', title:'Conference',  start:'2026-05-04', end:'2026-05-07', allDay:true,  backgroundColor:'#0ea5e9' },
+      { id:'b', title:'Sales review', start:'2026-05-11T10:00', end:'2026-05-11T11:00' },
+      { id:'c', title:'Design crit',  start:'2026-05-13T14:00', end:'2026-05-13T15:30' },
+      { id:'d', title:'1:1 Alex',     start:'2026-05-19T11:00', end:'2026-05-19T11:30' },
+      { id:'e', title:'Offsite',      start:'2026-05-20', end:'2026-05-23', allDay:true, backgroundColor:'#10b981' },
+      { id:'f', title:'Release',      start:'2026-05-28T17:00', end:'2026-05-28T18:00', backgroundColor:'#dc2626' },
+      { id:'g', title:'Demo day',     start:'2026-05-15T15:00', end:'2026-05-15T16:00', backgroundColor:'#9333ea' },
+      { id:'h', title:'Public holiday', start:'2026-05-01', end:'2026-05-02', allDay:true, backgroundColor:'#f97316' },
+    ];
+    for (const ev of events) el.calendarApi.addEvent(ev);
+  </script>
+</body>
+</html>

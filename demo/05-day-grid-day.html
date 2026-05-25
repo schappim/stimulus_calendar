@@ -6,18 +6,7 @@
   <link rel="stylesheet" href="../src/styles/calendar.css">
   <style>
     body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; margin: 2rem; }
-    .ec { width: 400px; }
-    .ec-toolbar { display: flex; gap: 1rem; align-items: center; justify-content: space-between; }
-    [data-toolbar-slot] { display: flex; gap: 0.5rem; }
-    .ec-title { font-size: 1.25rem; margin: 0; }
-    .ec-grid.ec-day-grid { display: grid; grid-template-rows: auto 1fr; border: 1px solid #ddd; margin-top: 1rem; }
-    [data-row="header"], [data-row="days"] { display: grid; grid-template-columns: 1fr; }
-    [data-row="header"] { border-bottom: 1px solid #ddd; background: #f8fafc; }
-    .ec-day-head, .ec-day { padding: 0.5rem; border-bottom: 1px solid #ddd; }
-    .ec-day { min-height: 300px; }
-    .ec-day-head { font-weight: 600; text-align: center; }
-    .ec-day::before { content: attr(data-date); display: block; font-size: 0.75rem; color: #475569; margin-bottom: 0.25rem; }
-    .ec-day.ec-today { background: #fef3c7; }
+    .ec { width: 500px; }
   </style>
 </head>
 <body>
@@ -31,7 +20,13 @@
   <script type="module">
     import { Application } from '/node_modules/@hotwired/stimulus/dist/stimulus.js';
     import CalendarController from '/src/controllers/calendar_controller.js';
-    Application.start().register('calendar', CalendarController);
+    const app = Application.start();
+    app.register('calendar', CalendarController);
+    await new Promise((r) => setTimeout(r, 50));
+    const el = document.querySelector('[data-controller="calendar"]');
+    el.calendarApi.addEvent({ id:'a', title:'Standup',     start:'2026-05-25T09:00', end:'2026-05-25T09:30' });
+    el.calendarApi.addEvent({ id:'b', title:'1:1 Alex',    start:'2026-05-25T11:00', end:'2026-05-25T11:30' });
+    el.calendarApi.addEvent({ id:'c', title:'Design crit', start:'2026-05-25T14:00', end:'2026-05-25T15:30' });
   </script>
 </body>
 </html>

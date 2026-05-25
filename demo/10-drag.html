@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>stimulus_calendar — drag preview</title>
+  <link rel="stylesheet" href="../src/styles/calendar.css">
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; margin: 2rem; }
+    .ec { width: 920px; }
+    /* Simulated drag — render a ghost copy of the event chip semi-transparent
+     * over an adjacent slot so the screenshot can show the "drag in progress"
+     * visual. The full pointer-driven drag pipeline lands in 0.2. */
+    .drag-ghost {
+      position: absolute;
+      background: #2563eb;
+      color: white;
+      padding: 2px 0.5rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.5);
+      opacity: 0.85;
+      pointer-events: none;
+      transform: translate(8px, 8px);
+      z-index: 10;
+    }
+    .drag-source { opacity: 0.4 !important; outline: 2px dashed #2563eb; outline-offset: -2px; }
+  </style>
+</head>
+<body>
+  <h1>Drag, drop &amp; resize — timeGridWeek</h1>
+  <div data-controller="calendar"
+       data-calendar-plugins-value='["TimeGrid","Interaction"]'
+       data-calendar-view-value="timeGridWeek"
+       data-calendar-date-value="2026-05-25"
+       data-calendar-options-value='{"scrollTime":"08:00:00","editable":true}'
+       data-calendar-header-toolbar-value='{"start":"today","center":"title","end":"prev,next"}'>
+  </div>
+  <script type="module">
+    import { Application } from '/node_modules/@hotwired/stimulus/dist/stimulus.js';
+    import CalendarController from '/src/controllers/calendar_controller.js';
+    const app = Application.start();
+    app.register('calendar', CalendarController);
+    await new Promise((r) => setTimeout(r, 80));
+    const el = document.querySelector('[data-controller="calendar"]');
+    el.calendarApi.addEvent({ id:'1', title:'Design crit', start:'2026-05-26T14:00', end:'2026-05-26T15:30' });
+    el.calendarApi.addEvent({ id:'2', title:'Standup',     start:'2026-05-25T09:00', end:'2026-05-25T09:30' });
+    el.calendarApi.addEvent({ id:'3', title:'1:1 Alex',    start:'2026-05-27T11:00', end:'2026-05-27T11:30' });
+    // Simulate a drag-in-progress: dim the Design crit chip + render a ghost
+    // copy one column to the right.
+    await new Promise((r) => setTimeout(r, 50));
+    const chip = el.querySelector('[data-event-id="1"]');
+    if (chip) {
+      chip.classList.add('drag-source');
+      const rect = chip.getBoundingClientRect();
+      const parentRect = chip.parentElement.parentElement.getBoundingClientRect();
+      const ghost = document.createElement('div');
+      ghost.className = 'drag-ghost';
+      ghost.textContent = 'Design crit';
+      ghost.style.left = `${rect.left - parentRect.left + rect.width + 12}px`;
+      ghost.style.top = `${rect.top - parentRect.top - 16}px`;
+      ghost.style.width = `${rect.width}px`;
+      ghost.style.height = `${rect.height}px`;
+      chip.parentElement.parentElement.appendChild(ghost);
+    }
+  </script>
+</body>
+</html>

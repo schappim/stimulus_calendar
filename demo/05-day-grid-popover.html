@@ -6,26 +6,7 @@
   <link rel="stylesheet" href="../src/styles/calendar.css">
   <style>
     body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; margin: 2rem; }
-    .ec { width: 900px; }
-    .ec-title { font-size: 1.25rem; margin: 0; text-align: center; }
-    .ec-grid.ec-day-grid { display: grid; grid-template-rows: auto 1fr; border: 1px solid #ddd; margin-top: 1rem; }
-    [data-row="header"], [data-row="days"] { display: grid; grid-template-columns: repeat(var(--ec-cols, 7), 1fr); }
-    [data-row="header"] { border-bottom: 1px solid #ddd; background: #f8fafc; }
-    .ec-day-head, .ec-day { padding: 0.5rem; border-right: 1px solid #ddd; border-bottom: 1px solid #ddd; min-height: 90px; }
-    .ec-day-head { font-weight: 600; min-height: auto; text-align: right; }
-    .ec-day::before { content: attr(data-date); display: block; font-size: 0.75rem; color: #475569; margin-bottom: 0.25rem; }
-    .ec-day.ec-today { background: #fef3c7; }
-    .ec-event { display: flex; gap: 0.25rem; align-items: center; padding: 0.125rem 0.25rem; border-radius: 3px; font-size: 0.75rem; cursor: pointer; }
-    .ec-event-dot { width: 6px; height: 6px; background: #2563eb; border-radius: 50%; }
-    .ec-more-link { display: block; margin-top: 0.25rem; background: none; border: 0; color: #2563eb; cursor: pointer; font-size: 0.75rem; }
-    .ec-popup.ec-day-popover {
-      position: fixed; top: 100px; left: 250px; width: 280px;
-      background: white; border: 1px solid #cbd5e1; border-radius: 6px;
-      box-shadow: 0 10px 30px -10px rgba(0,0,0,0.3); padding: 0.75rem; z-index: 50;
-    }
-    .ec-popup-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
-    .ec-popup-title { font-weight: 600; }
-    .ec-popup-close { background: none; border: 0; cursor: pointer; font-size: 1rem; }
+    .ec { width: 920px; }
   </style>
 </head>
 <body>
@@ -36,14 +17,13 @@
        data-calendar-view-value="dayGridMonth"
        data-calendar-date-value="2026-05-15"
        data-calendar-day-max-events-value="2"
-       data-calendar-header-toolbar-value='{"start":"","center":"title","end":""}'>
+       data-calendar-header-toolbar-value='{"start":"today","center":"title","end":"prev,next"}'>
   </div>
   <script type="module">
     import { Application } from '/node_modules/@hotwired/stimulus/dist/stimulus.js';
     import CalendarController from '/src/controllers/calendar_controller.js';
     const app = Application.start();
     app.register('calendar', CalendarController);
-    // Seed events then open the popover.
     await new Promise((r) => setTimeout(r, 50));
     const el = document.querySelector('[data-controller="calendar"]');
     for (let i = 1; i <= 5; ++i) {

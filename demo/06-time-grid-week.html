@@ -6,29 +6,7 @@
   <link rel="stylesheet" href="../src/styles/calendar.css">
   <style>
     body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; margin: 2rem; }
-    .ec { width: 900px; }
-    .ec-title { font-size: 1.25rem; margin: 0; text-align: center; }
-    .ec-time-grid {
-      display: grid; grid-template-rows: auto 1fr;
-      border: 1px solid #ddd; margin-top: 1rem;
-    }
-    [data-row="header"] {
-      display: grid; grid-template-columns: 60px repeat(var(--ec-cols, 7), 1fr);
-      background: #f8fafc; border-bottom: 1px solid #ddd;
-    }
-    .ec-day-head, .ec-corner { padding: 0.5rem; font-weight: 600; border-right: 1px solid #ddd; }
-    [data-row="body"] {
-      display: grid; grid-template-columns: 60px 1fr;
-      max-height: 500px; overflow-y: auto;
-    }
-    .ec-sidebar { display: flex; flex-direction: column; }
-    .ec-sidebar .ec-slot { font-size: 0.75rem; color: #475569; padding: 0 0.5rem; border-bottom: 1px dashed #e2e8f0; }
-    .ec-days {
-      display: grid; grid-template-columns: repeat(var(--ec-cols, 7), 1fr);
-    }
-    .ec-time-col { border-left: 1px solid #e2e8f0; }
-    .ec-time-col .ec-slot { border-bottom: 1px dashed #e2e8f0; }
-    .ec-event { background: #2563eb; color: white; font-size: 0.75rem; padding: 0.125rem 0.25rem; border-radius: 3px; }
+    .ec { width: 920px; }
   </style>
 </head>
 <body>
@@ -37,6 +15,7 @@
        data-calendar-plugins-value='["TimeGrid"]'
        data-calendar-view-value="timeGridWeek"
        data-calendar-date-value="2026-05-25"
+       data-calendar-options-value='{"scrollTime":"08:00:00"}'
        data-calendar-header-toolbar-value='{"start":"today","center":"title","end":"prev,next"}'>
   </div>
   <script type="module">
@@ -46,9 +25,12 @@
     app.register('calendar', CalendarController);
     await new Promise((r) => setTimeout(r, 50));
     const el = document.querySelector('[data-controller="calendar"]');
-    el.calendarApi.addEvent({ id:'1', title:'Standup', start:'2026-05-25T09:00', end:'2026-05-25T09:30' });
-    el.calendarApi.addEvent({ id:'2', title:'Design crit', start:'2026-05-26T14:00', end:'2026-05-26T15:30' });
-    el.calendarApi.addEvent({ id:'3', title:'1:1',         start:'2026-05-27T11:00', end:'2026-05-27T11:30' });
+    el.calendarApi.addEvent({ id:'1', title:'Standup',      start:'2026-05-25T09:00', end:'2026-05-25T09:30' });
+    el.calendarApi.addEvent({ id:'2', title:'1:1 Alex',     start:'2026-05-25T11:00', end:'2026-05-25T11:30' });
+    el.calendarApi.addEvent({ id:'3', title:'Design crit',  start:'2026-05-26T14:00', end:'2026-05-26T15:30' });
+    el.calendarApi.addEvent({ id:'4', title:'Lunch & learn',start:'2026-05-27T12:00', end:'2026-05-27T13:00' });
+    el.calendarApi.addEvent({ id:'5', title:'Demo day',     start:'2026-05-28T15:00', end:'2026-05-28T16:00' });
+    el.calendarApi.addEvent({ id:'6', title:'Release',      start:'2026-05-29T17:00', end:'2026-05-29T18:00' });
   </script>
 </body>
 </html>
