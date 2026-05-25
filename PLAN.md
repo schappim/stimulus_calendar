@@ -292,14 +292,14 @@ Each view-introducing commit ships a `docs/images/cal-<view>.png` screenshot.
 
 ## Phase 9 — ResourceTimeline
 
-- [ ] View: `resourceTimelineDay` → `cal-resource-timeline-day.png`
-- [ ] View: `resourceTimelineWeek` → `cal-resource-timeline-week.png`
-- [ ] View: `resourceTimelineMonth`
-- [ ] View: `resourceTimelineYear`
-- [ ] Option: `monthHeaderFormat`
-- [ ] Option: `slotWidth`
-- [ ] Option: `resourceExpand` (expand/collapse nested rows)
-- [ ] Now indicator (vertical line)
+- [x] View: `resourceTimelineDay` → `cal-resource-timeline-day.png`
+- [x] View: `resourceTimelineWeek` → `cal-resource-timeline-week.png`
+- [x] View: `resourceTimelineMonth`
+- [x] View: `resourceTimelineYear`
+- [x] Option: `monthHeaderFormat`
+- [x] Option: `slotWidth`
+- [x] Option: `resourceExpand` (expand/collapse nested rows)
+- [x] Now indicator (vertical line)
 
 ---
 
@@ -571,7 +571,7 @@ the GitHub repo without expanding every section.
 - [x] Phase 6 — TimeGrid view
 - [x] Phase 7 — List view
 - [x] Phase 8 — Resources + ResourceTimeGrid
-- [ ] Phase 9 — ResourceTimeline
+- [x] Phase 9 — ResourceTimeline
 - [ ] Phase 10 — Events surface
 - [ ] Phase 11 — Interaction plugin
 - [ ] Phase 12 — Public methods

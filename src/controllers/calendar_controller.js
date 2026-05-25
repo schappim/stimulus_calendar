@@ -76,6 +76,10 @@ export default class CalendarController extends Controller {
     datesAboveResources: Boolean,
     filterResourcesWithEvents: Boolean,
     filterEventsWithResources: Boolean,
+    // ResourceTimeline plugin options
+    monthHeaderFormat: Object,
+    slotWidth: Number,
+    resourceExpand: String,
   };
 
   connect() {
@@ -341,6 +345,7 @@ CalendarController.OPTION_KEYS = [
   'weekNumbers', 'weekNumberContent',
   'resources', 'refetchResourcesOnNavigate', 'datesAboveResources',
   'filterResourcesWithEvents', 'filterEventsWithResources',
+  'monthHeaderFormat', 'slotWidth', 'resourceExpand',
 ];
 
 function capitalise(s) {
