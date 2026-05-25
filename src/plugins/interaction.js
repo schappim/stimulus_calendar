@@ -117,10 +117,9 @@ function attachEventDragHandler(rootEl, state) {
     if (!event) return;
     const sourceCell = chip.closest('[data-date]');
     const sourceTimeCol = chip.closest('.ec-time-col');
-    // Cache the source chip's exact geometry — same column ghost
-    // positioning reuses chipLeft + chipWidth verbatim; cross-column
-    // positioning re-anchors via chipLeftInCol so the ghost preserves
-    // its offset within whatever column the pointer's currently over.
+    // Cache the cursor's offset within the chip at pointerdown so the
+    // ghost stays glued to the grab point — moving 1:1 with the cursor
+    // for the rest of the drag.
     const sourceColRect = sourceTimeCol?.getBoundingClientRect();
     const chipRect = chip.getBoundingClientRect();
     drag = {
@@ -129,11 +128,10 @@ function attachEventDragHandler(rootEl, state) {
       sourceDateStr: sourceCell?.getAttribute('data-date'),
       sourceTimeCol,
       sourceColRect,
-      chipLeft: chipRect.left,
-      chipLeftInCol: sourceColRect ? chipRect.left - sourceColRect.left : 0,
-      chipTopInCol: sourceColRect ? chipRect.top - sourceColRect.top : 0,
-      chipHeight: chipRect.height,
+      grabOffsetX: jsEvent.clientX - chipRect.left,
+      grabOffsetY: jsEvent.clientY - chipRect.top,
       chipWidth: chipRect.width,
+      chipHeight: chipRect.height,
       startX: jsEvent.clientX,
       startY: jsEvent.clientY,
       ghost: null,
@@ -157,69 +155,46 @@ function attachEventDragHandler(rootEl, state) {
       state.get('fire')?.('eventDragStart', {
         event: drag.event, jsEvent, view: state.get('view'),
       });
-      // Build a follow-the-pointer ghost copy of the chip. Keep it
-      // inside the calendar's view-family scope (.ec-time-grid /
-      // .ec-day-grid / .ec-list / .ec-timeline) so the descendant CSS
-      // rules that style the chip (font, padding, dot, time text) still
-      // apply — appending to document.body strips that cascade and the
-      // ghost ends up with default browser styling.
+      // Build a follow-the-pointer ghost copy of the chip. The chip
+      // lives under .ec-pager-track, which carries
+      // `transform: translate3d(0,0,0)` + `will-change: transform` —
+      // both establish a containing block for `position: fixed`
+      // descendants. If we append the ghost inside the track, its
+      // `fixed` positioning becomes relative to the track, not the
+      // viewport — so `left: clientX` ends up offset by the track's
+      // viewport position. Append to <body> instead and copy the
+      // chip's computed styles inline so the ghost still looks
+      // identical without the descendant CSS cascade.
       const ghost = drag.sourceChip.cloneNode(true);
+      const cs = getComputedStyle(drag.sourceChip);
+      for (let i = 0; i < cs.length; i++) {
+        const prop = cs[i];
+        ghost.style.setProperty(prop, cs.getPropertyValue(prop), cs.getPropertyPriority(prop));
+      }
       ghost.classList.add(options.theme.ghost ?? 'ec-ghost');
       ghost.style.position = 'fixed';
       ghost.style.pointerEvents = 'none';
       ghost.style.opacity = '0.85';
       ghost.style.zIndex = '1000';
-      // Lock the cloned dimensions so the ghost stays the same size as
-      // the source chip regardless of any margin/padding/grid layout
-      // it inherits from its new parent.
-      const rect = drag.sourceChip.getBoundingClientRect();
-      ghost.style.width  = `${rect.width}px`;
-      ghost.style.height = `${rect.height}px`;
-      ghost.style.left = `${rect.left}px`;
-      ghost.style.top  = `${rect.top}px`;
-      // Reset positioning inside grid/flex parents.
       ghost.style.margin = '0';
       ghost.style.right = 'auto';
       ghost.style.bottom = 'auto';
+      ghost.style.width  = `${drag.chipWidth}px`;
+      ghost.style.height = `${drag.chipHeight}px`;
+      ghost.style.left   = `${jsEvent.clientX - drag.grabOffsetX}px`;
+      ghost.style.top    = `${jsEvent.clientY - drag.grabOffsetY}px`;
       drag.ghost = ghost;
-      // Keep the ghost inside the same view-scope as the source chip so
-      // descendant CSS rules that style the chip stay in cascade. The
-      // MonthScroller's chips live under .ec-month-scroller-cell, which
-      // also needs to be in the closest() list — otherwise the ghost
-      // ends up at document.body and loses the .ec-month-scroller-cell
-      // .ec-event font / padding / dot styles.
-      const scope = drag.sourceChip.closest('.ec-month-scroller-cell, .ec-month-scroller, .ec-time-grid, .ec-day-grid, .ec-list, .ec-timeline, .ec') ?? document.body;
-      scope.appendChild(ghost);
+      document.body.appendChild(ghost);
       drag.sourceChip.style.opacity = '0.4';
       document.body.classList.add('ec-dragging');
     }
     if (drag.ghost) {
-      if (drag.sourceTimeCol) {
-        // TimeGrid: lock the ghost to a day-column and show the SNAPPED
-        // landing position. Same column → ghost X matches source chip
-        // exactly. Different column → ghost shifts to that column,
-        // preserving its in-column horizontal offset.
-        const targetCol = timeColAtPoint(jsEvent.clientX, jsEvent.clientY) ?? drag.sourceTimeCol;
-        const colRect = targetCol.getBoundingClientRect();
-        const slotMins = totalSecondsOfDuration(options.slotDuration) / 60 || 30;
-        const snapMins = totalSecondsOfDuration(options.snapDuration) / 60 || slotMins;
-        const pxPerMin = (options.slotHeight ?? 22) / slotMins;
-        const snappedDyPx =
-          Math.round((dy / pxPerMin) / snapMins) * snapMins * pxPerMin;
-        const leftPx = targetCol === drag.sourceTimeCol
-          ? drag.chipLeft
-          : colRect.left + drag.chipLeftInCol;
-        drag.ghost.style.left = `${leftPx}px`;
-        drag.ghost.style.width = `${drag.chipWidth}px`;
-        drag.ghost.style.top = `${colRect.top + drag.chipTopInCol + snappedDyPx}px`;
-        drag.ghost.style.height = `${drag.chipHeight}px`;
-      } else {
-        // DayGrid / List / Month — no slot grid to snap to; follow the
-        // pointer with a small offset so the chip doesn't sit directly
-        // under the cursor.
-        drag.ghost.style.left = `${jsEvent.clientX - 20}px`;
-        drag.ghost.style.top  = `${jsEvent.clientY - 10}px`;
-      }
+      // 1:1 cursor following — the grab offset (where on the chip the
+      // user grabbed) stays fixed for the duration of the drag, so the
+      // ghost feels glued to the cursor. The drop logic in onPointerUp
+      // still snaps to slot + day; only the preview is free-form.
+      drag.ghost.style.left = `${jsEvent.clientX - drag.grabOffsetX}px`;
+      drag.ghost.style.top  = `${jsEvent.clientY - drag.grabOffsetY}px`;
     }
     // Preventing default while actively dragging stops the browser from
     // hijacking touch gestures (e.g. iOS swipe-back, page rubber-band).
