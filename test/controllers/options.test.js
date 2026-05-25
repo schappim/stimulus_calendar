@@ -160,4 +160,10 @@ describe('CalendarController options', () => {
     expect(dates[1].getUTCDate()).toBe(30);
     expect(dates[0].getUTCHours()).toBe(0);
   });
+
+  it('titleFormat — Intl format object flows through', async () => {
+    const el = await mount(`<div data-controller="calendar"
+                                  data-calendar-title-format-value='{"year":"numeric"}'></div>`);
+    expect(el.calendarApi.getOption('titleFormat')).toEqual({ year: 'numeric' });
+  });
 });
