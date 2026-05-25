@@ -188,7 +188,7 @@ matching ERB usage example in `gem/demo` if the option is server-renderable.
 - [x] Option: `timeZone`
 - [x] Option: `customScrollbars`
 - [x] Option: `view`
-- [ ] Option: `views` (per-view overrides)
+- [x] Option: `views` (per-view overrides)
 - [ ] Option: `viewDidMount`
 - [ ] Option: `datesSet`
 - [ ] Option: `loading`

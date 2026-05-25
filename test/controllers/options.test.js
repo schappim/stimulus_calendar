@@ -108,4 +108,15 @@ describe('CalendarController options', () => {
       `<div data-controller="calendar" data-calendar-custom-scrollbars-value="true"></div>`);
     expect(el.calendarApi.getOption('customScrollbars')).toBe(true);
   });
+
+  it('views — per-view overrides flow through (kept on the options bag)', async () => {
+    const el = await mount(`<div data-controller="calendar"
+                                  data-calendar-views-value='{"timeGridWeek":{"slotDuration":"00:15"}}'>
+                            </div>`);
+    // Per-view overrides are consumed by setViewOptions when a view
+    // activates; before any view-aware plugin loads, the views map flows
+    // through as raw user data on options.views.
+    const v = el.calendarApi.getOption('views');
+    expect(v).toEqual({ timeGridWeek: { slotDuration: '00:15' } });
+  });
 });
