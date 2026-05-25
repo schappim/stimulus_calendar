@@ -195,7 +195,7 @@ matching ERB usage example in `gem/demo` if the option is server-renderable.
 - [x] Option: `lazyFetching`
 - [x] Option: `highlightedDates`
 - [x] Option: `titleFormat`
-- [ ] Option: `dayHeaderFormat`
+- [x] Option: `dayHeaderFormat`
 - [ ] Option: `dayHeaderAriaLabelFormat`
 - [ ] Option: `icons`
 - [ ] Option: `buttonText`

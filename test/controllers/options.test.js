@@ -166,4 +166,10 @@ describe('CalendarController options', () => {
                                   data-calendar-title-format-value='{"year":"numeric"}'></div>`);
     expect(el.calendarApi.getOption('titleFormat')).toEqual({ year: 'numeric' });
   });
+
+  it('dayHeaderFormat — Intl format object flows through', async () => {
+    const el = await mount(`<div data-controller="calendar"
+                                  data-calendar-day-header-format-value='{"weekday":"long"}'></div>`);
+    expect(el.calendarApi.getOption('dayHeaderFormat')).toEqual({ weekday: 'long' });
+  });
 });

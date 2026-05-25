@@ -53,6 +53,7 @@ export default class CalendarController extends Controller {
     lazyFetching: Boolean,
     highlightedDates: Array,
     titleFormat: Object,
+    dayHeaderFormat: Object,
   };
 
   connect() {
@@ -278,7 +279,7 @@ export default class CalendarController extends Controller {
 CalendarController.OPTION_KEYS = [
   'view', 'date', 'duration', 'dateIncrement', 'firstDay', 'hiddenDays',
   'validRange', 'height', 'theme', 'locale', 'timeZone', 'customScrollbars',
-  'views', 'lazyFetching', 'highlightedDates', 'titleFormat',
+  'views', 'lazyFetching', 'highlightedDates', 'titleFormat', 'dayHeaderFormat',
 ];
 
 function capitalise(s) {
