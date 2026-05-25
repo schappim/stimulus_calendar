@@ -268,7 +268,10 @@ export default class CalendarController extends Controller {
 // List of option keys that the controller treats as individual
 // data-calendar-<key>-value attributes. Each Phase 3 option commit appends
 // here and adds the matching `static values` entry.
-CalendarController.OPTION_KEYS = ['view', 'date', 'duration', 'dateIncrement', 'firstDay', 'hiddenDays', 'validRange', 'height'];
+CalendarController.OPTION_KEYS = [
+  'view', 'date', 'duration', 'dateIncrement', 'firstDay', 'hiddenDays',
+  'validRange', 'height', 'theme',
+];
 
 function capitalise(s) {
   return s.charAt(0).toUpperCase() + s.slice(1);
