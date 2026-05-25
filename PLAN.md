@@ -105,7 +105,8 @@ with full Vitest coverage. No Stimulus controllers yet. **Rails tests N/A**
       seconds), `durationDays`, `durationToSeconds`, `addDurationToDate`
 - [x] `lib/range.js` — `createDateRange`, `datesInRange`, `rangesOverlap`,
       `intersectRanges` (+ `outsideRange` / `dateInRange` from upstream)
-- [ ] `lib/options.js` — `undefinedOr`, per-option setter helper
+- [x] `lib/options.js` — `undefinedOr`, per-option setter helper
+      (+ upstream `btnTextDay/Week/Month/Year`, `themeView`)
 - [ ] `lib/payload.js` — Symbol-keyed `setPayload` / `getPayload` /
       `hasPayload` on DOM nodes
 - [ ] `lib/dom.js` — `createElement`, `rect`, `elementFromPoint` helpers
