@@ -206,7 +206,7 @@ matching ERB usage example in `gem/demo` if the option is server-renderable.
 
 ## Phase 4 — Toolbar
 
-- [ ] Title rendering (uses `titleFormat` against active range) + screenshot
+- [x] Title rendering (uses `titleFormat` against active range) + screenshot
       `docs/images/cal-toolbar-title.png`
 - [ ] `prev` button + click behaviour
 - [ ] `next` button + click behaviour

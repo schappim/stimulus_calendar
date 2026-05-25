@@ -13,6 +13,7 @@ import {
 import { createDate, addDuration, subtractDuration, cloneDate, setMidnight } from '../lib/date.js';
 import { createDuration } from '../lib/duration.js';
 import { isArray, isFunction, isPlainObject } from '../lib/utils.js';
+import { renderToolbar } from '../components/toolbar.js';
 
 // Stimulus calendar controller. One Stimulus controller per calendar; each
 // owns its own MainState, plugin set, and DOM tree. The HTML attribute
@@ -196,7 +197,14 @@ export default class CalendarController extends Controller {
       typeof options.height === 'number' ? `${options.height}px` : options.height;
     this.element.replaceChildren(root);
     this._root = root;
+    this._toolbarEl = toolbar;
     this.element.dataset.calendarMounted = 'true';
+
+    // Initial toolbar render + re-render on viewTitle change.
+    renderToolbar(this._toolbarEl, this._state);
+    this._teardowns.push(
+      this._state.on('change:viewTitle', () => renderToolbar(this._toolbarEl, this._state)),
+    );
   }
 
   // -- Public API (`element.calendarApi`) ----------------------------------
