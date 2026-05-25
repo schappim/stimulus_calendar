@@ -143,4 +143,10 @@ describe('CalendarController options', () => {
     el.calendarApi.setOption('loading', () => {});
     expect(typeof el.calendarApi.getOption('loading')).toBe('function');
   });
+
+  it('lazyFetching — Boolean flows through', async () => {
+    const el = await mount(
+      `<div data-controller="calendar" data-calendar-lazy-fetching-value="false"></div>`);
+    expect(el.calendarApi.getOption('lazyFetching')).toBe(false);
+  });
 });

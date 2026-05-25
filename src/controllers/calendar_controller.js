@@ -50,6 +50,7 @@ export default class CalendarController extends Controller {
     timeZone: String,
     customScrollbars: Boolean,
     views: Object,
+    lazyFetching: Boolean,
   };
 
   connect() {
@@ -275,7 +276,7 @@ export default class CalendarController extends Controller {
 CalendarController.OPTION_KEYS = [
   'view', 'date', 'duration', 'dateIncrement', 'firstDay', 'hiddenDays',
   'validRange', 'height', 'theme', 'locale', 'timeZone', 'customScrollbars',
-  'views',
+  'views', 'lazyFetching',
 ];
 
 function capitalise(s) {
