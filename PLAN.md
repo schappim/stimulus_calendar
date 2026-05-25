@@ -263,14 +263,14 @@ Each view-introducing commit ships a `docs/images/cal-<view>.png` screenshot.
 
 ## Phase 7 — List view
 
-- [ ] View: `listDay` → `cal-list-day.png`
-- [ ] View: `listWeek` → `cal-list-week.png`
-- [ ] View: `listMonth`
-- [ ] View: `listYear`
-- [ ] Option: `listDayFormat`
-- [ ] Option: `listDaySideFormat`
-- [ ] Option: `noEventsContent`
-- [ ] Option: `noEventsClick`
+- [x] View: `listDay` → `cal-list-day.png`
+- [x] View: `listWeek` → `cal-list-week.png`
+- [x] View: `listMonth`
+- [x] View: `listYear`
+- [x] Option: `listDayFormat`
+- [x] Option: `listDaySideFormat`
+- [x] Option: `noEventsContent`
+- [x] Option: `noEventsClick`
 
 ---
 
@@ -569,7 +569,7 @@ the GitHub repo without expanding every section.
 - [x] Phase 4 — Toolbar
 - [x] Phase 5 — DayGrid view
 - [x] Phase 6 — TimeGrid view
-- [ ] Phase 7 — List view
+- [x] Phase 7 — List view
 - [ ] Phase 8 — Resources + ResourceTimeGrid
 - [ ] Phase 9 — ResourceTimeline
 - [ ] Phase 10 — Events surface

@@ -3,10 +3,12 @@
 
 import { DayGridPlugin } from './day_grid.js';
 import { TimeGridPlugin } from './time_grid.js';
+import { ListPlugin } from './list.js';
 
 export const PLUGINS = {
   DayGrid: DayGridPlugin,
   TimeGrid: TimeGridPlugin,
+  List: ListPlugin,
 };
 
 export function resolvePluginNames(names) {
