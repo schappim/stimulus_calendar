@@ -343,12 +343,46 @@ function attachEventResizeHandler(rootEl, state) {
       return;
     }
     const dy = jsEvent.clientY - r.startY;
-    const deltaMin = Math.round((dy / r.pxPerMin) / r.slotMins) * r.slotMins;
+    const deltaMin = Math.round((dy / r.pxPerMin) / r.snapMins) * r.snapMins;
     const deltaMs = deltaMin * 60_000;
 
     let newStart = new Date(r.event.start.getTime());
     let newEnd   = new Date(r.event.end.getTime());
-    if (r.handleSide === 'end') {
+
+    // Multi-day end-resize: if the pointer landed in a DIFFERENT time
+    // column than the source, the new end snaps to that column's date
+    // + the y-offset's time-of-day. Lets the user drag the bottom edge
+    // across multiple days in the week view to extend the event.
+    const targetTimeCol = (() => {
+      const els = (typeof document !== 'undefined' && document.elementsFromPoint)
+        ? document.elementsFromPoint(jsEvent.clientX, jsEvent.clientY) : [];
+      for (const el of els) {
+        const col = el.closest?.('.ec-time-col');
+        if (col && rootEl.contains(col)) return col;
+      }
+      return null;
+    })();
+    const sourceTimeCol = r.chip.closest('.ec-time-col');
+    const targetDateStr = targetTimeCol?.getAttribute('data-date');
+    const sourceDateStr = sourceTimeCol?.getAttribute('data-date');
+
+    if (targetTimeCol && sourceTimeCol && targetDateStr !== sourceDateStr) {
+      const options = state.get('options');
+      const slotMinMin = totalSecondsOfDuration(options.slotMinTime) / 60 || 0;
+      const rect = targetTimeCol.getBoundingClientRect();
+      const yIn = jsEvent.clientY - rect.top;
+      const minsFromColTop = Math.max(0, Math.round((yIn / r.pxPerMin) / r.snapMins) * r.snapMins);
+      const totalMins = minsFromColTop + slotMinMin;
+      if (r.handleSide === 'end') {
+        newEnd = new Date(targetDateStr + 'T00:00:00Z');
+        newEnd.setUTCMinutes(newEnd.getUTCMinutes() + totalMins);
+        if (newEnd <= newStart) newEnd = new Date(newStart.getTime() + r.snapMins * 60_000);
+      } else {
+        newStart = new Date(targetDateStr + 'T00:00:00Z');
+        newStart.setUTCMinutes(newStart.getUTCMinutes() + totalMins);
+        if (newStart >= newEnd) newStart = new Date(newEnd.getTime() - r.snapMins * 60_000);
+      }
+    } else if (r.handleSide === 'end') {
       newEnd = new Date(newEnd.getTime() + deltaMs);
       if (newEnd <= newStart) newEnd = new Date(newStart.getTime() + r.snapMins * 60_000);
     } else {
