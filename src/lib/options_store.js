@@ -8,6 +8,12 @@
 // options and pushes them back into the MainState that owns the store.
 
 import { assign, hasOwn, isArray, isFunction, isPlainObject, keys } from './utils.js';
+import { createDate, setMidnight } from './date.js';
+import { createDuration } from './duration.js';
+import { createDateRange } from './range.js';
+import { createEvents, createEventSources } from './events.js';
+import { createResources } from './resources.js';
+import { undefinedOr } from './options.js';
 
 // Options whose setter receives the previous (default) value — so a user
 // can pass a function (prev) => merged to extend rather than replace.
@@ -126,7 +132,21 @@ function buildDefaults(plugins) {
 }
 
 function buildParsers(plugins) {
-  const parsers = {};
+  // Default parsers mirror upstream storage/options.js — they're applied
+  // unconditionally so even a plugin-less calendar gets a normalised
+  // duration / date / events array. Plugin parsers (e.g. TimeGrid adds
+  // slotDuration: createDuration) layer on top.
+  const parsers = {
+    date: (input) => setMidnight(createDate(input)),
+    dateIncrement: undefinedOr(createDuration),
+    duration: createDuration,
+    events: createEvents,
+    eventSources: createEventSources,
+    hiddenDays: (input) => [...new Set(input)],
+    highlightedDates: (input) => input.map((item) => setMidnight(createDate(item))),
+    resources: (input) => (isArray(input) ? createResources(input) : input),
+    validRange: createDateRange,
+  };
   for (const plugin of plugins) plugin.createParsers?.(parsers);
   return parsers;
 }

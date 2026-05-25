@@ -13,7 +13,10 @@ describe('lib/options_store', () => {
     expect(options.theme.calendar).toBe('ec');
     expect(options.firstDay).toBe(0);
     expect(options.view).toBe('dayGridMonth');
-    expect(options.duration).toEqual({ weeks: 1 });
+    // Default parser normalises duration through createDuration.
+    expect(options.duration).toEqual({
+      years: 0, months: 0, days: 7, seconds: 0, inWeeks: true,
+    });
   });
 
   it('userOptions.view overrides default', () => {
@@ -33,10 +36,14 @@ describe('lib/options_store', () => {
       },
     };
     const { options, setViewOptions } = createOptionsStore([dayGridPlugin]);
-    expect(options.duration).toEqual({ months: 1 });
+    expect(options.duration).toEqual({
+      years: 0, months: 1, days: 0, seconds: 0, inWeeks: false,
+    });
 
     setViewOptions('timeGridWeek');
-    expect(options.duration).toEqual({ weeks: 1 });
+    expect(options.duration).toEqual({
+      years: 0, months: 0, days: 7, seconds: 0, inWeeks: true,
+    });
   });
 
   it('setOption updates live options + triggers parser when parsed:false', () => {

@@ -170,9 +170,12 @@ with full Vitest coverage. No Stimulus controllers yet. **Rails tests N/A**
 Each option commit lands JS test, demo update, and (once Phase 0a ships) a
 matching ERB usage example in `gem/demo` if the option is server-renderable.
 
-- [ ] `controllers/calendar_controller.js` — full lifecycle:
+- [x] `controllers/calendar_controller.js` — full lifecycle:
       `connect`, `disconnect`, mount root DOM (`.ec`, toolbar slot, view slot),
-      expose instance API on `this`
+      expose instance API on `element.calendarApi`, fire `calendar:ready`,
+      derivation pipeline (currentRange → activeRange → viewDates → offset →
+      view → filteredEvents), default parsers wired into options_store so
+      duration is always normalised before reaching `addDuration`.
 - [ ] Option: `date`
 - [ ] Option: `duration`
 - [ ] Option: `dateIncrement`
