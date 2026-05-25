@@ -40,6 +40,7 @@ export default class CalendarController extends Controller {
     view: String,
     date: String,
     duration: Object,
+    dateIncrement: Object,
   };
 
   connect() {
@@ -262,7 +263,7 @@ export default class CalendarController extends Controller {
 // List of option keys that the controller treats as individual
 // data-calendar-<key>-value attributes. Each Phase 3 option commit appends
 // here and adds the matching `static values` entry.
-CalendarController.OPTION_KEYS = ['view', 'date', 'duration'];
+CalendarController.OPTION_KEYS = ['view', 'date', 'duration', 'dateIncrement'];
 
 function capitalise(s) {
   return s.charAt(0).toUpperCase() + s.slice(1);

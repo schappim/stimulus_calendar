@@ -47,4 +47,12 @@ describe('CalendarController options', () => {
       years: 0, months: 0, days: 3, seconds: 0, inWeeks: false,
     });
   });
+
+  it('dateIncrement — data-calendar-date-increment-value parses through createDuration', async () => {
+    const el = await mount(
+      `<div data-controller="calendar" data-calendar-date-increment-value='{"weeks":2}'></div>`);
+    expect(el.calendarApi.getOption('dateIncrement')).toEqual({
+      years: 0, months: 0, days: 14, seconds: 0, inWeeks: true,
+    });
+  });
 });
