@@ -135,8 +135,8 @@ with full Vitest coverage. No Stimulus controllers yet. **Rails tests N/A**
       `prepareAllDayChunks` (prev + long maps for stacking),
       `repositionEvent` (overlap-aware vertical layout), `assignChunkId`
       (WeakMap-backed stable ids across re-renders)
-- [ ] `lib/view.js` — `createView` factory (start, end, currentStart, currentEnd,
-      title, type)
+- [x] `lib/view.js` — `createView` factory (type, title, currentStart/End,
+      activeStart/End, calendar), `toViewWithLocalDates` (public-API clone)
 - [ ] `lib/derived.js` — pure helpers behind `currentRange`, `activeRange`,
       `viewDates`, `viewTitle`, `filteredEvents`, `offset`
 
