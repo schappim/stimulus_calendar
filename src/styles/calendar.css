@@ -1,0 +1,19 @@
+/*
+ * stimulus_calendar — default theme.
+ *
+ * Stylesheet skeleton. Per-view rules (.ec-day, .ec-event, .ec-slot, …) are
+ * filled in as each view is ported. The full source we're porting from lives
+ * under ./calendar/packages/core/src/styles/ (gitignored).
+ */
+
+.ec {
+  box-sizing: border-box;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: #1f2937;
+}
+
+.ec *,
+.ec *::before,
+.ec *::after {
+  box-sizing: inherit;
+}

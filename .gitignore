@@ -1,0 +1,14 @@
+node_modules/
+dist/
+dist-demos/
+.DS_Store
+*.log
+.vite/
+.cache/
+coverage/
+.env
+.env.local
+
+# Upstream Svelte source we're porting from — kept locally for reference,
+# never committed.
+calendar/
