@@ -257,6 +257,9 @@
   line-height: 1.25;
   overflow: hidden;
   cursor: default;
+  /* Touch drags on the chip itself drive the Interaction plugin's drag
+   * pipeline — don't let the browser intercept them for native scroll. */
+  touch-action: none;
 }
 
 .ec-day-grid .ec-event .ec-event-dot {
@@ -426,7 +429,8 @@
   font-size: 0.75rem;
   line-height: 1.2;
   box-shadow: 0 0 0 1px var(--ec-event-border-color);
-  overflow: hidden;
+  overflow: visible;     /* allow .ec-resizer to extend past the bottom edge */
+  touch-action: none;
 }
 
 .ec-time-grid .ec-event .ec-event-title {

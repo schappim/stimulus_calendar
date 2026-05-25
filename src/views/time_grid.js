@@ -123,6 +123,8 @@ export function renderTimeGridView(container, state) {
       for (const event of dayEvents) {
         const chip = createElement('div', theme.event, '', [
           ['data-event-id', event.id],
+          ['data-event-start', event.start.toISOString()],
+          ['data-event-end',   event.end.toISOString()],
         ]);
         const minutesPerSlot = (totalSeconds(options.slotDuration) / 60);
         const slotMinMin = totalSeconds(slotTimeLimits.min) / 60;
@@ -136,6 +138,22 @@ export function renderTimeGridView(container, state) {
         chip.style.right = '0';
         if (event.backgroundColor) chip.style.backgroundColor = event.backgroundColor;
         chip.append(createElement('div', theme.eventTitle, event.title || ''));
+        // Resize handle (bottom edge). Surfaces only when editing is
+        // enabled; the Interaction plugin's pointerdown handler picks
+        // up [.ec-resizer] and runs the resize gesture.
+        const canResize = (options.editable || options.eventDurationEditable) && !event.editable === false;
+        if (canResize !== false && (options.editable || options.eventDurationEditable)) {
+          const resizer = createElement('div', `${theme.resizer ?? 'ec-resizer'} ec-resizer-end`, '', [
+            ['data-resizer', 'end'],
+          ]);
+          chip.append(resizer);
+          if (options.eventResizableFromStart) {
+            const startResizer = createElement('div', `${theme.resizer ?? 'ec-resizer'} ec-resizer-start`, '', [
+              ['data-resizer', 'start'],
+            ]);
+            chip.append(startResizer);
+          }
+        }
         const fire = state.get('fire');
         chip.addEventListener('click',     (jsEvent) => fire?.('eventClick',      { event, jsEvent, view: state.get('view') }));
         chip.addEventListener('dblclick',  (jsEvent) => fire?.('eventDoubleClick',{ event, jsEvent, view: state.get('view'), el: chip }));
