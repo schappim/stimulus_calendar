@@ -38,7 +38,7 @@ export function renderResourceTimeGridView(container, state) {
     // datesAboveResources is true).
     const header = createElement('div', theme.colHead, '', [['data-row', 'header']]);
     header.append(createElement('div', `${theme.sidebar} ec-corner`));
-    const headerFmt = new Intl.DateTimeFormat(options.locale, options.dayHeaderFormat);
+    const headerFmt = new Intl.DateTimeFormat(options.locale, { timeZone: 'UTC', ...options.dayHeaderFormat });
     for (const day of days) {
       for (const resource of visibleResources) {
         const head = createElement('div', theme.dayHead, '', [
@@ -74,7 +74,7 @@ export function renderResourceTimeGridView(container, state) {
       options.flexibleSlotTimeLimits, days, filtered,
     );
     const slotLabelFmt = {
-      format: (d) => new Intl.DateTimeFormat(options.locale, options.slotLabelFormat).format(d),
+      format: (d) => new Intl.DateTimeFormat(options.locale, { timeZone: 'UTC', ...options.slotLabelFormat }).format(d),
     };
     const slots = createSlots(
       activeRange.start, options.slotDuration, 1, slotTimeLimits, slotLabelFmt,

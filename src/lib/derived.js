@@ -18,10 +18,14 @@ import { isFunction, tzOffset } from './utils.js';
 
 // intl(locale, format) → { format(date) }
 //   `format` can be an Intl-options object, or a function that takes a Date.
+// Defaults to formatting in UTC since internal Date values are constructed
+// via Date.UTC(...) and represent the user's intended (offset-aware) wall
+// clock — formatting in the JS runtime's local TZ would shift the labels by
+// the offset.
 export function intl(locale, format) {
   const intlObj = isFunction(format)
     ? { format }
-    : new Intl.DateTimeFormat(locale, format);
+    : new Intl.DateTimeFormat(locale, { timeZone: 'UTC', ...format });
   return {
     format: (date) => intlObj.format(date instanceof Date ? date : new Date(date)),
   };
@@ -35,7 +39,7 @@ export function intlRange(locale, format) {
   if (isFunction(format)) {
     formatRange = format;
   } else {
-    const intlObj = new Intl.DateTimeFormat(locale, format);
+    const intlObj = new Intl.DateTimeFormat(locale, { timeZone: 'UTC', ...format });
     formatRange = (start, end) => {
       if (start <= end) return intlObj.formatRange(start, end);
       const parts = intlObj.formatRangeToParts(end, start);

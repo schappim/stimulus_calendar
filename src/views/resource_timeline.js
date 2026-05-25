@@ -27,7 +27,7 @@ export function renderResourceTimelineView(container, state) {
     // Header — day labels across the timeline.
     const header = createElement('div', theme.colHead, '', [['data-row', 'header']]);
     header.append(createElement('div', `${theme.rowHead}`));
-    const headerFmt = new Intl.DateTimeFormat(options.locale, options.dayHeaderFormat);
+    const headerFmt = new Intl.DateTimeFormat(options.locale, { timeZone: 'UTC', ...options.dayHeaderFormat });
     const slotsHeader = createElement('div', theme.slots);
     for (const day of days) {
       const cell = createElement('div', theme.dayHead, headerFmt.format(day), [

@@ -18,7 +18,7 @@ function eventsOnDay(events, day) {
 
 function eventTimeText(event, options) {
   if (event.allDay) return '';
-  const fmt = new Intl.DateTimeFormat(options.locale, options.eventTimeFormat);
+  const fmt = new Intl.DateTimeFormat(options.locale, { timeZone: 'UTC', ...options.eventTimeFormat });
   return fmt.format(event.start);
 }
 
@@ -44,7 +44,7 @@ export function renderDayGridView(container, state) {
     if (options.weekNumbers) {
       headers.append(createElement('div', theme.weekNumber, ''));
     }
-    const headerFmt = new Intl.DateTimeFormat(options.locale, options.dayHeaderFormat);
+    const headerFmt = new Intl.DateTimeFormat(options.locale, { timeZone: 'UTC', ...options.dayHeaderFormat });
     for (const d of days.slice(0, visibleWeekdays)) {
       const head = createElement('div', theme.dayHead, headerFmt.format(d), [
         ['data-day', String(d.getUTCDay())],
@@ -59,7 +59,7 @@ export function renderDayGridView(container, state) {
     let row = createElement('div', '', '', [['data-row', 'days']]);
     const today = midnightToday();
     const currentRange = state.get('currentRange');
-    const dayFmt = new Intl.DateTimeFormat(options.locale, options.dayCellFormat ?? { day: 'numeric' });
+    const dayFmt = new Intl.DateTimeFormat(options.locale, { timeZone: 'UTC', ...(options.dayCellFormat ?? { day: 'numeric' }) });
     for (let i = 0; i < days.length; ++i) {
       if (i > 0 && i % visibleWeekdays === 0) {
         grid.append(row);
@@ -235,7 +235,7 @@ function midnightToday() {
 function openDayPopover(state, day, events) {
   const options = state.get('options');
   const theme = options.theme;
-  const fmt = new Intl.DateTimeFormat(options.locale, options.dayPopoverFormat);
+  const fmt = new Intl.DateTimeFormat(options.locale, { timeZone: 'UTC', ...options.dayPopoverFormat });
   const popup = createElement('div', `${theme.popup} ec-day-popover`, '', [
     ['data-popover', 'day'],
     ['data-date', day.toISOString().substring(0, 10)],
@@ -258,7 +258,7 @@ function openDayPopover(state, day, events) {
     chip.append(createElement('span', 'ec-event-dot'));
     const time = event.allDay
       ? ''
-      : new Intl.DateTimeFormat(options.locale, options.eventTimeFormat).format(event.start);
+      : new Intl.DateTimeFormat(options.locale, { timeZone: 'UTC', ...options.eventTimeFormat }).format(event.start);
     if (time) chip.append(createElement('time', theme.eventTime, time + ' '));
     chip.append(createElement('span', theme.eventTitle, event.title || ''));
     list.append(chip);

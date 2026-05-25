@@ -20,9 +20,9 @@ export function renderListView(container, state) {
       ['data-grid', 'list'],
     ]);
 
-    const dayFmt = new Intl.DateTimeFormat(options.locale, options.listDayFormat);
-    const sideFmt = new Intl.DateTimeFormat(options.locale, options.listDaySideFormat);
-    const timeFmt = new Intl.DateTimeFormat(options.locale, options.eventTimeFormat);
+    const dayFmt = new Intl.DateTimeFormat(options.locale, { timeZone: 'UTC', ...options.listDayFormat });
+    const sideFmt = new Intl.DateTimeFormat(options.locale, { timeZone: 'UTC', ...options.listDaySideFormat });
+    const timeFmt = new Intl.DateTimeFormat(options.locale, { timeZone: 'UTC', ...options.eventTimeFormat });
 
     let totalEvents = 0;
     for (const day of days) {

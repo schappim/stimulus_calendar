@@ -26,7 +26,7 @@ export function renderTimeGridView(container, state) {
       ['data-row', 'header'],
     ]);
     header.append(createElement('div', `${theme.sidebar} ec-corner`));
-    const headerFmt = new Intl.DateTimeFormat(options.locale, options.dayHeaderFormat);
+    const headerFmt = new Intl.DateTimeFormat(options.locale, { timeZone: 'UTC', ...options.dayHeaderFormat });
     for (const d of days) {
       const head = createElement('div', theme.dayHead, headerFmt.format(d), [
         ['data-day', String(d.getUTCDay())],
@@ -87,7 +87,7 @@ export function renderTimeGridView(container, state) {
       options.flexibleSlotTimeLimits, days, filtered,
     );
     const slotLabelFmt = {
-      format: (d) => new Intl.DateTimeFormat(options.locale, options.slotLabelFormat).format(d),
+      format: (d) => new Intl.DateTimeFormat(options.locale, { timeZone: 'UTC', ...options.slotLabelFormat }).format(d),
     };
     const slotLabelPeriodicity = computePeriodicity(options.slotLabelInterval, options.slotDuration);
     const slots = createSlots(
