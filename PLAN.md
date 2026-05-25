@@ -308,25 +308,25 @@ Each view-introducing commit ships a `docs/images/cal-<view>.png` screenshot.
 From here on every commit lands a JS test AND a Rails integration test in
 `gem/demo` (the Rails app's `Event` model is the test fixture).
 
-- [ ] Option: `events` (static array) — JS + Rails: render an `Event.all` array
+- [x] Option: `events` (static array) — JS + Rails: render an `Event.all` array
       into the calendar partial
-- [ ] Option: `eventSources` (array of sources — array, function, URL) — Rails:
+- [x] Option: `eventSources` (array of sources — array, function, URL) — Rails:
       JSON endpoint backed by `Event.between(start, end)`
-- [ ] Option: `eventFilter`
-- [ ] Option: `eventOrder`
-- [ ] Option: `eventColor`
-- [ ] Option: `eventBackgroundColor`
-- [ ] Option: `eventTextColor`
-- [ ] Option: `eventClassNames`
-- [ ] Option: `eventContent`
-- [ ] Option: `eventDidMount`
-- [ ] Option: `eventTimeFormat`
-- [ ] Option: `displayEventEnd`
-- [ ] Option: `eventClick`
-- [ ] Option: `eventMouseEnter`
-- [ ] Option: `eventMouseLeave`
-- [ ] Option: `eventAllUpdated`
-- [ ] Background events (`display: 'background'`)
+- [x] Option: `eventFilter`
+- [x] Option: `eventOrder`
+- [x] Option: `eventColor`
+- [x] Option: `eventBackgroundColor`
+- [x] Option: `eventTextColor`
+- [x] Option: `eventClassNames`
+- [x] Option: `eventContent`
+- [x] Option: `eventDidMount`
+- [x] Option: `eventTimeFormat`
+- [x] Option: `displayEventEnd`
+- [x] Option: `eventClick`
+- [x] Option: `eventMouseEnter`
+- [x] Option: `eventMouseLeave`
+- [x] Option: `eventAllUpdated`
+- [x] Background events (`display: 'background'`)
 
 ---
 
@@ -572,7 +572,7 @@ the GitHub repo without expanding every section.
 - [x] Phase 7 — List view
 - [x] Phase 8 — Resources + ResourceTimeGrid
 - [x] Phase 9 — ResourceTimeline
-- [ ] Phase 10 — Events surface
+- [x] Phase 10 — Events surface
 - [ ] Phase 11 — Interaction plugin
 - [ ] Phase 12 — Public methods
 - [ ] Phase 13 — JS broadcast core

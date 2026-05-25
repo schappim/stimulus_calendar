@@ -111,16 +111,64 @@ export function renderDayGridView(container, state) {
         const visible = dayEvents.slice(0, maxEvents);
         const hidden = dayEvents.slice(maxEvents);
         for (const event of visible) {
-          const chip = createElement('div', theme.event, '', [
+          // Background events render as a translucent band (no chip).
+          if (event.display === 'background') {
+            const bg = createElement('div', theme.bgEvent, '', [
+              ['data-event-id', event.id],
+            ]);
+            const bgColor = event.backgroundColor ?? options.eventBackgroundColor ?? options.eventColor;
+            if (bgColor) bg.style.backgroundColor = bgColor;
+            cell.append(bg);
+            continue;
+          }
+          const classes = [theme.event];
+          const globalCls = options.eventClassNames;
+          if (typeof globalCls === 'function') {
+            const c = globalCls({ event });
+            if (c) classes.push(...(Array.isArray(c) ? c : [c]));
+          } else if (globalCls) {
+            classes.push(...(Array.isArray(globalCls) ? globalCls : [globalCls]));
+          }
+          classes.push(...event.classNames);
+          const chip = createElement('div', classes.filter(Boolean).join(' '), '', [
             ['data-event-id', event.id],
           ]);
-          if (event.backgroundColor) chip.style.backgroundColor = event.backgroundColor;
-          if (event.textColor) chip.style.color = event.textColor;
-          const dot = createElement('span', 'ec-event-dot');
-          const time = eventTimeText(event, options);
-          if (time) chip.append(dot, createElement('time', theme.eventTime, time + ' '));
-          else chip.append(dot);
-          chip.append(createElement('span', theme.eventTitle, event.title || ''));
+          const bgColor = event.backgroundColor ?? options.eventBackgroundColor ?? options.eventColor;
+          const txtColor = event.textColor ?? options.eventTextColor;
+          if (bgColor) chip.style.backgroundColor = bgColor;
+          if (txtColor) chip.style.color = txtColor;
+          // Custom event content takes priority over the default dot/time/title.
+          if (options.eventContent) {
+            const fn = options.eventContent;
+            const content = typeof fn === 'function'
+              ? fn({ event, timeText: eventTimeText(event, options), view: state.get('view') })
+              : fn;
+            if (typeof content === 'string') chip.innerText = content;
+            else if (content?.html) chip.innerHTML = content.html;
+            else if (content?.domNodes) chip.replaceChildren(...content.domNodes);
+          } else {
+            const dot = createElement('span', 'ec-event-dot');
+            const time = eventTimeText(event, options);
+            if (time && options.displayEventEnd !== false) {
+              chip.append(dot, createElement('time', theme.eventTime, time + ' '));
+            } else {
+              chip.append(dot);
+            }
+            chip.append(createElement('span', theme.eventTitle, event.title || ''));
+          }
+          // User event handlers.
+          if (typeof options.eventClick === 'function') {
+            chip.addEventListener('click', (jsEvent) => options.eventClick({ event, jsEvent, view: state.get('view') }));
+          }
+          if (typeof options.eventMouseEnter === 'function') {
+            chip.addEventListener('mouseenter', (jsEvent) => options.eventMouseEnter({ event, jsEvent, view: state.get('view') }));
+          }
+          if (typeof options.eventMouseLeave === 'function') {
+            chip.addEventListener('mouseleave', (jsEvent) => options.eventMouseLeave({ event, jsEvent, view: state.get('view') }));
+          }
+          if (typeof options.eventDidMount === 'function') {
+            queueMicrotask(() => options.eventDidMount({ event, el: chip, view: state.get('view') }));
+          }
           list.append(chip);
         }
         if (hidden.length) {
