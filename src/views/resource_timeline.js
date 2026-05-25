@@ -50,7 +50,10 @@ export function renderResourceTimelineView(container, state) {
         ['data-depth', String(depth)],
       ]);
       const head = createElement('div', theme.rowHead, '', [['data-resource-label', '']]);
-      head.style.paddingLeft = `${depth * 16}px`;
+      // Indent nested resources via a custom property the CSS adds to its
+      // base padding — setting padding-left directly would clobber the
+      // stylesheet's leading whitespace.
+      head.style.setProperty('--ec-row-head-indent', `${depth * 16}px`);
 
       // Expander button for nested resources.
       const hasChildren = payload?.children?.length > 0;

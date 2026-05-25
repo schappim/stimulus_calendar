@@ -516,7 +516,10 @@
 .ec-timeline .ec-row-head {
   display: flex;
   align-items: center;
-  padding: 0.375rem 0.5rem;
+  /* Base padding + per-row indent (set inline as --ec-row-head-indent for
+   * nested resources). Keeps the resource label clear of the calendar's
+   * left edge even at depth 0. */
+  padding: 0.5rem 0.75rem 0.5rem calc(1rem + var(--ec-row-head-indent, 0px));
   font-size: 0.875rem;
   font-weight: 500;
   border-right: 1px solid var(--ec-border-color);
