@@ -56,17 +56,17 @@ reference implementation we're porting.
 These set up the *structure* before features ship. Future per-feature commits
 slot content into the existing files rather than inventing new layout each time.
 
-- [ ] `README.md` — rewrite to mirror stimulus_grid: badges, hero image,
+- [x] `README.md` — rewrite to mirror stimulus_grid: badges, hero image,
       install (Option A IIFE / Option B npm / Option C Rails gem), quick start
       with **runnable from-the-repo** instructions, screenshot placeholders,
       attribute tables (filled per-phase), events list, public API, Rails
       section, demos, build, tests, license.
-- [ ] `docs/images/.gitkeep` — directory exists from day one so per-feature
+- [x] `docs/images/.gitkeep` — directory exists from day one so per-feature
       screenshots can drop into it without scaffolding noise.
-- [ ] `skills/stimulus-calendar-js/SKILL.md` — frontmatter + section outline
+- [x] `skills/stimulus-calendar-js/SKILL.md` — frontmatter + section outline
       (setup, minimal calendar, attributes, events, API, gotchas). Content
       fills in per-feature.
-- [ ] `skills/stimulus-calendar-rails/SKILL.md` — frontmatter + section
+- [x] `skills/stimulus-calendar-rails/SKILL.md` — frontmatter + section
       outline (setup, declaring an EventCalendar, Broadcastable, render
       partial, custom Turbo Stream actions, gotchas).
 - [ ] `RAILS.md` — Hotwire-Native Event Calendar build checklist, modeled on
