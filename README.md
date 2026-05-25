@@ -149,45 +149,286 @@ connected user sees it move within ~50ms.
 
 ## Calendar attributes (`data-calendar-*-value`)
 
-> The full attribute surface is documented per-option in
-> [`skills/stimulus-calendar-js/SKILL.md`](skills/stimulus-calendar-js/SKILL.md);
-> the table here lists the high-level switches. Rows ship as their matching
-> `PLAN.md` checkbox is ticked.
+Pass any option as a `data-calendar-<option>-value` attribute (kebab-case),
+or bundle several together under `data-calendar-options-value` as a JSON
+object. Both forms are equivalent — pick whichever is convenient. Object /
+array values must be JSON-encoded; scalars stay literal.
 
-| Attribute | Meaning |
-|---|---|
-| `view` | initial view: `dayGridMonth`, `timeGridWeek`, `timeGridDay`, `listDay`, `listWeek`, `listMonth`, `listYear`, `resourceTimeGridDay`, `resourceTimeGridWeek`, `resourceTimelineDay`, `resourceTimelineWeek`, `resourceTimelineMonth`, `resourceTimelineYear` |
-| `plugins` | JSON array — `"DayGrid"`, `"TimeGrid"`, `"List"`, `"Resource"`, `"ResourceTimeGrid"`, `"ResourceTimeline"`, `"Interaction"` |
-| `options` | JSON of the rest of the [vkurko/calendar options](https://github.com/vkurko/calendar#options) (events, locale, headerToolbar, slotDuration, …) |
-| `event-source` | URL returning a JSON array of events |
-| `resource-source` | URL returning a JSON array of resources |
-| `broadcast` | `false`, `"turbo-stream"`, `"action-cable"`, `"websocket"`, `"broadcast-channel"` |
-| `broadcast-channel` | channel name / URL for the chosen adapter |
+Every option below is built in — there is **no external options reference
+to consult**. Items ship as their matching [PLAN.md](./PLAN.md) checkbox
+ticks; unticked options accept the value and ignore it for now.
+
+### Core (every view) — 41 options
+
+| Option | Type | Default | What it does |
+|---|---|---|---|
+| `view` | string | (from plugin) | Initial view name (see the per-plugin tables below for the full list). |
+| `views` | object | `{}` | Per-view overrides keyed by view name (e.g. `{ "timeGridWeek": { slotDuration: "00:15" } }`). |
+| `plugins` | string[] | `[]` | Which plugins to load: `"DayGrid"`, `"TimeGrid"`, `"List"`, `"Resource"`, `"ResourceTimeGrid"`, `"ResourceTimeline"`, `"Interaction"`. |
+| `date` | Date \| ISO string | `today` | The date the calendar is anchored at; navigates around this point. |
+| `duration` | Duration | `{ weeks: 1 }` | How much time a view spans (`{days: 1}`, `"01:00"`, `90`s, etc.). |
+| `dateIncrement` | Duration | `duration` | Step size for prev/next buttons. |
+| `firstDay` | 0–6 | `0` (Sun) | First day of the week. |
+| `hiddenDays` | number[] | `[]` | Weekdays to hide (`[0, 6]` → weekends). |
+| `validRange` | `{ start, end }` | `undefined` | Restrict navigation to this window; outside dates render disabled. |
+| `height` | string \| number | `undefined` | CSS height for the calendar shell. |
+| `theme` | object | (see `src/lib/theme.js`) | Map of CSS class names; pass a function `(prev) => merged` to extend. |
+| `locale` | string \| object | `undefined` | `Intl` locale tag (e.g. `"fr-FR"`) or full locale object. |
+| `timeZone` | string | `"local"` | `"local"`, `"UTC"`, or a named IANA TZ (e.g. `"Australia/Sydney"`). |
+| `customScrollbars` | bool | `false` | Render the calendar's own scrollbars instead of the browser's. |
+| `viewDidMount` | fn(`{view, el}`) | `undefined` | Fires when a view is first rendered. |
+| `datesSet` | fn(`{start, end, view}`) | `undefined` | Fires when the displayed range changes. |
+| `loading` | fn(isLoading) | `undefined` | Fires when an event source starts/stops fetching. |
+| `lazyFetching` | bool | `true` | Re-hit event source URLs only when the view range changes. |
+| `highlightedDates` | (Date\|string)[] | `[]` | Dates to render with the highlight theme. |
+| `titleFormat` | Intl format | `{ year:'numeric', month:'short', day:'numeric' }` | Toolbar title format. |
+| `dayHeaderFormat` | Intl format | `{ weekday:'short', month:'numeric', day:'numeric' }` | Column-header format. |
+| `dayHeaderAriaLabelFormat` | Intl format | `{ dateStyle: 'full' }` | Screen-reader header text. |
+| `icons` | object | `{}` | Map of icon name → `{ html }` or string; passing a function `(prev) => merged` extends. |
+| `buttonText` | object | (see below) | Map of button name → label; same merge semantics as `theme`. |
+| `customButtons` | object | `{}` | `{ name: { text, click, … } }` toolbar buttons. |
+| `headerToolbar` | `{ start, center, end }` | `{ start:'title', center:'', end:'today prev,next' }` | Toolbar layout; tokens: `title`, `today`, `prev`, `next`, `prevYear`, `nextYear`, any view name, or a custom-button name. Use a space (`prev,next`) for a button group. |
+| `events` | Event[] | `[]` | Inline event array. |
+| `eventSources` | EventSource[] | `[]` | Array of `{ events, url, color, classNames, ... }` sources (function sources OK). |
+| `eventFilter` | fn(event) → bool | `undefined` | Per-event include/exclude predicate. |
+| `eventOrder` | string \| string[] \| fn | `undefined` | Sort key(s) within a slot. |
+| `eventColor` | string | `undefined` | Shorthand setting bg + text. |
+| `eventBackgroundColor` | string | `undefined` | Per-event default; per-event `backgroundColor` wins. |
+| `eventTextColor` | string | `undefined` | Per-event default; per-event `textColor` wins. |
+| `eventClassNames` | string \| string[] \| fn | `undefined` | Extra classes on every event element. |
+| `eventContent` | fn(info) \| `{ html }` \| `{ domNodes }` \| string | `undefined` | Replace the default event renderer. |
+| `eventDidMount` | fn(`{event, el, view}`) | `undefined` | Fires once each event is in the DOM. |
+| `eventTimeFormat` | Intl format | `{ hour:'numeric', minute:'2-digit' }` | Time text shown on each event. |
+| `displayEventEnd` | bool | `true` | Show end-time text on events. |
+| `eventClick` | fn(`{event, jsEvent}`) | `undefined` | Click handler. |
+| `eventMouseEnter` | fn(`{event, jsEvent}`) | `undefined` | Hover-in handler. |
+| `eventMouseLeave` | fn(`{event, jsEvent}`) | `undefined` | Hover-out handler. |
+| `eventAllUpdated` | fn() | `undefined` | Fires after every event re-render pass. |
+| `selectable` | bool | `false` | Allow dragging across cells to select a range (Interaction plugin). |
+
+### DayGrid plugin — adds the `dayGridDay`, `dayGridWeek`, `dayGridMonth` views
+
+| Option | Type | Default | What it does |
+|---|---|---|---|
+| `dayCellFormat` | Intl format | `{ day:'numeric' }` | Day-number format inside each cell. |
+| `dayCellContent` | fn(info) \| string \| `{ html }` | `undefined` | Replace the day-cell's body content. |
+| `dayMaxEvents` | bool \| number | `false` | Collapse overflow into a "+N more" link; `true` = auto-fit. |
+| `moreLinkContent` | fn(info) \| string | `undefined` | Replace the "+N more" link content. |
+| `dayPopoverFormat` | Intl format | `{ month:'long', day:'numeric', year:'numeric' }` | Header format for the day popover. |
+| `weekNumbers` | bool | `false` | Render an ISO/Western week-number column. |
+| `weekNumberContent` | fn(`{week, date}`) \| string | `undefined` | Replace the week-number cell content. |
+
+Adds toolbar buttons `dayGridDay` / `dayGridWeek` / `dayGridMonth` (+ `close`).
+
+### TimeGrid plugin — adds the `timeGridDay`, `timeGridWeek` views
+
+| Option | Type | Default | What it does |
+|---|---|---|---|
+| `slotDuration` | Duration | `"00:30:00"` | Length of each row slot. |
+| `slotHeight` | number (px) | `24` | Pixel height per slot. |
+| `slotMinTime` | Duration | `"00:00:00"` | First visible time-of-day. |
+| `slotMaxTime` | Duration | `"24:00:00"` | Last visible time-of-day. |
+| `slotLabelInterval` | Duration | `undefined` | Time-axis label cadence (defaults to `slotDuration`). |
+| `slotLabelFormat` | Intl format | `{ hour:'numeric', minute:'2-digit' }` | Time-axis label format. |
+| `scrollTime` | Duration | `"06:00:00"` | Initial scroll position. |
+| `flexibleSlotTimeLimits` | bool \| object | `false` | Auto-expand min/max when events spill outside. |
+| `nowIndicator` | bool | `false` | Draw the "now" red line. |
+| `slotEventOverlap` | bool | `true` | Render concurrent events overlapping (vs side-by-side). |
+| `allDaySlot` | bool | `true` | Show the all-day row. |
+| `allDayContent` | fn \| string \| `{html}` | `undefined` | Replace the all-day label. |
+| `columnWidth` | number (px) | `undefined` | Force a fixed day-column width (else auto-fits). |
+| `snapDuration` | Duration | `undefined` | Drag/resize/select grid resolution; falls back to `slotDuration`. |
+
+Adds toolbar buttons `timeGridDay` / `timeGridWeek`.
+
+### List plugin — adds the `listDay`, `listWeek`, `listMonth`, `listYear` views
+
+| Option | Type | Default | What it does |
+|---|---|---|---|
+| `listDayFormat` | Intl format | `{ weekday: 'long' }` | Day-header (left side) format. |
+| `listDaySideFormat` | Intl format | `{ year:'numeric', month:'long', day:'numeric' }` | Day-header (right side) format. |
+| `noEventsContent` | string \| fn \| `{html}` | `"No events"` | Empty-state body. |
+| `noEventsClick` | fn(`{jsEvent}`) | `undefined` | Click handler on the empty-state. |
+
+Adds toolbar buttons `listDay` / `listWeek` / `listMonth` / `listYear`.
+
+### Resource + ResourceTimeGrid plugin — adds `resourceTimeGridDay`, `resourceTimeGridWeek`
+
+| Option | Type | Default | What it does |
+|---|---|---|---|
+| `resources` | Resource[] \| fn \| EventSource-shape | `[]` | Resource axis: array of `{ id, title, eventBackgroundColor?, eventTextColor?, children? }`. |
+| `refetchResourcesOnNavigate` | bool | `false` | Re-fetch a function/URL resource source on prev/next. |
+| `datesAboveResources` | bool | `false` | Swap the axes — dates on top, resources on left, or vice versa. |
+| `resourceLabelContent` | fn(`{resource}`) \| string | `undefined` | Replace the resource-label content. |
+| `resourceLabelDidMount` | fn(`{resource, el}`) | `undefined` | Fires once each resource label is in the DOM. |
+| `filterResourcesWithEvents` | bool | `false` | Hide resources with zero events in the active range. |
+| `filterEventsWithResources` | bool | `false` | Hide events whose `resourceIds` don't match any visible resource. |
+
+Inherits every TimeGrid option (slots, all-day, now indicator). Adds toolbar
+buttons `resourceTimeGridDay` / `resourceTimeGridWeek`.
+
+### ResourceTimeline plugin — adds `resourceTimelineDay/Week/Month/Year`
+
+| Option | Type | Default | What it does |
+|---|---|---|---|
+| `slotWidth` | number (px) | `32` | Width of each time-axis cell. |
+| `monthHeaderFormat` | Intl format | `{ month: 'long' }` | Header format for month/year timeline views. |
+| `resourceExpand` | bool \| `'all'` \| number | `undefined` | Auto-expand resource tree to depth N (use `'all'` for everything). |
+
+Inherits every TimeGrid (slots / now indicator) and Resource (filter / label
+hooks) option. Adds toolbar buttons `resourceTimelineDay/Week/Month/Year`
+and `expand` / `collapse`.
+
+### Interaction plugin — drag, drop, resize, click-to-select
+
+| Option | Type | Default | What it does |
+|---|---|---|---|
+| `pointer` | bool | `false` | Enable pointer affordances (cursor changes, hover preview). |
+| `dateClick` | fn(`{date, allDay, jsEvent}`) | `undefined` | Click handler on an empty cell. |
+| `editable` | bool | `false` | Master switch — enables drag/resize on every event. |
+| `eventStartEditable` | bool | `true` | When `editable`, allow start-time edits. |
+| `eventDurationEditable` | bool | `true` | When `editable`, allow duration edits via resize. |
+| `eventResizableFromStart` | bool | `false` | Render a resize handle on the leading edge too. |
+| `eventDragStart` | fn(info) | `undefined` | Fires when a drag begins. |
+| `eventDragStop` | fn(info) | `undefined` | Fires when a drag ends (before drop). |
+| `eventDrop` | fn(`{event, oldEvent, delta, revert}`) | `undefined` | Fires on drop — call `revert()` to undo. |
+| `eventResizeStart` | fn(info) | `undefined` | Fires when a resize begins. |
+| `eventResizeStop` | fn(info) | `undefined` | Fires when a resize ends (before commit). |
+| `eventResize` | fn(`{event, oldEvent, endDelta, revert}`) | `undefined` | Fires on commit — call `revert()` to undo. |
+| `eventDragMinDistance` | number (px) | `5` | Pointer-move threshold before a drag starts. |
+| `eventLongPressDelay` | number (ms) | `undefined` | Override the global long-press for events. |
+| `dragConstraint` | object | `undefined` | Restrict drag destinations (e.g. `{ resources: ['1', '2'] }`). |
+| `dragScroll` | bool | `true` | Auto-scroll while dragging near an edge. |
+| `snapDuration` | Duration | `undefined` | Grid resolution for drag/resize/select. |
+| `resizeConstraint` | object | `undefined` | Restrict resize bounds. |
+| `selectable` | bool | `false` | Allow click-drag selection across cells. |
+| `select` | fn(`{start, end, allDay, jsEvent}`) | `undefined` | Fires on a selection. |
+| `unselect` | fn(`{jsEvent}`) | `undefined` | Fires when the selection clears. |
+| `unselectAuto` | bool | `true` | Clear selection on outside-click. |
+| `unselectCancel` | string | `""` | CSS selector for elements that *don't* clear the selection. |
+| `selectBackgroundColor` | string | `undefined` | Override the selection highlight colour. |
+| `selectConstraint` | object | `undefined` | Restrict the bounds of a selection. |
+| `selectMinDistance` | number (px) | `5` | Pointer-move threshold before a selection starts. |
+| `selectLongPressDelay` | number (ms) | `undefined` | Override the global long-press for selections. |
+| `longPressDelay` | number (ms) | `1000` | Touch long-press threshold for any pointer interaction. |
+
+### stimulus_calendar extensions (not in any upstream calendar library)
+
+| Attribute | Type | Default | What it does |
+|---|---|---|---|
+| `data-calendar-event-source-value` | URL string | `undefined` | Convenience for an URL event source — equivalent to `eventSources: [{ url }]`. |
+| `data-calendar-resource-source-value` | URL string | `undefined` | Same idea for resources. |
+| `data-calendar-broadcast-value` | string | `false` | Broadcast adapter: `"turbo-stream"`, `"action-cable"`, `"websocket"`, `"broadcast-channel"`, or `false` to disable. |
+| `data-calendar-broadcast-channel-value` | string | `undefined` | Channel name (BroadcastChannel) or URL (WebSocket / ActionCable). |
+| `data-calendar-broadcast-filter-value` | fn (set via `setOption`) | `undefined` | Predicate that decides which local mutations broadcast. |
+
+### Built-in event shape (for `events` / `eventSources`)
+
+| Key | Type | Notes |
+|---|---|---|
+| `id` | string | Required for any event you'll later update or remove. |
+| `resourceIds` | string[] | Used by the Resource views. |
+| `allDay` | bool | If omitted, inferred from `noTimePart(start)`. |
+| `start` | Date \| ISO string | Required. |
+| `end` | Date \| ISO string | Optional. |
+| `title` | string | Optional display text. |
+| `editable` / `startEditable` / `durationEditable` | bool | Per-event overrides of the matching global options. |
+| `display` | `"auto"` \| `"background"` | `"background"` draws as a translucent band, not as an event chip. |
+| `backgroundColor` / `textColor` / `color` | string | Per-event styling. |
+| `classNames` | string \| string[] | Extra classes. |
+| `extendedProps` | object | Anything you want carried with the event (passed to your callbacks unchanged). |
+
+### Built-in resource shape (for `resources`)
+
+| Key | Type | Notes |
+|---|---|---|
+| `id` | string | Required. |
+| `title` | string | Display text. |
+| `children` | Resource[] | Nested resources (rendered as an expandable tree). |
+| `eventBackgroundColor` / `eventTextColor` | string | Default colour applied to events on this resource. |
+| `extendedProps` | object | Anything you want carried with the resource. |
 
 ## Events (dispatched on the calendar element)
 
-`calendar:ready` (`detail.api`) · `calendar:datesSet` · `calendar:viewDidMount` ·
-`calendar:eventClick` · `calendar:eventMouseEnter` · `calendar:eventMouseLeave` ·
-`calendar:eventDrop` (`{event, oldEvent, delta, revert}`) ·
-`calendar:eventResize` · `calendar:dateClick` · `calendar:select` ·
-`calendar:unselect` · `calendar:broadcast:in` · `calendar:broadcast:out`.
+The matching `data-calendar-<event>-value` callback option fires for the
+same event — pick whichever is more ergonomic. All events bubble.
+
+| Event | `detail` shape | Fires when |
+|---|---|---|
+| `calendar:ready` | `{ api }` | Controller has mounted and `element.calendarApi` is callable. |
+| `calendar:datesSet` | `{ start, end, view }` | The active date range changes (nav, view switch). |
+| `calendar:viewDidMount` | `{ view, el }` | A view's DOM is first created. |
+| `calendar:eventClick` | `{ event, jsEvent, view }` | User clicks an event. |
+| `calendar:eventMouseEnter` | `{ event, jsEvent, view }` | Hover-in. |
+| `calendar:eventMouseLeave` | `{ event, jsEvent, view }` | Hover-out. |
+| `calendar:eventDidMount` | `{ event, el, view }` | An event's DOM node is first inserted. |
+| `calendar:eventAllUpdated` | `{}` | After every event re-render pass. |
+| `calendar:dateClick` | `{ date, allDay, jsEvent, view, resource? }` | Click on an empty cell. |
+| `calendar:eventDragStart` | `{ event, jsEvent, view }` | Drag begins. |
+| `calendar:eventDragStop` | `{ event, jsEvent, view }` | Drag ends (before drop applies). |
+| `calendar:eventDrop` | `{ event, oldEvent, delta, jsEvent, view, revert }` | Drop applied — call `revert()` to undo. |
+| `calendar:eventResizeStart` | `{ event, jsEvent, view }` | Resize begins. |
+| `calendar:eventResizeStop` | `{ event, jsEvent, view }` | Resize ends (before commit). |
+| `calendar:eventResize` | `{ event, oldEvent, endDelta, jsEvent, view, revert }` | Resize commit — call `revert()` to undo. |
+| `calendar:select` | `{ start, end, allDay, jsEvent, view, resource? }` | Drag-selection commits. |
+| `calendar:unselect` | `{ jsEvent }` | Selection clears. |
+| `calendar:loading` | `{ isLoading }` | Event source starts/stops a fetch. |
+| `calendar:broadcast:out` | `{ message }` | A local mutation is about to be published. |
+| `calendar:broadcast:in` | `{ message }` | A broadcast arrived from another tab/user. |
 
 ```js
-calendar.addEventListener("calendar:ready", (e) => e.detail.api.addEvent({ id: "10", title: "..." }))
-calendar.addEventListener("calendar:eventDrop", (e) => save(e.detail))
+calendar.addEventListener("calendar:ready",     (e) => e.detail.api.addEvent({ id: "10", title: "..." }))
+calendar.addEventListener("calendar:eventDrop", (e) => save(e.detail).catch(e.detail.revert))
 ```
 
 ## Public API — `element.calendarApi`
 
-Available after the `calendar:ready` event. Mirrors vkurko/calendar's public
-methods one-for-one:
+Available after `calendar:ready`. Every method below is built in.
 
-- **Events:** `addEvent`, `updateEvent`, `removeEventById`, `getEvents`,
-  `getEventById`, `refetchEvents`
-- **Resources:** `refetchResources`
-- **Navigation:** `next`, `prev`, `getView`, `dateFromPoint(x, y)`
-- **Options:** `setOption(name, value)`, `getOption(name)`
-- **Selection:** `unselect()`
+### Events
+
+| Method | Signature | What it does |
+|---|---|---|
+| `addEvent` | `(event) → event` | Insert one event; returns the normalised event. |
+| `updateEvent` | `(event) → event` | Patch an event by id; missing fields are preserved. |
+| `removeEventById` | `(id) → void` | Delete an event. |
+| `getEvents` | `() → event[]` | All events currently in the dataset (post-filter). |
+| `getEventById` | `(id) → event \| undefined` | Lookup. |
+| `refetchEvents` | `() → Promise<void>` | Re-hit every event source URL/function. |
+
+### Resources
+
+| Method | Signature | What it does |
+|---|---|---|
+| `refetchResources` | `() → Promise<void>` | Re-hit a function/URL resource source. |
+| `getResources` | `() → resource[]` | Current resource tree (flat array). |
+
+### Navigation
+
+| Method | Signature | What it does |
+|---|---|---|
+| `next` | `() → void` | Advance by `dateIncrement` (defaults to `duration`). |
+| `prev` | `() → void` | Reverse by `dateIncrement`. |
+| `today` | `() → void` | Snap back to the current day. |
+| `gotoDate` | `(date) → void` | Navigate to a specific date. |
+| `getView` | `() → { type, title, currentStart, currentEnd, activeStart, activeEnd }` | Active view snapshot. |
+| `setOption` | `(name, value) → void` | Change any option at runtime. |
+| `getOption` | `(name) → any` | Read the current value of any option. |
+| `dateFromPoint` | `(x, y) → { date, allDay, resource? } \| null` | Map screen coordinates back to a calendar coordinate. |
+
+### Selection
+
+| Method | Signature | What it does |
+|---|---|---|
+| `unselect` | `() → void` | Clear any active selection. |
+
+### Lifecycle (IIFE entry point)
+
+| Method | Signature | What it does |
+|---|---|---|
+| `StimulusCalendar.create` | `(element, options) → calendar` | Boot a calendar imperatively, no Stimulus needed. |
+| `StimulusCalendar.destroy` | `(element) → void` | Tear down a calendar booted via `create`. |
+| `StimulusCalendar.start` | `(app?) → Application` | Register Stimulus controllers and return the Application. |
 
 ```js
 const api = document.querySelector('[data-controller~="calendar"]').calendarApi

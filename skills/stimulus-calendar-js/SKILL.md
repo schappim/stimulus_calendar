@@ -68,61 +68,189 @@ Each event needs a stable string id.
 
 ## Calendar attributes (on the `data-controller="calendar"` element)
 
-> The full list is being filled in per-option as Phase 3 ships
-> ([PLAN.md](../../PLAN.md) — Phase 3 enumerates all 24 global options).
-> Documented here as they land:
+Every option below ships built in — **never tell users to look at upstream
+docs.** Bundle options under `data-calendar-options-value` as a JSON object
+or, equivalently, pass each one as `data-calendar-<kebab>-value`.
 
-- `data-calendar-view-value` — initial view name (e.g. `"dayGridMonth"`)
-- `data-calendar-plugins-value` — JSON array of plugin names
-  (`["DayGrid","TimeGrid","List","Resource","ResourceTimeGrid","ResourceTimeline","Interaction"]`)
-- `data-calendar-options-value` — JSON of the rest of vkurko/calendar's
-  options (events, locale, slotDuration, headerToolbar, …)
-- `data-calendar-event-source-value` — URL returning a JSON array of events
-- `data-calendar-resource-source-value` — URL returning a JSON array of resources
-- `data-calendar-broadcast-value` — `false` | `"turbo-stream"` |
-  `"action-cable"` | `"websocket"` | `"broadcast-channel"`
-- `data-calendar-broadcast-channel-value` — channel name / URL for the
-  chosen broadcast adapter
+### Core (always available)
+
+```
+view (string) · views (object — per-view overrides)
+plugins (string[]) · date (Date|ISO) · duration (Duration)
+dateIncrement (Duration) · firstDay (0–6) · hiddenDays (number[])
+validRange ({start, end}) · height (string|number)
+theme (object|fn) · locale (string|object) · timeZone ("local"|"UTC"|IANA)
+customScrollbars (bool) · viewDidMount (fn) · datesSet (fn)
+loading (fn) · lazyFetching (bool) · highlightedDates ((Date|string)[])
+titleFormat / dayHeaderFormat / dayHeaderAriaLabelFormat (Intl format)
+icons (object|fn) · buttonText (object|fn) · customButtons (object)
+headerToolbar ({start, center, end})
+events ([]) · eventSources ([]) · eventFilter (fn) · eventOrder (fn|string|string[])
+eventColor / eventBackgroundColor / eventTextColor (string)
+eventClassNames (string|string[]|fn) · eventContent (fn|string|{html}|{domNodes})
+eventDidMount (fn) · eventTimeFormat (Intl format) · displayEventEnd (bool)
+eventClick / eventMouseEnter / eventMouseLeave / eventAllUpdated (fn)
+selectable (bool)
+```
+
+### DayGrid plugin — `dayGridDay` / `dayGridWeek` / `dayGridMonth`
+
+```
+dayCellFormat (Intl format) · dayCellContent (fn|string|{html})
+dayMaxEvents (bool|number) · moreLinkContent (fn|string)
+dayPopoverFormat (Intl format)
+weekNumbers (bool) · weekNumberContent (fn|string)
+```
+
+### TimeGrid plugin — `timeGridDay` / `timeGridWeek`
+
+```
+slotDuration / slotMinTime / slotMaxTime / slotLabelInterval / scrollTime (Duration)
+slotHeight (number px) · slotLabelFormat (Intl format)
+flexibleSlotTimeLimits (bool|object) · nowIndicator (bool) · slotEventOverlap (bool)
+allDaySlot (bool) · allDayContent (fn|string|{html})
+columnWidth (number px) · snapDuration (Duration)
+```
+
+### List plugin — `listDay` / `listWeek` / `listMonth` / `listYear`
+
+```
+listDayFormat / listDaySideFormat (Intl format)
+noEventsContent (string|fn|{html}) · noEventsClick (fn)
+```
+
+### Resource + ResourceTimeGrid — `resourceTimeGridDay` / `…Week`
+
+```
+resources (Resource[]|fn|EventSource-shape) · refetchResourcesOnNavigate (bool)
+datesAboveResources (bool)
+resourceLabelContent (fn|string) · resourceLabelDidMount (fn)
+filterResourcesWithEvents / filterEventsWithResources (bool)
+```
+Inherits every TimeGrid option.
+
+### ResourceTimeline — `resourceTimelineDay` / `…Week` / `…Month` / `…Year`
+
+```
+slotWidth (number px) · monthHeaderFormat (Intl format)
+resourceExpand (bool|'all'|number)
+```
+Inherits every TimeGrid + Resource option.
+
+### Interaction plugin — drag / drop / resize / select / click
+
+```
+pointer (bool) · dateClick (fn)
+editable (bool) · eventStartEditable (bool) · eventDurationEditable (bool)
+eventResizableFromStart (bool)
+eventDragStart / eventDragStop / eventDrop (fn)
+eventResizeStart / eventResizeStop / eventResize (fn)
+eventDragMinDistance (px) · eventLongPressDelay (ms)
+dragConstraint (object) · dragScroll (bool) · snapDuration (Duration)
+resizeConstraint (object)
+selectable (bool) · select / unselect (fn)
+unselectAuto (bool) · unselectCancel (CSS selector)
+selectBackgroundColor (string) · selectConstraint (object)
+selectMinDistance (px) · selectLongPressDelay (ms) · longPressDelay (ms)
+```
+
+### stimulus_calendar extensions (not in any upstream calendar lib)
+
+```
+data-calendar-event-source-value     URL  →  one URL event source
+data-calendar-resource-source-value  URL  →  one URL resource source
+data-calendar-broadcast-value        'turbo-stream' | 'action-cable' | 'websocket' | 'broadcast-channel' | false
+data-calendar-broadcast-channel-value  channel name (BroadcastChannel) or URL (WS/AC)
+```
+
+### Event object shape (`events`, `eventSources`, `addEvent`, broadcasts)
+
+```
+id (string — required for updates/removes)
+resourceIds (string[] — Resource views)
+allDay (bool — inferred from noTimePart(start) if omitted)
+start (Date|ISO — required) · end (Date|ISO — optional)
+title (string) · display ('auto' | 'background')
+backgroundColor / textColor / color (string)
+classNames (string|string[])
+editable / startEditable / durationEditable (bool — per-event overrides)
+extendedProps (object — passed through to callbacks unchanged)
+```
+
+### Resource object shape (`resources`)
+
+```
+id (string — required) · title (string)
+children (Resource[] — nested, rendered as a tree)
+eventBackgroundColor / eventTextColor (string — defaults for events on this resource)
+extendedProps (object)
+```
 
 ## calendarApi (on `element.calendarApi`, ready after `calendar:ready`)
+
+Every method below is built in. None require external docs.
 
 ```js
 const api = document.querySelector('[data-controller~="calendar"]').calendarApi
 
-// Events (Phase 12)
+// Events
 api.addEvent({ id: "1", title: "Lunch", start: "2026-05-25T12:00", end: "2026-05-25T13:00" })
-api.updateEvent({ id: "1", title: "Lunch (moved)", start: "2026-05-25T13:00", end: "2026-05-25T14:00" })
+api.updateEvent({ id: "1", start: "2026-05-25T13:00", end: "2026-05-25T14:00" })  // partial patch
 api.removeEventById("1")
-api.getEvents(); api.getEventById("1")
-api.refetchEvents(); api.refetchResources()
+api.getEvents()           // event[]   — every event currently in the dataset (post-filter)
+api.getEventById("1")     // event | undefined
+api.refetchEvents()       // Promise<void> — re-hit every event source URL/fn
+
+// Resources
+api.refetchResources()    // Promise<void>
+api.getResources()        // resource[] (flat)
 
 // Navigation
-api.next(); api.prev()
-api.getView()                         // current view name, range, title
-api.dateFromPoint(x, y)               // map screen coords → calendar date
+api.next();  api.prev();  api.today()
+api.gotoDate("2026-06-15")
+api.getView()             // { type, title, currentStart, currentEnd, activeStart, activeEnd }
+api.dateFromPoint(x, y)   // { date, allDay, resource? } | null
 
 // Options
-api.setOption("view", "timeGridDay"); api.getOption("locale")
+api.setOption("view", "timeGridDay")
+api.getOption("locale")
 
 // Selection
 api.unselect()
+
+// IIFE convenience (boot without Stimulus)
+StimulusCalendar.create(el, { view: "timeGridWeek", events: [...] })
+StimulusCalendar.destroy(el)
 ```
 
 ## Events (on the calendar element)
 
-`calendar:ready` (`detail.api`) — call once the controller has mounted.
-`calendar:datesSet` — fired when the displayed date range changes (nav, view).
-`calendar:viewDidMount` — fired when a view is first mounted.
-`calendar:eventClick` (`{event, jsEvent}`) — user clicked an event.
-`calendar:eventMouseEnter` / `calendar:eventMouseLeave` — hover.
-`calendar:eventDrop` (`{event, oldEvent, delta, revert}`) — drag-and-drop
-moved an event. Call `e.detail.revert()` to undo if your server rejects it.
-`calendar:eventResize` (`{event, oldEvent, endDelta, revert}`) — resize handle.
-`calendar:dateClick` (`{date, jsEvent}`) — user clicked an empty cell.
-`calendar:select` (`{start, end, allDay}`) — user selected a range.
-`calendar:unselect` — selection cleared.
-`calendar:broadcast:in` (`{message}`) — a broadcast arrived from another tab/user.
-`calendar:broadcast:out` (`{message}`) — local change about to broadcast.
+Every event listed here is built in. The matching `data-calendar-<event>-value`
+callback option fires for the same event — pick whichever is more ergonomic.
+All events bubble.
+
+| Event | `detail` shape | Fires when |
+|---|---|---|
+| `calendar:ready` | `{ api }` | Controller mounted; `element.calendarApi` callable. |
+| `calendar:datesSet` | `{ start, end, view }` | Active date range changed. |
+| `calendar:viewDidMount` | `{ view, el }` | A view's DOM first created. |
+| `calendar:eventClick` | `{ event, jsEvent, view }` | User clicked an event. |
+| `calendar:eventMouseEnter` | `{ event, jsEvent, view }` | Hover-in. |
+| `calendar:eventMouseLeave` | `{ event, jsEvent, view }` | Hover-out. |
+| `calendar:eventDidMount` | `{ event, el, view }` | Event DOM first inserted. |
+| `calendar:eventAllUpdated` | `{}` | After every event re-render pass. |
+| `calendar:dateClick` | `{ date, allDay, jsEvent, view, resource? }` | Click on an empty cell. |
+| `calendar:eventDragStart` | `{ event, jsEvent, view }` | Drag begins. |
+| `calendar:eventDragStop` | `{ event, jsEvent, view }` | Drag ends (before drop applies). |
+| `calendar:eventDrop` | `{ event, oldEvent, delta, jsEvent, view, revert }` | Drop applied — call `revert()` to undo. |
+| `calendar:eventResizeStart` | `{ event, jsEvent, view }` | Resize begins. |
+| `calendar:eventResizeStop` | `{ event, jsEvent, view }` | Resize ends (before commit). |
+| `calendar:eventResize` | `{ event, oldEvent, endDelta, jsEvent, view, revert }` | Resize commit — call `revert()` to undo. |
+| `calendar:select` | `{ start, end, allDay, jsEvent, view, resource? }` | Drag-selection commits. |
+| `calendar:unselect` | `{ jsEvent }` | Selection cleared. |
+| `calendar:loading` | `{ isLoading }` | Event source starts/stops a fetch. |
+| `calendar:broadcast:out` | `{ message }` | Local mutation about to publish. |
+| `calendar:broadcast:in` | `{ message }` | Broadcast arrived from another tab/user. |
 
 ```js
 calendar.addEventListener("calendar:ready", (e) => e.detail.api.refetchEvents())
@@ -131,19 +259,17 @@ calendar.addEventListener("calendar:eventDrop", (e) => save(e.detail).catch(e.de
 
 ## Plugins
 
-The calendar's behaviour is composed from named plugins (matching
-vkurko/calendar's plugin set). Pick the ones you need:
+The calendar's behaviour is composed from named plugins. Pick the ones you
+need; the controller lazily activates only the requested set.
 
-- **DayGrid** (Phase 5) — `dayGridMonth`, `dayGridWeek`, `dayGridDay` views.
-- **TimeGrid** (Phase 6) — `timeGridWeek`, `timeGridDay` with hour slots.
-- **List** (Phase 7) — `listDay`, `listWeek`, `listMonth`, `listYear`
-  chronological list view.
-- **Resource** + **ResourceTimeGrid** (Phase 8) — `resourceTimeGridDay/Week`.
-- **ResourceTimeline** (Phase 9) — `resourceTimelineDay/Week/Month/Year`.
-- **Interaction** (Phase 11) — pointer, dateClick, drag/drop/resize, selection.
+- **DayGrid** — `dayGridMonth`, `dayGridWeek`, `dayGridDay` views.
+- **TimeGrid** — `timeGridWeek`, `timeGridDay` with hour slots.
+- **List** — `listDay`, `listWeek`, `listMonth`, `listYear` chronological list.
+- **Resource** + **ResourceTimeGrid** — `resourceTimeGridDay`, `resourceTimeGridWeek`.
+- **ResourceTimeline** — `resourceTimelineDay/Week/Month/Year`.
+- **Interaction** — pointer, dateClick, drag/drop/resize, selection.
 
-Pass them in `data-calendar-plugins-value` as a JSON array of names; the
-controller lazily activates only the requested plugins.
+Pass them in `data-calendar-plugins-value` as a JSON array of names.
 
 ## Broadcasting changes between tabs / users (Phase 13)
 
