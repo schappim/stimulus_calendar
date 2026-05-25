@@ -276,17 +276,17 @@ Each view-introducing commit ships a `docs/images/cal-<view>.png` screenshot.
 
 ## Phase 8 — Resources + ResourceTimeGrid
 
-- [ ] Option: `resources` (flat array)
-- [ ] Option: `resources` (function / event-source style with `refetch`)
-- [ ] Nested resources (`children`)
-- [ ] Option: `refetchResourcesOnNavigate`
-- [ ] View: `resourceTimeGridDay` → `cal-resource-time-grid.png`
-- [ ] View: `resourceTimeGridWeek`
-- [ ] Option: `datesAboveResources`
-- [ ] Option: `resourceLabelContent`
-- [ ] Option: `resourceLabelDidMount`
-- [ ] Option: `filterResourcesWithEvents`
-- [ ] Option: `filterEventsWithResources`
+- [x] Option: `resources` (flat array)
+- [x] Option: `resources` (function / event-source style with `refetch`)
+- [x] Nested resources (`children`)
+- [x] Option: `refetchResourcesOnNavigate`
+- [x] View: `resourceTimeGridDay` → `cal-resource-time-grid.png`
+- [x] View: `resourceTimeGridWeek`
+- [x] Option: `datesAboveResources`
+- [x] Option: `resourceLabelContent`
+- [x] Option: `resourceLabelDidMount`
+- [x] Option: `filterResourcesWithEvents`
+- [x] Option: `filterEventsWithResources`
 
 ---
 
@@ -570,7 +570,7 @@ the GitHub repo without expanding every section.
 - [x] Phase 5 — DayGrid view
 - [x] Phase 6 — TimeGrid view
 - [x] Phase 7 — List view
-- [ ] Phase 8 — Resources + ResourceTimeGrid
+- [x] Phase 8 — Resources + ResourceTimeGrid
 - [ ] Phase 9 — ResourceTimeline
 - [ ] Phase 10 — Events surface
 - [ ] Phase 11 — Interaction plugin

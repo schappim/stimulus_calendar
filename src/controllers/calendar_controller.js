@@ -70,6 +70,12 @@ export default class CalendarController extends Controller {
     moreLinkContent: String,
     weekNumbers: Boolean,
     weekNumberContent: String,
+    // Resource + ResourceTimeGrid plugin options
+    resources: Array,
+    refetchResourcesOnNavigate: Boolean,
+    datesAboveResources: Boolean,
+    filterResourcesWithEvents: Boolean,
+    filterEventsWithResources: Boolean,
   };
 
   connect() {
@@ -333,6 +339,8 @@ CalendarController.OPTION_KEYS = [
   'headerToolbar',
   'dayMaxEvents', 'dayCellFormat', 'dayPopoverFormat', 'moreLinkContent',
   'weekNumbers', 'weekNumberContent',
+  'resources', 'refetchResourcesOnNavigate', 'datesAboveResources',
+  'filterResourcesWithEvents', 'filterEventsWithResources',
 ];
 
 function capitalise(s) {

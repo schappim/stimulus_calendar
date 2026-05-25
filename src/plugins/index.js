@@ -4,11 +4,14 @@
 import { DayGridPlugin } from './day_grid.js';
 import { TimeGridPlugin } from './time_grid.js';
 import { ListPlugin } from './list.js';
+import { ResourceTimeGridPlugin } from './resource_time_grid.js';
 
 export const PLUGINS = {
   DayGrid: DayGridPlugin,
   TimeGrid: TimeGridPlugin,
   List: ListPlugin,
+  Resource: ResourceTimeGridPlugin,
+  ResourceTimeGrid: ResourceTimeGridPlugin,
 };
 
 export function resolvePluginNames(names) {
