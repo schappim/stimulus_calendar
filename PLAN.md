@@ -131,8 +131,10 @@ with full Vitest coverage. No Stimulus controllers yet. **Rails tests N/A**
 - [x] `lib/slots.js` — `createSlots` (time-axis label list with periodicity,
       trailing-span fix), `createSlotTimeLimits` (flexible expansion to fit
       out-of-bounds events, optional `eventFilter`)
-- [ ] `lib/chunks.js` — `createEventChunk`, `groupChunks`, column / overlap
-      positioning math
+- [x] `lib/chunks.js` — `createEventChunk`, `createAllDayChunks`,
+      `prepareAllDayChunks` (prev + long maps for stacking),
+      `repositionEvent` (overlap-aware vertical layout), `assignChunkId`
+      (WeakMap-backed stable ids across re-renders)
 - [ ] `lib/view.js` — `createView` factory (start, end, currentStart, currentEnd,
       title, type)
 - [ ] `lib/derived.js` — pure helpers behind `currentRange`, `activeRange`,
