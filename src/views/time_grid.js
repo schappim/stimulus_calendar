@@ -136,6 +136,11 @@ export function renderTimeGridView(container, state) {
         chip.style.right = '0';
         if (event.backgroundColor) chip.style.backgroundColor = event.backgroundColor;
         chip.append(createElement('div', theme.eventTitle, event.title || ''));
+        const fire = state.get('fire');
+        chip.addEventListener('click',     (jsEvent) => fire?.('eventClick',      { event, jsEvent, view: state.get('view') }));
+        chip.addEventListener('mouseenter',(jsEvent) => fire?.('eventMouseEnter', { event, jsEvent, view: state.get('view') }));
+        chip.addEventListener('mouseleave',(jsEvent) => fire?.('eventMouseLeave', { event, jsEvent, view: state.get('view') }));
+        queueMicrotask(() => fire?.('eventDidMount', { event, el: chip, view: state.get('view') }));
         overlay.append(chip);
       }
       col.style.position = 'relative';

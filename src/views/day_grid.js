@@ -156,19 +156,13 @@ export function renderDayGridView(container, state) {
             }
             chip.append(createElement('span', theme.eventTitle, event.title || ''));
           }
-          // User event handlers.
-          if (typeof options.eventClick === 'function') {
-            chip.addEventListener('click', (jsEvent) => options.eventClick({ event, jsEvent, view: state.get('view') }));
-          }
-          if (typeof options.eventMouseEnter === 'function') {
-            chip.addEventListener('mouseenter', (jsEvent) => options.eventMouseEnter({ event, jsEvent, view: state.get('view') }));
-          }
-          if (typeof options.eventMouseLeave === 'function') {
-            chip.addEventListener('mouseleave', (jsEvent) => options.eventMouseLeave({ event, jsEvent, view: state.get('view') }));
-          }
-          if (typeof options.eventDidMount === 'function') {
-            queueMicrotask(() => options.eventDidMount({ event, el: chip, view: state.get('view') }));
-          }
+          // User event handlers + matching DOM CustomEvent dispatch via
+          // state.fire — listeners can hook either side.
+          const fire = state.get('fire');
+          chip.addEventListener('click',     (jsEvent) => fire?.('eventClick',      { event, jsEvent, view: state.get('view') }));
+          chip.addEventListener('mouseenter',(jsEvent) => fire?.('eventMouseEnter', { event, jsEvent, view: state.get('view') }));
+          chip.addEventListener('mouseleave',(jsEvent) => fire?.('eventMouseLeave', { event, jsEvent, view: state.get('view') }));
+          queueMicrotask(() => fire?.('eventDidMount', { event, el: chip, view: state.get('view') }));
           list.append(chip);
         }
         if (hidden.length) {

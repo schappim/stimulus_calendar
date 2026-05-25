@@ -70,15 +70,15 @@ export const InteractionPlugin = {
 // with data-event-id (and editable is on).
 function attachDateClickHandler(rootEl, state) {
   const handler = (jsEvent) => {
-    const options = state.get('options');
-    if (typeof options.dateClick !== 'function') return;
     const cell = jsEvent.target.closest('[data-date]');
     if (!cell) return;
     // Skip clicks that land on events (those fire eventClick).
     if (jsEvent.target.closest('[data-event-id]')) return;
     const dateStr = cell.getAttribute('data-date');
-    options.dateClick({
+    const fire = state.get('fire');
+    fire?.('dateClick', {
       date: new Date(dateStr + 'T00:00:00Z'),
+      dateStr,
       allDay: true,
       jsEvent,
       view: state.get('view'),

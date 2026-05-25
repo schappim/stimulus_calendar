@@ -67,17 +67,32 @@ export function switchViewEffect(setViewOptions) {
   };
 }
 
+// Fire an effect: call options.<name>(detail) AND dispatch a matching
+// DOM CustomEvent. The controller wires state.fire to a helper that
+// does BOTH; fall back to a manual options.<name>() call when state.fire
+// isn't configured (e.g. unit tests that drive effects without a
+// controller).
+function fire(state, name, detail) {
+  const dispatch = state.get('fire');
+  if (typeof dispatch === 'function') {
+    dispatch(name, detail);
+    return;
+  }
+  const cb = state.get('options')?.[name];
+  if (typeof cb === 'function') cb(detail);
+}
+
 // runDatesSet — fire options.datesSet({ start, end, startStr, endStr,
-// view }) whenever the active range changes.
+// view }) AND dispatch calendar:datesSet whenever the active range
+// changes.
 export function datesSetEffect() {
   return {
     deps: ['activeRange'],
     run(state) {
       const activeRange = state.get('activeRange');
-      const options = state.get('options');
       const view = state.get('view');
-      if (!isFunction(options.datesSet) || !activeRange || !view) return;
-      options.datesSet({
+      if (!activeRange || !view) return;
+      fire(state, 'datesSet', {
         start: toLocalDate(activeRange.start),
         end: toLocalDate(activeRange.end),
         startStr: toISOString(activeRange.start),
@@ -88,35 +103,34 @@ export function datesSetEffect() {
   };
 }
 
-// runViewDidMount — fire options.viewDidMount({ view }) once per view
-// mount. Microtask-deferred so the DOM has rendered.
+// runViewDidMount — fire options.viewDidMount({ view }) + dispatch
+// calendar:viewDidMount once per view mount. Microtask-deferred so the
+// DOM has rendered.
 export function viewDidMountEffect() {
   return {
     deps: ['view'],
     run(state) {
-      const options = state.get('options');
       const view = state.get('view');
-      if (!isFunction(options.viewDidMount) || !view) return;
-      queueMicrotask(() => options.viewDidMount({ view: toViewWithLocalDates(view) }));
+      if (!view) return;
+      queueMicrotask(() => fire(state, 'viewDidMount', { view: toViewWithLocalDates(view) }));
     },
   };
 }
 
-// runEventAllUpdated — fire options.eventAllUpdated({ view }) after
-// every events change, batched with setTimeout so a flurry of updates
-// fires once.
+// runEventAllUpdated — fire options.eventAllUpdated + dispatch
+// calendar:eventAllUpdated after every events change, batched with
+// setTimeout so a flurry of updates fires once.
 export function eventAllUpdatedEffect() {
   let timer = null;
   return {
     deps: ['filteredEvents'],
     run(state) {
-      const options = state.get('options');
       const view = state.get('view');
-      if (!isFunction(options.eventAllUpdated) || !view) return;
+      if (!view) return;
       if (timer) return;
       timer = setTimeout(() => {
         timer = null;
-        options.eventAllUpdated({ view: toViewWithLocalDates(view) });
+        fire(state, 'eventAllUpdated', { view: toViewWithLocalDates(view) });
       }, 0);
     },
   };

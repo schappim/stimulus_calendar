@@ -97,6 +97,19 @@ export default class CalendarController extends Controller {
     this._setOption = setOption;
     this._setViewOptions = setViewOptions;
 
+    // state.fire is used by the effects pipeline and view renderers to
+    // both fire the user callback (options.<name>) AND dispatch the
+    // matching DOM CustomEvent (calendar:<name>) on the host element.
+    // Must be wired BEFORE _installEffectsPipeline so the initial run
+    // of each effect sees a working dispatcher.
+    this._state.set('hostEl', this.element);
+    this._state.set('fire', (name, detail = {}) => {
+      const opts = this._state.get('options');
+      const cb = opts?.[name];
+      if (typeof cb === 'function') cb(detail);
+      this.dispatch(name, { detail });
+    });
+
     this._installDerivations();
     this._installEffectsPipeline();
     this._installBroadcastBus();
@@ -269,6 +282,11 @@ export default class CalendarController extends Controller {
     this._root = root;
     this._toolbarEl = toolbar;
     this.element.dataset.calendarMounted = 'true';
+
+    // Expose the rendered root for renderers that need it; fire/hostEl
+    // are wired earlier in connect() so the effects pipeline can use them
+    // on its initial run.
+    this._state.set('rootEl', root);
 
     // Initial toolbar render + re-render on viewTitle change.
     const actions = {

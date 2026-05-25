@@ -54,6 +54,11 @@ export function renderListView(container, state) {
         const time = event.allDay ? 'all-day' : timeFmt.format(event.start);
         row.append(createElement('time', theme.eventTime, time));
         row.append(createElement('span', theme.eventTitle, event.title || ''));
+        const fire = state.get('fire');
+        row.addEventListener('click',     (jsEvent) => fire?.('eventClick',      { event, jsEvent, view: state.get('view') }));
+        row.addEventListener('mouseenter',(jsEvent) => fire?.('eventMouseEnter', { event, jsEvent, view: state.get('view') }));
+        row.addEventListener('mouseleave',(jsEvent) => fire?.('eventMouseLeave', { event, jsEvent, view: state.get('view') }));
+        queueMicrotask(() => fire?.('eventDidMount', { event, el: row, view: state.get('view') }));
         root.append(row);
       }
     }
