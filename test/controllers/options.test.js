@@ -184,4 +184,11 @@ describe('CalendarController options', () => {
                                   data-calendar-icons-value='{"collapse":{"html":"-"}}'></div>`);
     expect(el.calendarApi.getOption('icons')).toEqual({ collapse: { html: '-' } });
   });
+
+  it('buttonText — Object merges over defaults (today retained)', async () => {
+    const el = await mount(`<div data-controller="calendar"
+                                  data-calendar-button-text-value='{"today":"Now"}'></div>`);
+    const bt = el.calendarApi.getOption('buttonText');
+    expect(bt.today).toBe('Now');
+  });
 });
