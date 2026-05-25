@@ -16,6 +16,7 @@ import { createDuration } from '../lib/duration.js';
 import { isArray, isFunction, isPlainObject } from '../lib/utils.js';
 import { renderToolbar } from '../components/toolbar.js';
 import { resolvePluginNames } from '../plugins/index.js';
+import { BroadcastBus, resolveAdapter } from '../lib/broadcast/index.js';
 
 // Stimulus calendar controller. One Stimulus controller per calendar; each
 // owns its own MainState, plugin set, and DOM tree. The HTML attribute
@@ -80,6 +81,9 @@ export default class CalendarController extends Controller {
     monthHeaderFormat: Object,
     slotWidth: Number,
     resourceExpand: String,
+    // Broadcast / live-sync options
+    broadcast: String,
+    broadcastChannel: String,
   };
 
   connect() {
@@ -95,6 +99,7 @@ export default class CalendarController extends Controller {
 
     this._installDerivations();
     this._installEffectsPipeline();
+    this._installBroadcastBus();
     this._mountRootDOM();
     this._exposeApi();
 
@@ -173,6 +178,53 @@ export default class CalendarController extends Controller {
       ));
     };
     this._recompute();
+  }
+
+  // Build the optional BroadcastBus from options.broadcast +
+  // options.broadcastChannel. When set, inbound messages drive the local
+  // calendar API; outbound messages fire via _publishBroadcast for every
+  // local mutation.
+  _installBroadcastBus() {
+    const options = this._state.get('options');
+    const adapter = resolveAdapter(options.broadcast, options.broadcastChannel);
+    if (!adapter) return;
+    this._bus = new BroadcastBus(adapter, { filter: options.broadcastFilter });
+    this._teardowns.push(this._bus.subscribe((message) => this._applyBroadcast(message)));
+    this._teardowns.push(() => this._bus?.close());
+  }
+
+  _publishBroadcast(op, event, meta) {
+    if (!this._bus) return;
+    this._bus.publish({ op, event, meta });
+    this.dispatch('broadcast:out', { detail: { message: { op, event, meta } } });
+  }
+
+  _applyBroadcast(message) {
+    if (!message) return;
+    this.dispatch('broadcast:in', { detail: { message } });
+    const { op, event } = message;
+    if (op === 'add' && event) this._applyEventChange('add', event);
+    else if (op === 'update' && event) this._applyEventChange('update', event);
+    else if (op === 'remove' && event?.id) this._applyEventChange('remove', event);
+    else if (op === 'refetch' && typeof this.element.calendarApi?.refetchEvents === 'function') {
+      this.element.calendarApi.refetchEvents();
+    }
+  }
+
+  _applyEventChange(op, event) {
+    const events = this._state.get('events') ?? this._state.get('options').events ?? [];
+    const parsedEvent = op === 'remove'
+      ? event
+      : createEvents([event], this._state.get('offset'))[0];
+    let next;
+    if (op === 'add') next = [...events.filter((e) => e.id !== String(event.id)), parsedEvent];
+    else if (op === 'update') next = events.map((e) =>
+      e.id === String(event.id) ? { ...e, ...parsedEvent } : e);
+    else if (op === 'remove') next = events.filter((e) => e.id !== String(event.id));
+    if (next) {
+      this._state.set('events', next);
+      this._recompute();
+    }
   }
 
   _installEffectsPipeline() {
@@ -267,6 +319,7 @@ export default class CalendarController extends Controller {
         events.push(parsed);
         this._state.set('events', events);
         this._recompute();
+        this._publishBroadcast('add', event);
         return parsed;
       },
       updateEvent: (event) => {
@@ -278,6 +331,7 @@ export default class CalendarController extends Controller {
           });
         this._state.set('events', events);
         this._recompute();
+        this._publishBroadcast('update', event);
         return event;
       },
       removeEventById: (id) => {
@@ -287,6 +341,7 @@ export default class CalendarController extends Controller {
             .filter((e) => e.id !== target),
         );
         this._recompute();
+        this._publishBroadcast('remove', { id: target });
       },
       getEvents: () => this._state.get('filteredEvents') ?? [],
       getEventById: (id) => (this._state.get('filteredEvents') ?? []).find((e) => e.id === id),
@@ -355,6 +410,7 @@ CalendarController.OPTION_KEYS = [
   'resources', 'refetchResourcesOnNavigate', 'datesAboveResources',
   'filterResourcesWithEvents', 'filterEventsWithResources',
   'monthHeaderFormat', 'slotWidth', 'resourceExpand',
+  'broadcast', 'broadcastChannel',
 ];
 
 function capitalise(s) {

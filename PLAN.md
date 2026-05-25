@@ -392,26 +392,26 @@ change live. The JS core does the dispatching; the Rails companion gem
 (Phase 14) provides the server-side broadcast pipeline + custom Turbo Stream
 actions.
 
-- [ ] Core: `lib/broadcast/bus.js` — `BroadcastBus` (subscribe / publish, JSON
+- [x] Core: `lib/broadcast/bus.js` — `BroadcastBus` (subscribe / publish, JSON
       message format with `op`, `event`, `meta`, `origin`)
-- [ ] Wire outbound: dispatch on `addEvent` / `updateEvent` / `removeEventById`
-- [ ] Wire outbound: dispatch on interaction outputs (`eventDrop`, `eventResize`)
-- [ ] Wire inbound: bus → calendar mutation (origin tag prevents echo loops)
-- [ ] Conflict policy: last-write-wins by event ID; expose `broadcastResolve`
+- [x] Wire outbound: dispatch on `addEvent` / `updateEvent` / `removeEventById`
+- [x] Wire outbound: dispatch on interaction outputs (`eventDrop`, `eventResize`)
+- [x] Wire inbound: bus → calendar mutation (origin tag prevents echo loops)
+- [x] Conflict policy: last-write-wins by event ID; expose `broadcastResolve`
       callback to let consumers override
-- [ ] Adapter: `lib/broadcast/turbo_stream.js` —
+- [x] Adapter: `lib/broadcast/turbo_stream.js` —
       `<turbo-stream action="calendar-event">` custom action
-- [ ] Adapter: `lib/broadcast/action_cable.js` — subscribe a channel + relay
-- [ ] Adapter: `lib/broadcast/websocket.js` — raw WebSocket wrapper
-- [ ] Adapter: `lib/broadcast/broadcast_channel.js` — `BroadcastChannel` API
+- [x] Adapter: `lib/broadcast/action_cable.js` — subscribe a channel + relay
+- [x] Adapter: `lib/broadcast/websocket.js` — raw WebSocket wrapper
+- [x] Adapter: `lib/broadcast/broadcast_channel.js` — `BroadcastChannel` API
       (for tab-to-tab demo without a server)
-- [ ] Option: `broadcast` (`false` | `'turbo-stream'` | `'action-cable'` |
+- [x] Option: `broadcast` (`false` | `'turbo-stream'` | `'action-cable'` |
       `'websocket'` | `'broadcast-channel'` | adapter instance)
-- [ ] Option: `broadcastChannel` (channel name / URL)
-- [ ] Option: `broadcastFilter` (decide which local mutations to send)
-- [ ] Demo: two browser windows synced via `BroadcastChannel` (no server) →
+- [x] Option: `broadcastChannel` (channel name / URL)
+- [x] Option: `broadcastFilter` (decide which local mutations to send)
+- [x] Demo: two browser windows synced via `BroadcastChannel` (no server) →
       screenshot `cal-broadcast-channel.gif`
-- [ ] Docs: `docs/BROADCAST.md` — payload schema, Rails recipe with
+- [x] Docs: `docs/BROADCAST.md` — payload schema, Rails recipe with
       `Turbo::StreamsChannel.broadcast_action_to(...)`
 
 ---
