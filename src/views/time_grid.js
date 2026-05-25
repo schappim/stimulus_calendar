@@ -138,6 +138,7 @@ export function renderTimeGridView(container, state) {
         chip.append(createElement('div', theme.eventTitle, event.title || ''));
         const fire = state.get('fire');
         chip.addEventListener('click',     (jsEvent) => fire?.('eventClick',      { event, jsEvent, view: state.get('view') }));
+        chip.addEventListener('dblclick',  (jsEvent) => fire?.('eventDoubleClick',{ event, jsEvent, view: state.get('view'), el: chip }));
         chip.addEventListener('mouseenter',(jsEvent) => fire?.('eventMouseEnter', { event, jsEvent, view: state.get('view') }));
         chip.addEventListener('mouseleave',(jsEvent) => fire?.('eventMouseLeave', { event, jsEvent, view: state.get('view') }));
         queueMicrotask(() => fire?.('eventDidMount', { event, el: chip, view: state.get('view') }));

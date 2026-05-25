@@ -107,6 +107,12 @@ export function renderResourceTimelineView(container, state) {
         chip.style.left = `${Math.max(0, startDayIdx) * dayWidth}px`;
         chip.style.width = `${Math.max(endIdx - Math.max(0, startDayIdx), 1) * dayWidth}px`;
         if (event.backgroundColor) chip.style.backgroundColor = event.backgroundColor;
+        const fire = state.get('fire');
+        chip.addEventListener('click',     (jsEvent) => fire?.('eventClick',      { event, jsEvent, view: state.get('view'), resource }));
+        chip.addEventListener('dblclick',  (jsEvent) => fire?.('eventDoubleClick',{ event, jsEvent, view: state.get('view'), resource, el: chip }));
+        chip.addEventListener('mouseenter',(jsEvent) => fire?.('eventMouseEnter', { event, jsEvent, view: state.get('view'), resource }));
+        chip.addEventListener('mouseleave',(jsEvent) => fire?.('eventMouseLeave', { event, jsEvent, view: state.get('view'), resource }));
+        queueMicrotask(() => fire?.('eventDidMount', { event, el: chip, view: state.get('view'), resource }));
         ribbon.append(chip);
       }
       row.append(ribbon);

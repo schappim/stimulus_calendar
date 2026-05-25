@@ -56,6 +56,7 @@ export function renderListView(container, state) {
         row.append(createElement('span', theme.eventTitle, event.title || ''));
         const fire = state.get('fire');
         row.addEventListener('click',     (jsEvent) => fire?.('eventClick',      { event, jsEvent, view: state.get('view') }));
+        row.addEventListener('dblclick',  (jsEvent) => fire?.('eventDoubleClick',{ event, jsEvent, view: state.get('view'), el: row }));
         row.addEventListener('mouseenter',(jsEvent) => fire?.('eventMouseEnter', { event, jsEvent, view: state.get('view') }));
         row.addEventListener('mouseleave',(jsEvent) => fire?.('eventMouseLeave', { event, jsEvent, view: state.get('view') }));
         queueMicrotask(() => fire?.('eventDidMount', { event, el: row, view: state.get('view') }));
