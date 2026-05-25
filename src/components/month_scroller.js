@@ -170,32 +170,37 @@ export function createMonthScroller(container, state, { onDateChange }) {
   }
 
   function currentCentreDate() {
-    // The "current" month is the LAST banner whose top has been scrolled
-    // above a reference line near the top of the viewport. This matches
-    // user perception: you're "in" a month from the moment its banner
-    // crosses the top, not when its mid-month-day reaches the centre.
-    // Using a centre-of-row dominant-month picker flipped months too
-    // early at every June/July-style boundary because the boundary row
-    // (e.g. Jun 28 – Jul 4) has more July days than June days but the
-    // user perceives themselves as still in June.
+    // Snap on a WEEK basis, not a month basis. Find the row at the top
+    // of the viewport and return its weekStart so options.date follows
+    // the user's actual scroll position — switching from month to week
+    // view lands on the week the user was looking at, not on a
+    // month-anchor that might be many weeks away. Settled-scroll never
+    // forces a scrollTop change; only options.date is updated.
     const ref = body.scrollTop + body.clientHeight / 4;
-    let last = null;
+    let row = null;
     for (const r of weekRows) {
-      if (!r.monthAnchor) continue;
       if (r.rowEl.offsetTop > ref) break;
-      last = r;
+      row = r;
     }
-    const anchor = last?.monthAnchor ?? weekRows[0]?.monthAnchor;
-    if (!anchor) return null;
-    return new Date(Date.UTC(anchor.getUTCFullYear(), anchor.getUTCMonth(), 15));
+    row = row ?? weekRows[0];
+    if (!row) return null;
+    // Return the row's mid-week day (Wed-ish) so day-view fallback lands
+    // mid-week rather than on a Sunday boundary, but the WEEK is what
+    // matters for week-view destinations.
+    const d = cloneDate(row.weekStart);
+    addDay(d, 3);
+    return d;
   }
 
   function onScrollSettled() {
     if (suppressOnDateChange) return;
     const newDate = currentCentreDate();
     if (!newDate) return;
+    // Update options.date when the centred week differs from the
+    // currently-set week (any change of ≥ 1 day is enough — week
+    // boundaries flip the date forward).
     const currentOption = state.get('options').date;
-    if (!datesEqual(startOfMonth(cloneDate(currentOption)), startOfMonth(cloneDate(newDate)))) {
+    if (Math.abs(newDate.getTime() - currentOption.getTime()) >= 86400000 / 2) {
       onDateChange?.(newDate);
     }
   }
@@ -209,7 +214,7 @@ export function createMonthScroller(container, state, { onDateChange }) {
     const newDate = currentCentreDate();
     if (!newDate) return;
     const currentOption = state.get('options').date;
-    if (!datesEqual(startOfMonth(cloneDate(currentOption)), startOfMonth(cloneDate(newDate)))) {
+    if (Math.abs(newDate.getTime() - currentOption.getTime()) >= 86400000 / 2) {
       onDateChange?.(newDate);
     }
   }
