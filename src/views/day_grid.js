@@ -39,6 +39,7 @@ export function renderDayGridView(container, state) {
     let row = createElement('div', '', '', [['data-row', 'days']]);
     const today = midnightToday();
     const currentRange = state.get('currentRange');
+    const dayFmt = new Intl.DateTimeFormat(options.locale, options.dayCellFormat ?? { day: 'numeric' });
     for (let i = 0; i < days.length; ++i) {
       if (i > 0 && i % visibleWeekdays === 0) {
         grid.append(row);
@@ -52,6 +53,8 @@ export function renderDayGridView(container, state) {
       const cell = createElement('div', cls.filter(Boolean).join(' '), '', [
         ['data-date', d.toISOString().substring(0, 10)],
       ]);
+      const number = createElement('div', 'ec-day-number', dayFmt.format(d));
+      cell.append(number);
       row.append(cell);
     }
     grid.append(row);
