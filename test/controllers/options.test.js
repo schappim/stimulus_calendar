@@ -137,4 +137,10 @@ describe('CalendarController options', () => {
     el.calendarApi.setOption('datesSet', () => {});
     expect(typeof el.calendarApi.getOption('datesSet')).toBe('function');
   });
+
+  it('loading — programmatic callback retained', async () => {
+    const el = await mount('<div data-controller="calendar"></div>');
+    el.calendarApi.setOption('loading', () => {});
+    expect(typeof el.calendarApi.getOption('loading')).toBe('function');
+  });
 });
