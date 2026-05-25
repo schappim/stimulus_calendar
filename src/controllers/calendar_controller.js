@@ -45,6 +45,7 @@ export default class CalendarController extends Controller {
     hiddenDays: Array,
     validRange: Object,
     height: String,
+    theme: Object,
   };
 
   connect() {

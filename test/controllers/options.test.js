@@ -83,4 +83,11 @@ describe('CalendarController options', () => {
     expect(el.calendarApi.getOption('height')).toBe('480px');
     expect(el.querySelector('[data-calendar-root]').style.height).toBe('480px');
   });
+
+  it('theme — JSON object overrides default theme keys', async () => {
+    const el = await mount(`<div data-controller="calendar"
+                                  data-calendar-theme-value='{"calendar":"my-cal"}'></div>`);
+    const theme = el.calendarApi.getOption('theme');
+    expect(theme.calendar).toBe('my-cal');
+  });
 });
