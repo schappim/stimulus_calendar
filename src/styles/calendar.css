@@ -1095,6 +1095,17 @@ body.ec-dragging * {
   background: var(--ec-today-bg-color);
 }
 
+/* Day cell selected by a single click — visual highlight only, no
+ * border-box change so the grid stays aligned. */
+.ec-month-scroller-cell.ec-selected {
+  box-shadow: inset 0 0 0 2px var(--ec-active-bg-color);
+}
+
+/* Event chip selected by a single click. */
+.ec-event.ec-event-selected {
+  box-shadow: 0 0 0 2px var(--ec-active-bg-color);
+}
+
 .ec-month-scroller-cell.ec-today .ec-day-number {
   background: #dc2626;
   color: #ffffff;

@@ -96,6 +96,42 @@ export function createMonthScroller(container, state, { onDateChange }) {
     body.addEventListener('scroll', onScroll, { passive: true });
   });
 
+  // Day cell click semantics (macOS Calendar parity):
+  //   - single click on a day cell  → select that day (sets options.date,
+  //     highlights the cell). Doesn't fire dateClick so demo apps don't
+  //     accidentally prompt for a new event on every single click.
+  //   - double click on a day cell  → fires dateClick — the host app
+  //     uses that to open a create-event modal / prompt.
+  //   - single click on an event chip → eventClick already fires from
+  //     the per-chip handler in renderEvents(); we just skip the cell
+  //     handler here so the chip's click isn't double-counted as a day
+  //     select.
+  body.addEventListener('click', (ev) => {
+    if (ev.target.closest('[data-event-id], [data-more-link]')) return;
+    const cell = ev.target.closest('.ec-month-scroller-cell');
+    if (!cell) return;
+    const dateStr = cell.getAttribute('data-date');
+    if (!dateStr) return;
+    body.querySelectorAll('.ec-month-scroller-cell.ec-selected')
+        .forEach((c) => c.classList.remove('ec-selected'));
+    cell.classList.add('ec-selected');
+    onDateChange?.(new Date(dateStr + 'T00:00:00Z'));
+  });
+  body.addEventListener('dblclick', (ev) => {
+    if (ev.target.closest('[data-event-id], [data-more-link]')) return;
+    const cell = ev.target.closest('.ec-month-scroller-cell');
+    if (!cell) return;
+    const dateStr = cell.getAttribute('data-date');
+    if (!dateStr) return;
+    state.get('fire')?.('dateClick', {
+      date: new Date(dateStr + 'T00:00:00Z'),
+      dateStr,
+      allDay: true,
+      jsEvent: ev,
+      view: state.get('view'),
+    });
+  });
+
   // Re-render events when state changes.
   let renderTimer = null;
   const off = state.onAny(({ key }) => {
@@ -453,7 +489,14 @@ function renderEvents(weekRows, state) {
           chip.append(createElement('time', theme.eventTime ?? 'ec-event-time', t + ' '));
         }
         chip.append(createElement('span', theme.eventTitle ?? 'ec-event-title', event.title || ''));
-        chip.addEventListener('click',     (jsEvent) => fire?.('eventClick',      { event, jsEvent, view: state.get('view') }));
+        chip.addEventListener('click', (jsEvent) => {
+          // Visually select this event; clear any previously-selected chips.
+          document.querySelectorAll('.ec-event.ec-event-selected')
+            .forEach((c) => c.classList.remove('ec-event-selected'));
+          chip.classList.add('ec-event-selected');
+          fire?.('eventClick', { event, jsEvent, view: state.get('view') });
+          jsEvent.stopPropagation();
+        });
         chip.addEventListener('dblclick',  (jsEvent) => fire?.('eventDoubleClick',{ event, jsEvent, view: state.get('view'), el: chip }));
         chip.addEventListener('mouseenter',(jsEvent) => fire?.('eventMouseEnter', { event, jsEvent, view: state.get('view') }));
         chip.addEventListener('mouseleave',(jsEvent) => fire?.('eventMouseLeave', { event, jsEvent, view: state.get('view') }));
