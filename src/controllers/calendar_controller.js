@@ -599,7 +599,17 @@ export default class CalendarController extends Controller {
   // Normalises Date strings / duration shapes and re-runs the derivation
   // pipeline so subscribers see the new options effect immediately.
   setOption(key, value) {
-    if (key === 'date' && typeof value === 'string') value = createDate(value);
+    // Normalise dates to the calendar's UTC-encoded local-midnight form,
+    // matching the date parser used during initial option parsing.
+    // Without this, `today: () => setOption('date', new Date())` would
+    // land options.date on a non-midnight time-of-day; activeRange.start
+    // would then be at e.g. 14:23, every slot's minute would be 23/53,
+    // and the TimeGrid time-axis would render blank because no slot
+    // satisfies the hour-only label filter (mins === 0).
+    if (key === 'date') {
+      if (typeof value === 'string') value = setMidnight(createDate(value));
+      else if (value instanceof Date) value = setMidnight(createDate(value));
+    }
     if (key === 'duration' && (typeof value === 'string' || typeof value === 'number' || isPlainObject(value))) {
       value = createDuration(value);
     }
