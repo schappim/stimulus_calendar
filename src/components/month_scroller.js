@@ -92,6 +92,38 @@ export function createMonthScroller(container, state, { onDateChange }) {
   });
   renderEvents(weekRows, state);
 
+  // When the date changes via something OTHER than the scroller's own
+  // scroll (Today button, gotoDate, external setOption('date', ...)),
+  // jump the scroll position so the requested month is centred. The
+  // suppressOnDateChange flag stops the resulting scroll from looping
+  // back through onScrollSettled → onDateChange → here.
+  const rangeSub = state.on('change:currentRange', () => {
+    if (suppressOnDateChange) return;
+    const date = state.get('options').date;
+    if (!date) return;
+    const target = startOfMonth(cloneDate(date));
+    let row = weekRows.find((r) => r.monthAnchor && datesEqual(r.monthAnchor, target));
+    if (!row) {
+      // The target month is outside the seeded range — extend until it
+      // is, then scroll.
+      const tooLate = weekRows[weekRows.length - 1]?.weekStart && weekRows[weekRows.length - 1].weekStart < target;
+      const tooEarly = weekRows[0]?.weekStart && weekRows[0].weekStart > target;
+      if (tooLate) {
+        while (weekRows[weekRows.length - 1].weekStart < target) extendForward();
+      } else if (tooEarly) {
+        while (weekRows[0].weekStart > target) extendBackward();
+      }
+      row = weekRows.find((r) => r.monthAnchor && datesEqual(r.monthAnchor, target));
+    }
+    if (!row) return;
+    suppressOnDateChange = true;
+    const prevBehavior = body.style.scrollBehavior;
+    body.style.scrollBehavior = 'auto';
+    body.scrollTop = Math.max(0, row.rowEl.offsetTop - 12);
+    body.style.scrollBehavior = prevBehavior || '';
+    requestAnimationFrame(() => { suppressOnDateChange = false; });
+  });
+
   // --------- scroll handling ---------
 
   let settleTimer = null;
@@ -110,12 +142,8 @@ export function createMonthScroller(container, state, { onDateChange }) {
     settleTimer = setTimeout(onScrollSettled, SCROLL_SETTLE_MS);
   }
 
-  function onScrollSettled() {
-    if (suppressOnDateChange) return;
+  function currentCentreDate() {
     const centreY = body.scrollTop + body.clientHeight / 2;
-    // Find the week row whose midpoint is closest to centreY, then snap
-    // to the first-of-month within that row's week (or the row's first
-    // visible day).
     let best = null;
     let bestDist = Infinity;
     for (const r of weekRows) {
@@ -123,8 +151,7 @@ export function createMonthScroller(container, state, { onDateChange }) {
       const d = Math.abs(mid - centreY);
       if (d < bestDist) { bestDist = d; best = r; }
     }
-    if (!best) return;
-    // The "current" month is the month that contains most of this row.
+    if (!best) return null;
     const days = enumerateWeekDays(best.weekStart);
     const cnt = {};
     for (const d of days) {
@@ -136,9 +163,32 @@ export function createMonthScroller(container, state, { onDateChange }) {
       if (v > bestMonthCnt) { bestMonthKey = k; bestMonthCnt = v; }
     }
     const [y, m] = bestMonthKey.split('-').map(Number);
-    const newDate = new Date(Date.UTC(y, m, 1));
+    // Use the 15th of the centred month — picking a mid-month day means
+    // that when the user switches to week/day view, the destination
+    // doesn't snap to a partial week straddling the previous month.
+    return new Date(Date.UTC(y, m, 15));
+  }
+
+  function onScrollSettled() {
+    if (suppressOnDateChange) return;
+    const newDate = currentCentreDate();
+    if (!newDate) return;
     const currentOption = state.get('options').date;
-    if (!datesEqual(startOfMonth(cloneDate(currentOption)), newDate)) {
+    if (!datesEqual(startOfMonth(cloneDate(currentOption)), startOfMonth(cloneDate(newDate)))) {
+      onDateChange?.(newDate);
+    }
+  }
+
+  function flushPendingDate() {
+    // Called on destroy (view-switch) so any uncommitted scroll position
+    // commits to options.date BEFORE the new view mounts. Without this,
+    // switching from month → week immediately after a scroll lands the
+    // week view on whatever options.date was when the scroll started.
+    if (suppressOnDateChange) return;
+    const newDate = currentCentreDate();
+    if (!newDate) return;
+    const currentOption = state.get('options').date;
+    if (!datesEqual(startOfMonth(cloneDate(currentOption)), startOfMonth(cloneDate(newDate)))) {
       onDateChange?.(newDate);
     }
   }
@@ -178,7 +228,11 @@ export function createMonthScroller(container, state, { onDateChange }) {
 
   return {
     destroy() {
+      // Commit any pending scroll position so a view-switch lands on
+      // the month the user was looking at, not on the stale date.
+      flushPendingDate();
       off();
+      rangeSub?.();
       clearTimeout(renderTimer);
       clearTimeout(settleTimer);
       body.removeEventListener('scroll', onScroll);

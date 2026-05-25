@@ -9,11 +9,18 @@ import { createSlots, createSlotTimeLimits } from '../lib/slots.js';
 import { viewDates as viewDatesHelper } from '../lib/derived.js';
 
 export function renderTimeGridView(container, state) {
+  // Persist user-scrolled vertical offset across re-renders so that
+  // mutations triggered by editing an event (updateEvent during resize /
+  // drag) don't snap the body scroll back to options.scrollTime.
+  let savedScrollTop = null;
   const render = () => {
     const options = state.get('options');
     const theme = options.theme;
     const activeRange = state.get('activeRange');
     if (!activeRange) return;
+    // Capture the previous body's scrollTop before we tear down its DOM.
+    const prevBody = container.querySelector('[data-row="body"]');
+    if (prevBody) savedScrollTop = prevBody.scrollTop;
 
     const days = viewDatesHelper(activeRange, options.hiddenDays ?? []);
 
@@ -59,20 +66,51 @@ export function renderTimeGridView(container, state) {
       allDayRow.append(allDayLabel);
       const allDayCols = createElement('div', 'ec-all-day-cols');
       allDayCols.style.setProperty('--ec-cols', String(days.length));
+      const cells = [];
       for (const day of days) {
         const cell = createElement('div', `${theme.day} ec-all-day-cell`, '', [
           ['data-date', day.toISOString().substring(0, 10)],
         ]);
-        const allDayEvents = eventsOnDay(filtered, day).filter((e) => e.allDay);
-        for (const event of allDayEvents) {
-          const chip = createElement('div', theme.event, '', [
-            ['data-event-id', event.id],
-          ]);
-          if (event.backgroundColor) chip.style.backgroundColor = event.backgroundColor;
-          chip.append(createElement('div', theme.eventTitle, event.title || ''));
-          cell.append(chip);
-        }
         allDayCols.append(cell);
+        cells.push(cell);
+      }
+      // Render each visible all-day event as ONE chip anchored to its
+      // first visible day, with width = (visible day count) cells. The
+      // chip's title sits at the left of its visible portion, so the
+      // label is never clipped off-screen for events that started in a
+      // previous week. Chips overflow into the cells they span via a
+      // calc() width — adjacent days don't render their own chips for
+      // the same event.
+      const allDayEvents = filtered.filter((e) => e.allDay);
+      for (const event of allDayEvents) {
+        let firstIdx = -1, lastIdx = -1;
+        for (let i = 0; i < days.length; ++i) {
+          const d = days[i];
+          const next = cloneDate(d); addDay(next);
+          if (event.start < next && event.end > d) {
+            if (firstIdx === -1) firstIdx = i;
+            lastIdx = i;
+          }
+        }
+        if (firstIdx === -1) continue;
+        const span = lastIdx - firstIdx + 1;
+        const chip = createElement('div', theme.event, '', [
+          ['data-event-id', event.id],
+        ]);
+        if (event.backgroundColor) chip.style.backgroundColor = event.backgroundColor;
+        chip.style.position = 'absolute';
+        chip.style.left = '1px';
+        chip.style.right = 'auto';
+        chip.style.top = '2px';
+        // width = N column-widths + (N-1) col-border widths, minus the
+        // 2px of left/right margin we steal back for the gap.
+        chip.style.width = `calc(${span * 100}% + ${(span - 1)}px - 2px)`;
+        chip.style.overflow = 'hidden';
+        chip.append(createElement('div', theme.eventTitle, event.title || ''));
+        const fire = state.get('fire');
+        chip.addEventListener('click',     (jsEvent) => fire?.('eventClick',      { event, jsEvent, view: state.get('view') }));
+        chip.addEventListener('dblclick',  (jsEvent) => fire?.('eventDoubleClick',{ event, jsEvent, view: state.get('view'), el: chip }));
+        cells[firstIdx].append(chip);
       }
       allDayRow.append(allDayCols);
       root.append(allDayRow);
@@ -94,11 +132,29 @@ export function renderTimeGridView(container, state) {
       activeRange.start, options.slotDuration, slotLabelPeriodicity, slotTimeLimits, slotLabelFmt,
     );
 
-    // Sidebar — slot label column.
+    // Sidebar — slot label column. macOS-Calendar style: the hour
+    // number is the dominant glyph; the am/pm suffix is smaller and
+    // muted; 12 pm and 12 am are special-cased to "Noon" and "Midnight".
     const sidebar = createElement('div', theme.sidebar);
-    for (const [_iso, label] of slots) {
-      const cell = createElement('div', theme.slot, label);
+    for (const [iso, label] of slots) {
+      const cell = createElement('div', theme.slot, '');
       cell.style.height = `${options.slotHeight}px`;
+      if (label) {
+        const date = new Date(iso);
+        const hours = date.getUTCHours();
+        const mins = date.getUTCMinutes();
+        if (hours === 12 && mins === 0) {
+          cell.append(createElement('span', 'ec-slot-hour', 'Noon'));
+        } else if (hours === 0 && mins === 0) {
+          cell.append(createElement('span', 'ec-slot-hour', 'Midnight'));
+        } else {
+          const h12 = (hours % 12) || 12;
+          const period = hours >= 12 ? 'pm' : 'am';
+          const timeText = mins === 0 ? String(h12) : `${h12}:${String(mins).padStart(2, '0')}`;
+          cell.append(createElement('span', 'ec-slot-hour', timeText));
+          cell.append(createElement('span', 'ec-slot-period', period));
+        }
+      }
       sidebar.append(cell);
     }
     body.append(sidebar);
@@ -197,14 +253,18 @@ export function renderTimeGridView(container, state) {
     root.append(body);
     container.replaceChildren(root);
 
-    // Initial scroll to scrollTime.
-    if (options.scrollTime) {
+    // Preserve user scroll across re-renders; only apply scrollTime on
+    // the first mount (when savedScrollTop is null).
+    if (savedScrollTop != null) {
+      body.scrollTop = savedScrollTop;
+    } else if (options.scrollTime) {
       const scrollMin = totalSeconds(options.scrollTime) / 60;
       const slotMinMin = totalSeconds(slotTimeLimits.min) / 60;
       const minutesPerSlot = totalSeconds(options.slotDuration) / 60;
       const pxPerMin = options.slotHeight / minutesPerSlot;
       const top = (scrollMin - slotMinMin) * pxPerMin;
       body.scrollTop = Math.max(0, top);
+      savedScrollTop = body.scrollTop;
     }
   };
 

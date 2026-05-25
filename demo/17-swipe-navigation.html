@@ -59,11 +59,12 @@
     <button id="add-event">+ Event</button>
   </div>
 
+  <!-- Date defaults to today; validRange.start = today so the calendar
+       never shows past time. -->
   <div id="cal"
        data-controller="calendar"
        data-calendar-plugins-value='["DayGrid","TimeGrid","List","Interaction"]'
        data-calendar-view-value="dayGridMonth"
-       data-calendar-date-value="2026-05-15"
        data-calendar-options-value='{"editable":true,"eventDurationEditable":true,"scrollTime":"08:00:00","continuousMonthScroll":true,"snapDuration":"00:15:00"}'
        data-calendar-header-toolbar-value='{"start":"today","center":"title","end":"prev,next"}'>
   </div>
@@ -83,20 +84,38 @@
     await new Promise((r) => setTimeout(r, 60));
 
     const el = document.getElementById('cal');
+
+    // Clamp navigation to today and forward — no past time in this demo.
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    el.calendarApi.setOption('validRange', { start: today });
+
+    // Seed events relative to TODAY so the demo content is always
+    // current regardless of when the page is opened.
     const seed = (rows) => rows.forEach((r) => el.calendarApi.addEvent(r));
+    const day = (offset, hh = 0, mm = 0) => {
+      const d = new Date(today);
+      d.setDate(d.getDate() + offset);
+      d.setHours(hh, mm, 0, 0);
+      return d.toISOString();
+    };
+    const dayDate = (offset) => {
+      const d = new Date(today);
+      d.setDate(d.getDate() + offset);
+      return d.toISOString().substring(0, 10);
+    };
 
     seed([
-      { id: 's1', title: 'Conference',  start: '2026-05-04', end: '2026-05-07', allDay: true, backgroundColor: '#0ea5e9' },
-      { id: 's2', title: 'Sales review',start: '2026-05-11T10:00', end: '2026-05-11T11:00' },
-      { id: 's3', title: 'Design crit', start: '2026-05-13T14:00', end: '2026-05-13T15:30', backgroundColor: '#dc2626' },
-      { id: 's4', title: 'Standup',     start: '2026-05-14T09:00', end: '2026-05-14T09:30' },
-      { id: 's5', title: 'Lunch w/ J',  start: '2026-05-14T12:00', end: '2026-05-14T13:00', backgroundColor: '#16a34a' },
-      { id: 's6', title: '1:1 Alex',    start: '2026-05-19T11:00', end: '2026-05-19T11:30' },
-      { id: 's7', title: 'Offsite',     start: '2026-05-20', end: '2026-05-23', allDay: true, backgroundColor: '#9333ea' },
-      { id: 's8', title: 'Release',     start: '2026-05-28T17:00', end: '2026-05-28T18:00', backgroundColor: '#dc2626' },
-      // Spill into the next month so the swipe-right destination has events too.
-      { id: 's9', title: 'Planning',    start: '2026-06-02T10:00', end: '2026-06-02T11:00' },
-      { id: 'sa', title: 'All-hands',   start: '2026-06-05T14:00', end: '2026-06-05T15:00', backgroundColor: '#dc2626' },
+      { id: 's1', title: 'Conference',  start: dayDate(2), end: dayDate(5), allDay: true, backgroundColor: '#0ea5e9' },
+      { id: 's2', title: 'Sales review',start: day(0, 10), end: day(0, 11) },
+      { id: 's3', title: 'Design crit', start: day(1, 14), end: day(1, 15, 30), backgroundColor: '#dc2626' },
+      { id: 's4', title: 'Standup',     start: day(2, 9),  end: day(2, 9, 30) },
+      { id: 's5', title: 'Lunch w/ J',  start: day(2, 12), end: day(2, 13), backgroundColor: '#16a34a' },
+      { id: 's6', title: '1:1 Alex',    start: day(7, 11), end: day(7, 11, 30) },
+      { id: 's7', title: 'Offsite',     start: dayDate(9), end: dayDate(12), allDay: true, backgroundColor: '#9333ea' },
+      { id: 's8', title: 'Release',     start: day(17, 17), end: day(17, 18), backgroundColor: '#dc2626' },
+      { id: 's9', title: 'Planning',    start: day(22, 10), end: day(22, 11) },
+      { id: 'sa', title: 'All-hands',   start: day(25, 14), end: day(25, 15), backgroundColor: '#dc2626' },
     ]);
 
     // View-switching pills.

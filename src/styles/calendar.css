@@ -365,9 +365,10 @@
 }
 
 .ec-time-grid .ec-all-day-cell {
-  min-height: 1.25rem;
+  min-height: 1.75rem;
   border-right: 1px solid var(--ec-border-color);
   padding: 2px;
+  position: relative;
 }
 
 .ec-time-grid .ec-all-day-cell:last-child { border-right: none; }
@@ -388,7 +389,7 @@
 }
 
 .ec-time-grid .ec-sidebar .ec-slot {
-  font-size: 0.7rem;
+  font-size: 0.85rem;
   color: var(--ec-muted-text-color);
   text-align: right;
   padding: 0 0.5rem;
@@ -396,6 +397,24 @@
   align-items: flex-start;
   justify-content: flex-end;
   white-space: nowrap;
+  gap: 0.125rem;
+}
+
+.ec-time-grid .ec-sidebar .ec-slot-hour {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--ec-text-color);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.ec-time-grid .ec-sidebar .ec-slot-period {
+  font-size: 0.65rem;
+  color: var(--ec-muted-text-color);
+  text-transform: lowercase;
+  margin-top: 2px;
+  line-height: 1;
+  letter-spacing: 0.02em;
 }
 
 .ec-time-grid .ec-days {

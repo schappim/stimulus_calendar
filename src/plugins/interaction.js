@@ -144,20 +144,33 @@ function attachEventDragHandler(rootEl, state) {
       state.get('fire')?.('eventDragStart', {
         event: drag.event, jsEvent, view: state.get('view'),
       });
-      // Build a follow-the-pointer ghost copy of the chip.
+      // Build a follow-the-pointer ghost copy of the chip. Keep it
+      // inside the calendar's view-family scope (.ec-time-grid /
+      // .ec-day-grid / .ec-list / .ec-timeline) so the descendant CSS
+      // rules that style the chip (font, padding, dot, time text) still
+      // apply — appending to document.body strips that cascade and the
+      // ghost ends up with default browser styling.
       const ghost = drag.sourceChip.cloneNode(true);
       ghost.classList.add(options.theme.ghost ?? 'ec-ghost');
       ghost.style.position = 'fixed';
       ghost.style.pointerEvents = 'none';
       ghost.style.opacity = '0.85';
       ghost.style.zIndex = '1000';
+      // Lock the cloned dimensions so the ghost stays the same size as
+      // the source chip regardless of any margin/padding/grid layout
+      // it inherits from its new parent.
       const rect = drag.sourceChip.getBoundingClientRect();
       ghost.style.width  = `${rect.width}px`;
       ghost.style.height = `${rect.height}px`;
       ghost.style.left = `${rect.left}px`;
       ghost.style.top  = `${rect.top}px`;
+      // Reset positioning inside grid/flex parents.
+      ghost.style.margin = '0';
+      ghost.style.right = 'auto';
+      ghost.style.bottom = 'auto';
       drag.ghost = ghost;
-      document.body.appendChild(ghost);
+      const scope = drag.sourceChip.closest('.ec-time-grid, .ec-day-grid, .ec-list, .ec-timeline, .ec') ?? document.body;
+      scope.appendChild(ghost);
       drag.sourceChip.style.opacity = '0.4';
       document.body.classList.add('ec-dragging');
     }

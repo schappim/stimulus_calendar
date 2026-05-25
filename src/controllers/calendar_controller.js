@@ -607,23 +607,28 @@ export default class CalendarController extends Controller {
       value = createDuration(value);
     }
     const prevView = this._state.get('options').view;
-    this._setOption(key, value);
-    // View name change → re-apply per-view option overrides, swap the
-    // viewComponent, and remount the main view. setOption mutates the
-    // live options object in place so change:options never fires
-    // automatically; we trigger the switch explicitly here.
+    // View name change → tear down the old view BEFORE applying the new
+    // view's option bag, so a view component like MonthScroller can
+    // flush its in-flight scroll position into options.date (via its
+    // destroy hook) before assign(options, viewOptions[newView])
+    // overwrites date with whatever value the new view's bag was
+    // holding. Without the early teardown, switching from month → week
+    // mid-scroll lands the week view on the old date instead of the
+    // user's last scroll position.
     if (key === 'view' && value !== prevView) {
+      if (this._viewTeardown) { this._viewTeardown(); this._viewTeardown = null; }
+      this._setOption(key, value);
       const initComponent = this._setViewOptions(value);
       if (typeof initComponent === 'function') {
         this._state.set('viewComponent', initComponent(this._state));
       }
       this._recompute();
       this._mountView();
-      // Re-render the toolbar so the active view-button highlight tracks.
       const actions = this._toolbarActions();
       renderToolbar(this._toolbarEl, this._state, actions);
       return;
     }
+    this._setOption(key, value);
     this._recompute();
   }
 
