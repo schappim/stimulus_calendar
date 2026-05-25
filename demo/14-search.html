@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>stimulus_calendar — event search</title>
+  <link rel="stylesheet" href="../src/styles/calendar.css">
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; margin: 2rem; }
+    .ec { width: 920px; }
+    .search-bar {
+      display: flex; align-items: center; gap: 0.625rem;
+      padding: 0.625rem 0.875rem; margin-bottom: 0.75rem;
+      background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;
+    }
+    .search-bar svg { color: #64748b; flex: 0 0 auto; }
+    .search-bar input {
+      flex: 1; border: 0; background: transparent; font: inherit;
+      font-size: 0.95rem; outline: none; color: #1f2937;
+    }
+    .search-bar .count {
+      font-size: 0.8rem; color: #64748b; flex: 0 0 auto;
+      padding: 2px 0.5rem; background: #ffffff;
+      border: 1px solid #cbd5e1; border-radius: 999px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Event search — dayGridMonth</h1>
+  <p>Type to filter events live. The search query is funnelled into
+     <code>options.eventFilter</code>; the recompute pipeline re-renders the visible chips.</p>
+
+  <div class="search-bar">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+    </svg>
+    <input id="q" type="search" placeholder="Search events by title…" value="design"/>
+    <span class="count" id="count">0 / 0</span>
+  </div>
+
+  <div data-controller="calendar"
+       data-calendar-plugins-value='["DayGrid"]'
+       data-calendar-view-value="dayGridMonth"
+       data-calendar-date-value="2026-05-15"
+       data-calendar-header-toolbar-value='{"start":"today","center":"title","end":"prev,next"}'>
+  </div>
+
+  <script type="module">
+    import { Application } from '/node_modules/@hotwired/stimulus/dist/stimulus.js';
+    import CalendarController from '/src/controllers/calendar_controller.js';
+    Application.start().register('calendar', CalendarController);
+    await new Promise((r) => setTimeout(r, 80));
+    const el = document.querySelector('[data-controller="calendar"]');
+
+    const events = [
+      { id:'a', title:'Conference',          start:'2026-05-04', end:'2026-05-07', allDay:true,  backgroundColor:'#0ea5e9' },
+      { id:'b', title:'Sales review',        start:'2026-05-11T10:00', end:'2026-05-11T11:00' },
+      { id:'c', title:'Design crit',         start:'2026-05-13T14:00', end:'2026-05-13T15:30', backgroundColor:'#dc2626' },
+      { id:'d', title:'1:1 Alex',            start:'2026-05-19T11:00', end:'2026-05-19T11:30' },
+      { id:'e', title:'Offsite',             start:'2026-05-20', end:'2026-05-23', allDay:true, backgroundColor:'#10b981' },
+      { id:'f', title:'Release v1.2',        start:'2026-05-28T17:00', end:'2026-05-28T18:00', backgroundColor:'#9333ea' },
+      { id:'g', title:'Demo day',            start:'2026-05-15T15:00', end:'2026-05-15T16:00', backgroundColor:'#9333ea' },
+      { id:'h', title:'Design workshop',     start:'2026-05-25T10:00', end:'2026-05-25T11:30', backgroundColor:'#dc2626' },
+      { id:'i', title:'Brand redesign sync', start:'2026-05-26T13:00', end:'2026-05-26T14:00', backgroundColor:'#dc2626' },
+      { id:'j', title:'Standup',             start:'2026-05-18T09:00', end:'2026-05-18T09:30' },
+    ];
+    events.forEach((e) => el.calendarApi.addEvent(e));
+    const total = events.length;
+
+    const q = document.getElementById('q');
+    const count = document.getElementById('count');
+    const apply = () => {
+      const needle = q.value.trim().toLowerCase();
+      el.calendarApi.setOption('eventFilter', needle
+        ? ({ event }) => (event.title || '').toLowerCase().includes(needle)
+        : undefined);
+      const visible = el.calendarApi.getEvents().length;
+      count.textContent = `${visible} / ${total}`;
+    };
+    q.addEventListener('input', apply);
+    apply();
+  </script>
+</body>
+</html>

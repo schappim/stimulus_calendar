@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>stimulus_calendar — category filters</title>
+  <link rel="stylesheet" href="../src/styles/calendar.css">
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; margin: 2rem; }
+    .ec { width: 920px; }
+    .filter-bar {
+      display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+      padding: 0.75rem 1rem; margin-bottom: 0.75rem;
+      background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;
+      font-size: 0.875rem;
+    }
+    .filter-bar > b { font-weight: 600; }
+    .chip {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      padding: 0.25rem 0.625rem; border-radius: 999px; cursor: pointer;
+      border: 1px solid transparent; user-select: none;
+    }
+    .chip input { margin: 0; }
+    .chip[data-on="false"] { opacity: 0.4; background: #f1f5f9; border-color: #cbd5e1; }
+    .chip[data-on="true"]  { color: #fff; }
+    .chip[data-category="engineering"][data-on="true"] { background: #2563eb; }
+    .chip[data-category="design"][data-on="true"]      { background: #dc2626; }
+    .chip[data-category="ops"][data-on="true"]         { background: #10b981; }
+    .chip[data-category="marketing"][data-on="true"]   { background: #9333ea; }
+  </style>
+</head>
+<body>
+  <h1>Category filters — timeGridWeek</h1>
+  <p>Toggle a category to show/hide its events. The calendar's <code>eventFilter</code> option
+     is updated on every change and re-runs through the normal recompute pipeline.</p>
+
+  <div class="filter-bar">
+    <b>Filter:</b>
+    <label class="chip" data-category="engineering" data-on="true">
+      <input type="checkbox" checked> Engineering
+    </label>
+    <label class="chip" data-category="design" data-on="true">
+      <input type="checkbox" checked> Design
+    </label>
+    <label class="chip" data-category="ops" data-on="false">
+      <input type="checkbox"> Ops
+    </label>
+    <label class="chip" data-category="marketing" data-on="true">
+      <input type="checkbox" checked> Marketing
+    </label>
+  </div>
+
+  <div data-controller="calendar"
+       data-calendar-plugins-value='["TimeGrid"]'
+       data-calendar-view-value="timeGridWeek"
+       data-calendar-date-value="2026-05-25"
+       data-calendar-options-value='{"scrollTime":"08:00:00"}'
+       data-calendar-header-toolbar-value='{"start":"today","center":"title","end":"prev,next"}'>
+  </div>
+
+  <script type="module">
+    import { Application } from '/node_modules/@hotwired/stimulus/dist/stimulus.js';
+    import CalendarController from '/src/controllers/calendar_controller.js';
+    Application.start().register('calendar', CalendarController);
+    await new Promise((r) => setTimeout(r, 80));
+    const el = document.querySelector('[data-controller="calendar"]');
+
+    const colour = {
+      engineering: '#2563eb',
+      design:      '#dc2626',
+      ops:         '#10b981',
+      marketing:   '#9333ea',
+    };
+
+    [
+      { id:'1', title:'Standup',        start:'2026-05-25T09:00', end:'2026-05-25T09:30', category:'engineering' },
+      { id:'2', title:'1:1 Alex',       start:'2026-05-25T11:00', end:'2026-05-25T11:30', category:'engineering' },
+      { id:'3', title:'Design crit',    start:'2026-05-26T14:00', end:'2026-05-26T15:30', category:'design' },
+      { id:'4', title:'Sprint planning',start:'2026-05-27T10:00', end:'2026-05-27T11:30', category:'engineering' },
+      { id:'5', title:'Brand workshop', start:'2026-05-27T13:00', end:'2026-05-27T15:00', category:'design' },
+      { id:'6', title:'Release ops',    start:'2026-05-28T09:30', end:'2026-05-28T11:00', category:'ops' },
+      { id:'7', title:'Launch sync',    start:'2026-05-28T15:00', end:'2026-05-28T16:00', category:'marketing' },
+      { id:'8', title:'Postmortem',     start:'2026-05-29T10:00', end:'2026-05-29T11:00', category:'ops' },
+      { id:'9', title:'Demo day',       start:'2026-05-29T15:00', end:'2026-05-29T16:30', category:'marketing' },
+    ].forEach((e) => {
+      el.calendarApi.addEvent({
+        ...e,
+        backgroundColor: colour[e.category],
+        extendedProps: { category: e.category },
+      });
+    });
+
+    const enabled = new Set(['engineering', 'design', 'marketing']);  // ops off by default for the screenshot
+    const setFilter = () => el.calendarApi.setOption('eventFilter',
+      ({ event }) => enabled.has(event.extendedProps?.category));
+    setFilter();
+
+    for (const chip of document.querySelectorAll('.chip')) {
+      const input = chip.querySelector('input');
+      const cat = chip.dataset.category;
+      input.addEventListener('change', () => {
+        if (input.checked) enabled.add(cat); else enabled.delete(cat);
+        chip.dataset.on = String(input.checked);
+        setFilter();
+      });
+    }
+  </script>
+</body>
+</html>

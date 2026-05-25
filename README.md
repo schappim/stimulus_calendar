@@ -147,6 +147,60 @@ connected user sees it move within ~50ms.
 
 ![Animated GIF: two browser windows side-by-side showing the same calendar; an event moves on the left and the right window updates within ~50&nbsp;ms](docs/images/cal-broadcast.gif)
 
+## Filtering, search & nested resources
+
+The same `eventFilter` hook backs every "show me only X" interaction.
+For nested data, ResourceTimeline takes a tree of resources via
+`children:` and renders them with collapse/expand chevrons.
+
+**Category filters** — toggle a category to update `options.eventFilter`;
+the recompute pipeline redraws visible chips in place. See
+[`demo/13-filters.html`](demo/13-filters.html).
+
+![timeGridWeek with four category chips at the top (Engineering, Design, Marketing on; Ops off) — events in the off category are hidden from the grid](docs/images/cal-filters.png)
+
+```js
+const enabled = new Set(['engineering', 'design', 'marketing'])
+el.calendarApi.setOption('eventFilter',
+  ({ event }) => enabled.has(event.extendedProps?.category))
+```
+
+**Search** — funnel a text query into `eventFilter` to show only events
+whose title matches; the visible-count badge stays in sync. See
+[`demo/14-search.html`](demo/14-search.html).
+
+![dayGridMonth with a search box reading "design" at the top, a "3 / 10" results badge, and only three events visible in the grid: Design crit, Design workshop, Brand redesign sync](docs/images/cal-search.png)
+
+```js
+input.addEventListener('input', () => {
+  const needle = input.value.trim().toLowerCase()
+  el.calendarApi.setOption('eventFilter', needle
+    ? ({ event }) => (event.title || '').toLowerCase().includes(needle)
+    : undefined)
+})
+```
+
+**Nested resources** — pass a tree to `data-calendar-resources-value`
+(or `setOption('resources', […])`). Children sit under their parent in
+the row sidebar; parents render a `+`/`−` chevron to collapse the
+subtree. Events bind to leaf resources via `resourceIds`. See
+[`demo/15-nested-resources.html`](demo/15-nested-resources.html).
+
+![resourceTimelineWeek with a Studios parent containing Studio A (Vocal booth A1, Live room A2) and Studio B (Vocal booth B1); a Meeting rooms parent containing Boardroom and Phone booth; events placed against each leaf resource](docs/images/cal-nested-resources.png)
+
+```html
+<div data-controller="calendar"
+     data-calendar-plugins-value='["ResourceTimeline"]'
+     data-calendar-resources-value='[
+       { "id":"studios", "title":"Studios", "expanded": true, "children": [
+           { "id":"sa", "title":"Studio A", "children": [
+               { "id":"sa1", "title":"Vocal booth A1" },
+               { "id":"sa2", "title":"Live room A2" }
+           ]}
+       ]}
+     ]'></div>
+```
+
 ## Calendar attributes (`data-calendar-*-value`)
 
 Pass any option as a `data-calendar-<option>-value` attribute (kebab-case),

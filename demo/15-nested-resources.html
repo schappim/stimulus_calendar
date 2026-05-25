@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>stimulus_calendar — nested resources</title>
+  <link rel="stylesheet" href="../src/styles/calendar.css">
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; margin: 2rem; }
+    .ec { width: 980px; }
+  </style>
+</head>
+<body>
+  <h1>Nested resources — resourceTimelineWeek</h1>
+  <p>Parents collapse/expand their children; click the <code>+</code> / <code>−</code>
+     chevron next to a parent to toggle its child rows. Events are placed against the
+     leaf resource they belong to.</p>
+
+  <div data-controller="calendar"
+       data-calendar-plugins-value='["ResourceTimeline"]'
+       data-calendar-view-value="resourceTimelineWeek"
+       data-calendar-date-value="2026-05-25"
+       data-calendar-resources-value='[
+         { "id":"studios", "title":"Studios", "expanded": true, "children": [
+             { "id":"sa", "title":"Studio A", "expanded": true, "children": [
+                 { "id":"sa1", "title":"Vocal booth A1" },
+                 { "id":"sa2", "title":"Live room A2" }
+             ]},
+             { "id":"sb", "title":"Studio B", "expanded": true, "children": [
+                 { "id":"sb1", "title":"Vocal booth B1" }
+             ]}
+         ]},
+         { "id":"meeting", "title":"Meeting rooms", "expanded": true, "children": [
+             { "id":"m1", "title":"Boardroom" },
+             { "id":"m2", "title":"Phone booth" }
+         ]}
+       ]'
+       data-calendar-options-value='{"slotWidth":110}'
+       data-calendar-header-toolbar-value='{"start":"today","center":"title","end":"prev,next"}'>
+  </div>
+
+  <script type="module">
+    import { Application } from '/node_modules/@hotwired/stimulus/dist/stimulus.js';
+    import CalendarController from '/src/controllers/calendar_controller.js';
+    Application.start().register('calendar', CalendarController);
+    await new Promise((r) => setTimeout(r, 80));
+    const el = document.querySelector('[data-controller="calendar"]');
+    const evts = [
+      { id:'e1', title:'Tracking',     resourceIds:['sa2'], start:'2026-05-25', end:'2026-05-27', allDay:true },
+      { id:'e2', title:'Mix session',  resourceIds:['sa1'], start:'2026-05-27', end:'2026-05-29', allDay:true },
+      { id:'e3', title:'Vocal record', resourceIds:['sb1'], start:'2026-05-25', end:'2026-05-26', allDay:true },
+      { id:'e4', title:'Band rehearsal', resourceIds:['sb1'], start:'2026-05-28', end:'2026-05-30', allDay:true },
+      { id:'e5', title:'Board meeting', resourceIds:['m1'], start:'2026-05-26', end:'2026-05-27', allDay:true },
+      { id:'e6', title:'1-1s',         resourceIds:['m2'], start:'2026-05-25', end:'2026-05-26', allDay:true },
+      { id:'e7', title:'Hiring panel', resourceIds:['m1'], start:'2026-05-29', end:'2026-05-30', allDay:true },
+    ];
+    evts.forEach((e) => el.calendarApi.addEvent(e));
+  </script>
+</body>
+</html>
