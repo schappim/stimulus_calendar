@@ -58,15 +58,23 @@ export function createMonthScroller(container, state, { onDateChange }) {
   initEnd.setUTCMonth(initEnd.getUTCMonth() + INITIAL_MONTHS_EACH_SIDE + 1);
   buildWeeks(body, initStart, initEnd, weekRows, state);
 
-  // Centre the anchor month in the viewport on mount.
+  // Centre the anchor month in the viewport on mount. We disable smooth
+  // scroll for the seed so scrollTop lands instantly (otherwise the
+  // settled-scroll handler fires repeatedly during the smooth animation
+  // and snaps options.date to whatever the in-flight position happens to
+  // be), then re-enable so post-mount user scrolls feel smooth.
   requestAnimationFrame(() => {
     const target = weekRows.find((r) => r.monthAnchor && datesEqual(r.monthAnchor, anchor));
     if (target) {
       const desired = target.rowEl.offsetTop - 12;
+      const prevBehavior = body.style.scrollBehavior;
+      body.style.scrollBehavior = 'auto';
       body.scrollTop = Math.max(0, desired);
+      // Force a layout flush so the scroll position is committed before
+      // we restore smooth.
+      void body.offsetTop;
+      body.style.scrollBehavior = prevBehavior || '';
     }
-    // Once the scroll position is set, install handlers so the immediate
-    // scroll-to-anchor doesn't trigger an onDateChange (which would loop).
     body.addEventListener('scroll', onScroll, { passive: true });
   });
 

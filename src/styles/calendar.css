@@ -858,24 +858,33 @@
 }
 
 .ec-pager-track {
-  display: flex;
-  width: 300%;
-  /* Sit centred at rest (showing the "current" page); transform-driven
-   * navigation moves left/right from here. */
+  position: relative;
+  width: 100%;
   transform: translate3d(0, 0, 0);
   will-change: transform;
 }
 
 .ec-pager-page {
-  flex: 0 0 33.3333%;
-  min-width: 33.3333%;
+  width: 100%;
+}
+
+/* Only the current page sits in normal flow — its natural height
+ * determines the pager height, so swiping to an adjacent page can never
+ * jitter the calendar's vertical footprint. Prev/next pages are
+ * absolutely positioned just off the viewport on either side and ride
+ * the track's transform together with the current page. */
+.ec-pager-page-current {
+  position: relative;
 }
 
 .ec-pager-page-prev,
 .ec-pager-page-next {
-  /* Off-screen at rest. The track's transform-translate at 0 means
-   * these naturally sit outside the visible viewport. */
+  position: absolute;
+  top: 0;
 }
+
+.ec-pager-page-prev { right: 100%; }
+.ec-pager-page-next { left: 100%; }
 
 /* Body cursor + escape-hatch when actively swiping. */
 .ec-pager.ec-pager-dragging { cursor: grabbing; }
