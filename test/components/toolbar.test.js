@@ -13,26 +13,54 @@ async function mount(html) {
   return document.querySelector('[data-controller~="calendar"]');
 }
 
+const slot = (el, name) => el.querySelector(`[data-toolbar-slot="${name}"]`);
+
 describe('toolbar', () => {
   beforeEach(() => { document.body.innerHTML = ''; });
   afterEach(() => { app?.stop(); app = null; document.body.innerHTML = ''; });
 
-  it('renders the view title in an <h2> inside the toolbar slot', async () => {
+  it('renders the title token in an <h2>', async () => {
     const el = await mount(
       `<div data-controller="calendar" data-calendar-date-value="2026-05-25"></div>`);
-    const title = el.querySelector('[data-calendar-slot="toolbar"] h2');
+    const title = el.querySelector('h2.ec-title');
     expect(title).toBeTruthy();
-    expect(title.className).toBe('ec-title');
-    // The exact string depends on locale, but it should contain the year.
     expect(title.textContent).toContain('2026');
   });
 
   it('updates the title when navigating via next()', async () => {
     const el = await mount(
       `<div data-controller="calendar" data-calendar-date-value="2026-05-25"></div>`);
-    const before = el.querySelector('[data-calendar-slot="toolbar"] h2').textContent;
+    const before = el.querySelector('h2.ec-title').textContent;
     el.calendarApi.next();
-    const after = el.querySelector('[data-calendar-slot="toolbar"] h2').textContent;
+    const after = el.querySelector('h2.ec-title').textContent;
     expect(after).not.toBe(before);
+  });
+
+  it('renders the prev button when the headerToolbar includes the token', async () => {
+    const el = await mount(`<div data-controller="calendar"
+      data-calendar-header-toolbar-value='{"start":"prev","center":"title","end":""}'>
+    </div>`);
+    const btn = el.querySelector('[data-toolbar-action="prev"]');
+    expect(btn).toBeTruthy();
+    expect(btn.tagName).toBe('BUTTON');
+    expect(btn.getAttribute('aria-label')).toBe('Previous');
+  });
+
+  it('prev button click invokes calendarApi.prev', async () => {
+    const el = await mount(`<div data-controller="calendar"
+      data-calendar-date-value="2026-05-25"
+      data-calendar-header-toolbar-value='{"start":"prev","center":"title","end":""}'>
+    </div>`);
+    const before = el.calendarApi.getOption('date').getTime();
+    el.querySelector('[data-toolbar-action="prev"]').click();
+    const after = el.calendarApi.getOption('date').getTime();
+    expect(after).toBeLessThan(before);
+  });
+
+  it('renders start/center/end slots regardless of layout contents', async () => {
+    const el = await mount('<div data-controller="calendar"></div>');
+    expect(slot(el, 'start')).toBeTruthy();
+    expect(slot(el, 'center')).toBeTruthy();
+    expect(slot(el, 'end')).toBeTruthy();
   });
 });

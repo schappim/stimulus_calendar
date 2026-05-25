@@ -201,9 +201,19 @@ export default class CalendarController extends Controller {
     this.element.dataset.calendarMounted = 'true';
 
     // Initial toolbar render + re-render on viewTitle change.
-    renderToolbar(this._toolbarEl, this._state);
+    const actions = {
+      prev: () => this._navigate(-1),
+      next: () => this._navigate(+1),
+      today: () => this.setOption('date', new Date()),
+      gotoView: (name) => this.setOption('view', name),
+      fireCustomButton: (name) => {
+        const button = this._state.get('options').customButtons?.[name];
+        if (typeof button?.click === 'function') button.click();
+      },
+    };
+    renderToolbar(this._toolbarEl, this._state, actions);
     this._teardowns.push(
-      this._state.on('change:viewTitle', () => renderToolbar(this._toolbarEl, this._state)),
+      this._state.on('change:viewTitle', () => renderToolbar(this._toolbarEl, this._state, actions)),
     );
   }
 
