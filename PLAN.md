@@ -559,9 +559,9 @@ When a phase is fully done, tick it here too — gives an at-a-glance view in
 the GitHub repo without expanding every section.
 
 - [x] Phase 0 — JS scaffold
-- [ ] Phase 0a — Documentation, skills, gem skeleton, dummy Rails app
-- [ ] Phase 1 — Core libraries
-- [ ] Phase 2 — State & options
+- [x] Phase 0a — Documentation, skills, gem skeleton, dummy Rails app
+- [x] Phase 1 — Core libraries
+- [x] Phase 2 — State & options
 - [ ] Phase 3 — Calendar controller + global options
 - [ ] Phase 4 — Toolbar
 - [ ] Phase 5 — DayGrid view
