@@ -199,7 +199,7 @@ matching ERB usage example in `gem/demo` if the option is server-renderable.
 - [x] Option: `dayHeaderAriaLabelFormat`
 - [x] Option: `icons`
 - [x] Option: `buttonText`
-- [ ] Option: `customButtons`
+- [x] Option: `customButtons`
 - [ ] Option: `headerToolbar`
 
 ---

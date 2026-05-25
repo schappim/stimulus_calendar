@@ -191,4 +191,11 @@ describe('CalendarController options', () => {
     const bt = el.calendarApi.getOption('buttonText');
     expect(bt.today).toBe('Now');
   });
+
+  it('customButtons — Object flows through (functions set via setOption)', async () => {
+    const el = await mount(`<div data-controller="calendar"
+                                  data-calendar-custom-buttons-value='{"myBtn":{"text":"Hi"}}'>
+                            </div>`);
+    expect(el.calendarApi.getOption('customButtons')).toEqual({ myBtn: { text: 'Hi' } });
+  });
 });
