@@ -60,6 +60,16 @@ const TOKEN_RENDERERS = {
     btn.addEventListener('click', () => actions?.prev?.());
     return btn;
   },
+  next(_state, actions, theme) {
+    const btn = createElement('button', `${theme.button} ec-next`, '', [
+      ['type', 'button'],
+      ['aria-label', 'Next'],
+      ['data-toolbar-action', 'next'],
+    ]);
+    btn.innerHTML = '<i class="ec-icon ec-next"></i>';
+    btn.addEventListener('click', () => actions?.next?.());
+    return btn;
+  },
 };
 
 // Exposed for testing — lets tests assert which tokens are registered without
