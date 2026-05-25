@@ -140,6 +140,32 @@ export function renderTimeGridView(container, state) {
       }
       col.style.position = 'relative';
       col.append(overlay);
+
+      // Now indicator — a horizontal line at the current time, only on the
+      // today column. Suppressed unless options.nowIndicator is true.
+      if (options.nowIndicator) {
+        const now = new Date();
+        const today = setMidnight(new Date());
+        const isToday = datesEqual(today, setMidnight(cloneDate(day)));
+        if (isToday) {
+          const nowLine = createElement('div', theme.nowIndicator, '', [
+            ['data-now-indicator', ''],
+          ]);
+          const slotMinMinNow = totalSeconds(slotTimeLimits.min) / 60;
+          const minutesPerSlotNow = totalSeconds(options.slotDuration) / 60;
+          const pxPerMinNow = options.slotHeight / minutesPerSlotNow;
+          const nowMin = now.getHours() * 60 + now.getMinutes() - slotMinMinNow;
+          nowLine.style.position = 'absolute';
+          nowLine.style.left = '0';
+          nowLine.style.right = '0';
+          nowLine.style.top = `${nowMin * pxPerMinNow}px`;
+          nowLine.style.height = '2px';
+          nowLine.style.background = '#dc2626';
+          nowLine.style.zIndex = '5';
+          col.append(nowLine);
+        }
+      }
+
       colsWrap.append(col);
     }
     body.append(colsWrap);
