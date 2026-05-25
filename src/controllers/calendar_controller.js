@@ -58,6 +58,7 @@ export default class CalendarController extends Controller {
     icons: Object,
     buttonText: Object,
     customButtons: Object,
+    headerToolbar: Object,
   };
 
   connect() {
@@ -285,6 +286,7 @@ CalendarController.OPTION_KEYS = [
   'validRange', 'height', 'theme', 'locale', 'timeZone', 'customScrollbars',
   'views', 'lazyFetching', 'highlightedDates', 'titleFormat', 'dayHeaderFormat',
   'dayHeaderAriaLabelFormat', 'icons', 'buttonText', 'customButtons',
+  'headerToolbar',
 ];
 
 function capitalise(s) {

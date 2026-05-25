@@ -198,4 +198,13 @@ describe('CalendarController options', () => {
                             </div>`);
     expect(el.calendarApi.getOption('customButtons')).toEqual({ myBtn: { text: 'Hi' } });
   });
+
+  it('headerToolbar — { start, center, end } flows through', async () => {
+    const el = await mount(`<div data-controller="calendar"
+                                  data-calendar-header-toolbar-value='{"start":"prev,next","center":"title","end":"today"}'>
+                            </div>`);
+    expect(el.calendarApi.getOption('headerToolbar')).toEqual({
+      start: 'prev,next', center: 'title', end: 'today',
+    });
+  });
 });

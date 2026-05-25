@@ -200,7 +200,7 @@ matching ERB usage example in `gem/demo` if the option is server-renderable.
 - [x] Option: `icons`
 - [x] Option: `buttonText`
 - [x] Option: `customButtons`
-- [ ] Option: `headerToolbar`
+- [x] Option: `headerToolbar`
 
 ---
 
