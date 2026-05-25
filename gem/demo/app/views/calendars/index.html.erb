@@ -1,0 +1,38 @@
+<h1>Events (<%= @events.size %>)</h1>
+
+<p>
+  Range: <strong><%= @start.iso8601 %></strong> &rarr;
+         <strong><%= @end.iso8601 %></strong>
+</p>
+
+<%# Once Phase 14f ships, this whole view becomes:                          %>
+<%#                                                                          %>
+<%#   <%= render partial: "stimulus_calendar_rails/calendars/calendar",      %>
+<%#              locals: { calendar: EventCalendar.new(user: current_user),  %>
+<%#                        events: @events, view: "timeGridWeek" } %>        %>
+<%#                                                                          %>
+<%# Until then, render a plain table so the dummy app boots and the         %>
+<%# calendars#index integration test exercises something real.              %>
+
+<table>
+  <thead>
+    <tr>
+      <th>Title</th>
+      <th>Starts</th>
+      <th>Ends</th>
+      <th>Resource</th>
+      <th>All-day</th>
+    </tr>
+  </thead>
+  <tbody>
+    <% @events.each do |event| %>
+      <tr id="event-<%= event.id %>">
+        <td><%= event.title %></td>
+        <td><%= event.starts_at.iso8601 %></td>
+        <td><%= event.ends_at.iso8601 %></td>
+        <td><%= event.resource&.title %></td>
+        <td><%= event.all_day ? "Yes" : "No" %></td>
+      </tr>
+    <% end %>
+  </tbody>
+</table>

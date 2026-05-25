@@ -77,7 +77,7 @@ slot content into the existing files rather than inventing new layout each time.
       `lib/stimulus_calendar_rails/engine.rb`, `config/importmap.rb`,
       `config/routes.rb`, empty `app/{assets,controllers,javascript,models,views}/`
       tree, `MIT-LICENSE`, `Rakefile`, `Gemfile`, `README.md`.
-- [ ] `gem/demo/` — dummy Rails app generated with `rails new`, includes the
+- [x] `gem/demo/` — dummy Rails app generated with `rails new`, includes the
       gem `path:`-pinned, ActionCable + Turbo + Importmap, an `Event` and
       `Resource` model with migrations, a tiny `calendars#index` view, and
       `bin/rails test` wired up. This is the **real Rails app every Rails
