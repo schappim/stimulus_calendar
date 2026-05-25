@@ -45,4 +45,48 @@ describe('view: timeGridWeek', () => {
     expect(parseFloat(chip.style.top)).toBeGreaterThan(0);
     expect(parseFloat(chip.style.height)).toBeGreaterThan(0);
   });
+
+  it('renders an all-day row when allDaySlot (default), with one cell per visible day', async () => {
+    const el = await mount(`<div data-controller="calendar"
+      data-calendar-plugins-value='["TimeGrid"]'
+      data-calendar-view-value="timeGridWeek"
+      data-calendar-date-value="2026-05-25"></div>`);
+    const row = el.querySelector('[data-row="all-day"]');
+    expect(row).toBeTruthy();
+    expect(row.querySelectorAll('.ec-all-day-cell').length).toBe(7);
+  });
+
+  it('hides the all-day row when allDaySlot is false', async () => {
+    const el = await mount(`<div data-controller="calendar"
+      data-calendar-plugins-value='["TimeGrid"]'
+      data-calendar-view-value="timeGridWeek"
+      data-calendar-date-value="2026-05-25"></div>`);
+    el.calendarApi.setOption('allDaySlot', false);
+    expect(el.querySelector('[data-row="all-day"]')).toBeNull();
+  });
+
+  it('allDayContent (function) overrides the all-day label', async () => {
+    const el = await mount(`<div data-controller="calendar"
+      data-calendar-plugins-value='["TimeGrid"]'
+      data-calendar-view-value="timeGridWeek"
+      data-calendar-date-value="2026-05-25"></div>`);
+    el.calendarApi.setOption('allDayContent', () => 'All day');
+    const label = el.querySelector('.ec-all-day-label');
+    expect(label.textContent).toBe('All day');
+  });
+
+  it('all-day events render inside the all-day row, not the slot grid', async () => {
+    const el = await mount(`<div data-controller="calendar"
+      data-calendar-plugins-value='["TimeGrid"]'
+      data-calendar-view-value="timeGridDay"
+      data-calendar-date-value="2026-05-25"></div>`);
+    el.calendarApi.addEvent({
+      id: 'ad', title: 'Holiday', allDay: true,
+      start: '2026-05-25', end: '2026-05-26',
+    });
+    const row = el.querySelector('[data-row="all-day"]');
+    expect(row.querySelector('[data-event-id="ad"]')).toBeTruthy();
+    const body = el.querySelector('[data-row="body"]');
+    expect(body.querySelector('[data-event-id="ad"]')).toBeNull();
+  });
 });
