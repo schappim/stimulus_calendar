@@ -75,6 +75,21 @@ describe('toolbar', () => {
     expect(after).toBeGreaterThan(before);
   });
 
+  it('view-switcher buttons render for each registered view and switch on click', async () => {
+    const el = await mount(`<div data-controller="calendar"
+      data-calendar-views-value='{"dayGridMonth":{},"timeGridWeek":{}}'
+      data-calendar-view-value="dayGridMonth"
+      data-calendar-header-toolbar-value='{"start":"","center":"title","end":"dayGridMonth,timeGridWeek"}'>
+    </div>`);
+    const monthBtn = el.querySelector('[data-toolbar-view="dayGridMonth"]');
+    const weekBtn = el.querySelector('[data-toolbar-view="timeGridWeek"]');
+    expect(monthBtn).toBeTruthy();
+    expect(weekBtn).toBeTruthy();
+    expect(monthBtn.classList.contains('ec-active')).toBe(true);
+    weekBtn.click();
+    expect(el.calendarApi.getOption('view')).toBe('timeGridWeek');
+  });
+
   it('today button uses buttonText.today and snaps the date to now', async () => {
     const el = await mount(`<div data-controller="calendar"
       data-calendar-date-value="2020-01-01"

@@ -42,7 +42,46 @@ function renderSlot(slotEl, tokens, state, actions, theme) {
 
 function renderToken(token, state, actions, theme) {
   const renderer = TOKEN_RENDERERS[token];
-  return renderer ? renderer(state, actions, theme) : null;
+  if (renderer) return renderer(state, actions, theme);
+  // Unknown token → treat as a view-switcher button if a view by that name
+  // is registered (Phase 5+ plugins populate options.views).
+  const options = state.get('options');
+  if (options.views && Object.hasOwn(options.views, token)) {
+    return renderViewButton(token, state, actions, theme);
+  }
+  // Custom button (Phase 4 — customButtons commit).
+  if (options.customButtons && Object.hasOwn(options.customButtons, token)) {
+    return renderCustomButton(token, state, actions, theme);
+  }
+  return null;
+}
+
+function renderViewButton(name, state, actions, theme) {
+  const options = state.get('options');
+  const label = options.buttonText?.[name] ?? name;
+  const btn = createElement('button', `${theme.button} ec-${kebab(name)}`, label, [
+    ['type', 'button'],
+    ['data-toolbar-action', 'view'],
+    ['data-toolbar-view', name],
+  ]);
+  if (options.view === name) btn.classList.add(theme.active);
+  btn.addEventListener('click', () => actions?.gotoView?.(name));
+  return btn;
+}
+
+function renderCustomButton(name, state, actions, theme) {
+  const def = state.get('options').customButtons?.[name] ?? {};
+  const btn = createElement('button', `${theme.button} ec-custom`, def.text ?? name, [
+    ['type', 'button'],
+    ['data-toolbar-action', 'customButton'],
+    ['data-toolbar-button', name],
+  ]);
+  btn.addEventListener('click', () => actions?.fireCustomButton?.(name));
+  return btn;
+}
+
+function kebab(name) {
+  return name.replace(/[A-Z]/g, (m) => '-' + m.toLowerCase()).replace(/^-/, '');
 }
 
 // Token renderer registry. Each renderer returns a DOM node (or null to skip).
