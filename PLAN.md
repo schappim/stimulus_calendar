@@ -153,8 +153,9 @@ with full Vitest coverage. No Stimulus controllers yet. **Rails tests N/A**
       contributions, per-view override merge, parsers registry, function-
       mergeable options receive prev value), `setOption` / `setViewOptions`,
       `diff(current, prev)`
-- [ ] `lib/plugins.js` — plugin registration: `createOptions`, `createParsers`,
-      `initState`, view registry
+- [x] `lib/plugins.js` — `createPluginState(plugins, userOptions)` glues
+      options_store + state and invokes `plugin.initState(state)` for each;
+      `isPlugin` / `normalisePlugins` validation helpers.
 - [ ] Effects model — when state changes, recompute derived state, dispatch
       `change:<name>` events to subscribers
 
