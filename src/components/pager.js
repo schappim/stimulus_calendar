@@ -216,6 +216,12 @@ export function createPager(container, state, factory, { onNavigate }) {
   function onPointerDown(ev) {
     if (drag || wheelGesture) return;
     if (ev.button !== undefined && ev.button !== 0) return;
+    // Desktop mouse: skip — mouse drags on the calendar are for moving
+    // events / creating ranges, NOT for navigating to the prev/next
+    // page. Mouse users navigate via the toolbar buttons or
+    // ArrowLeft / ArrowRight on the focused pager. Touch + pen still
+    // pan because that's the expected gesture on iPad / mobile.
+    if (ev.pointerType === 'mouse') return;
     // Skip gestures that start on something interactive — chips, resizers,
     // more-links, expanders, buttons.
     if (ev.target.closest?.('[data-event-id], [data-more-link], [data-popover-action], .ec-resizer, .ec-pager-no-swipe, .ec-button, button, input, select, textarea, a')) return;
