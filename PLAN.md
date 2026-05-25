@@ -566,7 +566,7 @@ the GitHub repo without expanding every section.
 - [x] Phase 1 — Core libraries
 - [x] Phase 2 — State & options
 - [x] Phase 3 — Calendar controller + global options
-- [ ] Phase 4 — Toolbar
+- [x] Phase 4 — Toolbar
 - [ ] Phase 5 — DayGrid view
 - [ ] Phase 6 — TimeGrid view
 - [ ] Phase 7 — List view
