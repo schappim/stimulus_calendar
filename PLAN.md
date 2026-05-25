@@ -196,7 +196,7 @@ matching ERB usage example in `gem/demo` if the option is server-renderable.
 - [x] Option: `highlightedDates`
 - [x] Option: `titleFormat`
 - [x] Option: `dayHeaderFormat`
-- [ ] Option: `dayHeaderAriaLabelFormat`
+- [x] Option: `dayHeaderAriaLabelFormat`
 - [ ] Option: `icons`
 - [ ] Option: `buttonText`
 - [ ] Option: `customButtons`

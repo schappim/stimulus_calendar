@@ -172,4 +172,10 @@ describe('CalendarController options', () => {
                                   data-calendar-day-header-format-value='{"weekday":"long"}'></div>`);
     expect(el.calendarApi.getOption('dayHeaderFormat')).toEqual({ weekday: 'long' });
   });
+
+  it('dayHeaderAriaLabelFormat — Intl format object flows through', async () => {
+    const el = await mount(`<div data-controller="calendar"
+                                  data-calendar-day-header-aria-label-format-value='{"dateStyle":"long"}'></div>`);
+    expect(el.calendarApi.getOption('dayHeaderAriaLabelFormat')).toEqual({ dateStyle: 'long' });
+  });
 });
