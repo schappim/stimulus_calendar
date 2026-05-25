@@ -1110,11 +1110,9 @@ body.ec-dragging * {
   color: #6b7280;
 }
 
-/* Rows that start a new month need extra top padding so the banner
- * doesn't crowd the first day-number. */
-.ec-month-scroller-row:has(.ec-month-scroller-month-banner) .ec-month-scroller-cells {
-  padding-top: 2.5rem;
-}
+/* Banner overlays the row in-place (z-index above day cells, transparent
+ * background) so the day numbers underneath stay readable and the row
+ * height matches every other row — no extra top padding. */
 
 .ec-month-scroller-cell .ec-events {
   display: flex;
