@@ -145,7 +145,7 @@ drag PATCHes the server and broadcasts the new times to every other tab.
 **Live multi-user sync** — Turbo Streams: one user moves an event, every other
 connected user sees it move within ~50ms.
 
-![Two browser windows side-by-side showing the same calendar — an event dragged in the left window has just appeared moved in the right window](docs/images/cal-broadcast.png)
+![Animated GIF: two browser windows side-by-side showing the same calendar; an event moves on the left and the right window updates within ~50&nbsp;ms](docs/images/cal-broadcast.gif)
 
 ## Calendar attributes (`data-calendar-*-value`)
 
