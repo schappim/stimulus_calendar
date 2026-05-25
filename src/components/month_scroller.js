@@ -155,18 +155,19 @@ export function createMonthScroller(container, state, { onDateChange }) {
     if (suppressOnDateChange) return;
     const date = state.get('options').date;
     if (!date) return;
-    // Find the row that CONTAINS the new date — NOT the row that
-    // carries the month banner. (refreshBanners() places monthAnchor
-    // on the row whose first day is in a new month, which is rarely
-    // the same week as today; scrolling to the banner row would jump
-    // weeks past the user's intended date.)
-    const target = setMidnight(cloneDate(date));
-    const findByDate = () => weekRows.find((r) => {
-      const end = cloneDate(r.weekStart);
-      addDay(end, 7);
-      return r.weekStart <= target && target < end;
-    });
-    let row = findByDate();
+    // External date change (Today button, gotoDate) → bring the MONTH
+    // into view by placing the row that carries this month's banner at
+    // the top of the viewport. Today's week sits a few rows down so
+    // it's still visible without being pinned to the top. (Internal
+    // scroll-driven date updates are filtered out by emitDateChange()
+    // setting suppressOnDateChange before the change propagates.)
+    const target = startOfMonth(cloneDate(date));
+    const findByMonth = () => weekRows.find((r) =>
+      r.monthAnchor
+      && r.monthAnchor.getUTCFullYear() === target.getUTCFullYear()
+      && r.monthAnchor.getUTCMonth() === target.getUTCMonth(),
+    );
+    let row = findByMonth();
     if (!row) {
       const tooLate = weekRows[weekRows.length - 1]?.weekStart && weekRows[weekRows.length - 1].weekStart < target;
       const tooEarly = weekRows[0]?.weekStart && weekRows[0].weekStart > target;
@@ -179,7 +180,7 @@ export function createMonthScroller(container, state, { onDateChange }) {
           if (weekRows[0].weekStart >= before) break; // hit validRange.start guard
         }
       }
-      row = findByDate();
+      row = findByMonth();
     }
     if (!row) return;
     suppressOnDateChange = true;
