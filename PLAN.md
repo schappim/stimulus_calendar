@@ -128,7 +128,9 @@ with full Vitest coverage. No Stimulus controllers yet. **Rails tests N/A**
       payload of {level, children, hidden}), `createResource` (id coerce,
       defaults), `eventBackgroundColor` / `eventTextColor` /
       `findFirstResource` helpers
-- [ ] `lib/slots.js` — `createSlots`, `createSlotTimeLimits`
+- [x] `lib/slots.js` — `createSlots` (time-axis label list with periodicity,
+      trailing-span fix), `createSlotTimeLimits` (flexible expansion to fit
+      out-of-bounds events, optional `eventFilter`)
 - [ ] `lib/chunks.js` — `createEventChunk`, `groupChunks`, column / overlap
       positioning math
 - [ ] `lib/view.js` — `createView` factory (start, end, currentStart, currentEnd,
