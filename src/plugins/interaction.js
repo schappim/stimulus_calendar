@@ -117,9 +117,10 @@ function attachEventDragHandler(rootEl, state) {
     if (!event) return;
     const sourceCell = chip.closest('[data-date]');
     const sourceTimeCol = chip.closest('.ec-time-col');
-    // Cache the source chip's geometry so the ghost can be column-
-    // locked + snapped to the slot grid during pointermove. Without
-    // these we'd have to recompute every move.
+    // Cache the source chip's exact geometry — same column ghost
+    // positioning reuses chipLeft + chipWidth verbatim; cross-column
+    // positioning re-anchors via chipLeftInCol so the ghost preserves
+    // its offset within whatever column the pointer's currently over.
     const sourceColRect = sourceTimeCol?.getBoundingClientRect();
     const chipRect = chip.getBoundingClientRect();
     drag = {
@@ -128,6 +129,8 @@ function attachEventDragHandler(rootEl, state) {
       sourceDateStr: sourceCell?.getAttribute('data-date'),
       sourceTimeCol,
       sourceColRect,
+      chipLeft: chipRect.left,
+      chipLeftInCol: sourceColRect ? chipRect.left - sourceColRect.left : 0,
       chipTopInCol: sourceColRect ? chipRect.top - sourceColRect.top : 0,
       chipHeight: chipRect.height,
       chipWidth: chipRect.width,
@@ -193,22 +196,21 @@ function attachEventDragHandler(rootEl, state) {
     if (drag.ghost) {
       if (drag.sourceTimeCol) {
         // TimeGrid: lock the ghost to a day-column and show the SNAPPED
-        // landing position. Detect which column the pointer is over; if
-        // it's still the source column the ghost just moves vertically
-        // (snapped to slot grid). If the pointer crossed into a
-        // different day column, the ghost snaps to that column's X with
-        // the same height + vertical-slot relationship.
+        // landing position. Same column → ghost X matches source chip
+        // exactly. Different column → ghost shifts to that column,
+        // preserving its in-column horizontal offset.
         const targetCol = timeColAtPoint(jsEvent.clientX, jsEvent.clientY) ?? drag.sourceTimeCol;
         const colRect = targetCol.getBoundingClientRect();
         const slotMins = totalSecondsOfDuration(options.slotDuration) / 60 || 30;
         const snapMins = totalSecondsOfDuration(options.snapDuration) / 60 || slotMins;
         const pxPerMin = (options.slotHeight ?? 22) / slotMins;
-        // Snap the y-delta to slot increments so the ghost sits on a
-        // slot boundary — same delta the commit math uses on pointerup.
         const snappedDyPx =
           Math.round((dy / pxPerMin) / snapMins) * snapMins * pxPerMin;
-        drag.ghost.style.left = `${colRect.left + 1}px`;
-        drag.ghost.style.width = `${colRect.width - 2}px`;
+        const leftPx = targetCol === drag.sourceTimeCol
+          ? drag.chipLeft
+          : colRect.left + drag.chipLeftInCol;
+        drag.ghost.style.left = `${leftPx}px`;
+        drag.ghost.style.width = `${drag.chipWidth}px`;
         drag.ghost.style.top = `${colRect.top + drag.chipTopInCol + snappedDyPx}px`;
         drag.ghost.style.height = `${drag.chipHeight}px`;
       } else {
