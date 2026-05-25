@@ -55,4 +55,10 @@ describe('CalendarController options', () => {
       years: 0, months: 0, days: 14, seconds: 0, inWeeks: true,
     });
   });
+
+  it('firstDay — data-calendar-first-day-value sets options.firstDay', async () => {
+    const el = await mount(
+      `<div data-controller="calendar" data-calendar-first-day-value="1"></div>`);
+    expect(el.calendarApi.getOption('firstDay')).toBe(1);
+  });
 });
