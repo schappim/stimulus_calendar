@@ -1,4 +1,7 @@
 class Event < ApplicationRecord
+  include StimulusCalendarRails::Broadcastable
+  broadcasts_calendar EventCalendar
+
   belongs_to :resource, optional: true
 
   self.locking_column = :lock_version

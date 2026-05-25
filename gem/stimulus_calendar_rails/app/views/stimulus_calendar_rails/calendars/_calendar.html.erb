@@ -1,0 +1,40 @@
+<%#
+  Render a stimulus_calendar driven by a server-side Calendar declaration.
+
+  Required locals:
+    calendar  — an instance of a StimulusCalendarRails::Calendar subclass
+    events    — collection of model instances to seed into the calendar
+
+  Optional locals:
+    id, css_class, view, plugins (array of plugin names), height,
+    header_toolbar (hash), resources (collection), editable (bool)
+%>
+<%
+  resource_name = calendar.class.resource_name
+  calendar_id   = local_assigns[:id] || "#{resource_name}-calendar"
+  plugins       = local_assigns.fetch(:plugins, %w[DayGrid TimeGrid Interaction])
+  view          = local_assigns.fetch(:view, "timeGridWeek")
+  height        = local_assigns[:height]
+  header        = local_assigns.fetch(:header_toolbar, { start: "today", center: "title", end: "prev,next" })
+  editable      = local_assigns.fetch(:editable, true)
+  resources     = local_assigns[:resources]
+
+  events_json = events.map { |e| calendar.event_to_h(e) }
+%>
+<div id="<%= calendar_id %>"
+     class="<%= local_assigns[:css_class] %>"
+     data-controller="calendar"
+     data-calendar-plugins-value="<%= plugins.to_json %>"
+     data-calendar-view-value="<%= view %>"
+     <% if height %>data-calendar-height-value="<%= height %>"<% end %>
+     <% if editable %>data-calendar-editable-value="true"<% end %>
+     <% if resources %>data-calendar-resources-value="<%= resources.to_json %>"<% end %>
+     data-calendar-header-toolbar-value="<%= header.to_json %>"
+     data-calendar-options-value="<%= { events: events_json }.to_json %>"
+     data-calendar-broadcast-value="turbo-stream"
+     data-calendar-broadcast-channel-value="<%= resource_name %>">
+</div>
+
+<%# Turbo Stream subscription. Tenant-scoped via streamables_for, so a
+    tenant only ever receives its own broadcasts. %>
+<%= turbo_stream_from(*StimulusCalendarRails.streamables_for(resource_name)) %>

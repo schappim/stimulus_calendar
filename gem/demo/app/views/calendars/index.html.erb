@@ -5,23 +5,22 @@
          <strong><%= @end.iso8601 %></strong>
 </p>
 
-<%# Once Phase 14f ships, this whole view becomes:                          %>
-<%#                                                                          %>
-<%#   <%= render partial: "stimulus_calendar_rails/calendars/calendar",      %>
-<%#              locals: { calendar: EventCalendar.new(user: current_user),  %>
-<%#                        events: @events, view: "timeGridWeek" } %>        %>
-<%#                                                                          %>
-<%# Until then, render a plain table so the dummy app boots and the         %>
-<%# calendars#index integration test exercises something real.              %>
+<%# Renders the stimulus_calendar JS calendar driven by the EventCalendar
+    server-side schema, with live multi-user sync via Turbo Streams. %>
+<%= render partial: "stimulus_calendar_rails/calendars/calendar",
+           locals: {
+             calendar: EventCalendar.new(user: nil),
+             events: @events,
+             view: "timeGridWeek",
+             plugins: %w[DayGrid TimeGrid Interaction],
+             height: "600px",
+           } %>
 
+<%# Fallback table so the integration test sees a deterministic event list. %>
 <table>
   <thead>
     <tr>
-      <th>Title</th>
-      <th>Starts</th>
-      <th>Ends</th>
-      <th>Resource</th>
-      <th>All-day</th>
+      <th>Title</th><th>Starts</th><th>Ends</th><th>Resource</th><th>All-day</th>
     </tr>
   </thead>
   <tbody>

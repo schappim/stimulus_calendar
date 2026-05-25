@@ -1,5 +1,9 @@
 require "stimulus_calendar_rails/version"
 require "stimulus_calendar_rails/engine"
+require "stimulus_calendar_rails/field"
+require "stimulus_calendar_rails/calendar"
+require "stimulus_calendar_rails/turbo_streams_helper"
+require "stimulus_calendar_rails/concerns/broadcastable"
 
 module StimulusCalendarRails
   class << self

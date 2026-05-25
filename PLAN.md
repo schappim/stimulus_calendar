@@ -426,102 +426,102 @@ Every commit in this phase lands matching tests in `gem/demo/test/`.
 
 ### 14a — Engine internals
 
-- [ ] `lib/stimulus_calendar_rails.rb` — module roots, `parent_controller=`,
+- [x] `lib/stimulus_calendar_rails.rb` — module roots, `parent_controller=`,
       `mount_path=`, per-process registry (`register_calendar` / `lookup_calendar`),
       `tenant_stream_token`, `streamables_for`
-- [ ] `lib/stimulus_calendar_rails/version.rb`
-- [ ] `lib/stimulus_calendar_rails/engine.rb` — asset precompile, importmap
+- [x] `lib/stimulus_calendar_rails/version.rb`
+- [x] `lib/stimulus_calendar_rails/engine.rb` — asset precompile, importmap
       paths, append view path
-- [ ] `config/importmap.rb` — pin `stimulus_calendar`, `stimulus_calendar_rails`
-- [ ] `config/routes.rb` — `/events/*`, `/resources/*`, `/calendars/:resource/events/:id`
-- [ ] `app/assets/javascripts/stimulus_calendar.js` — vendor the IIFE bundle
-- [ ] `app/assets/javascripts/stimulus_calendar_rails.js` — Stimulus controllers
+- [x] `config/importmap.rb` — pin `stimulus_calendar`, `stimulus_calendar_rails`
+- [x] `config/routes.rb` — `/events/*`, `/resources/*`, `/calendars/:resource/events/:id`
+- [x] `app/assets/javascripts/stimulus_calendar.js` — vendor the IIFE bundle
+- [x] `app/assets/javascripts/stimulus_calendar_rails.js` — Stimulus controllers
       + `registerStreamActions` for the custom calendar Turbo Stream actions
-- [ ] `app/assets/stylesheets/stimulus_calendar.css` + `…_rails.css`
+- [x] `app/assets/stylesheets/stimulus_calendar.css` + `…_rails.css`
 
 ### 14b — Server-side declarative DSL
 
-- [ ] `lib/stimulus_calendar_rails/calendar.rb` — base class:
+- [x] `lib/stimulus_calendar_rails/calendar.rb` — base class:
       `resource :events`, `model Event`, `field :title`, `field :starts_at`,
       `field :ends_at`, `field :resource_id`, `scope(user)`, `event_to_h(row)`
-- [ ] `lib/stimulus_calendar_rails/field.rb` — per-field declaration
+- [x] `lib/stimulus_calendar_rails/field.rb` — per-field declaration
       (`type:`, `editable:`, `validate:`, `concurrency:`)
-- [ ] `lib/stimulus_calendar_rails/resource_set.rb` — declare resource columns,
+- [x] `lib/stimulus_calendar_rails/resource_set.rb` — declare resource columns,
       flat or nested
-- [ ] Per-field `editable_for?(row, user)` + server-side coercion + validation
+- [x] Per-field `editable_for?(row, user)` + server-side coercion + validation
       (mirror `Column#coerce` / `Column#validate`)
 
 ### 14c — Custom Turbo Stream actions
 
-- [ ] `lib/stimulus_calendar_rails/turbo_streams_helper.rb` —
-- [ ] `calendar-event-add` — insert one event by id
-- [ ] `calendar-event-update` — patch one event's fields by id
-- [ ] `calendar-event-remove` — delete one event by id
-- [ ] `calendar-resource-add` / `…-update` / `…-remove`
-- [ ] `calendar-source-refetch` — tell client to refetch an event source
-- [ ] `calendar-bulk` — atomic batched stream
-- [ ] `calendar-conflict` — server vs client value conflict (e.g.
+- [x] `lib/stimulus_calendar_rails/turbo_streams_helper.rb` —
+- [x] `calendar-event-add` — insert one event by id
+- [x] `calendar-event-update` — patch one event's fields by id
+- [x] `calendar-event-remove` — delete one event by id
+- [x] `calendar-resource-add` / `…-update` / `…-remove`
+- [x] `calendar-source-refetch` — tell client to refetch an event source
+- [x] `calendar-bulk` — atomic batched stream
+- [x] `calendar-conflict` — server vs client value conflict (e.g.
       version-checked move)
 
 ### 14d — Broadcastable model concern
 
-- [ ] `lib/stimulus_calendar_rails/concerns/broadcastable.rb` —
+- [x] `lib/stimulus_calendar_rails/concerns/broadcastable.rb` —
       `broadcasts_calendar EventCalendar`; after_create / after_update /
       after_destroy commit callbacks generate `calendar-event-add/update/remove`
       messages, tenant-scoped via `streamables_for`
-- [ ] Test (`gem/demo/test/models/event_broadcast_test.rb`): create → broadcast,
+- [x] Test (`gem/demo/test/models/event_broadcast_test.rb`): create → broadcast,
       update → broadcast, destroy → broadcast, ActsAsTenant isolation
 
 ### 14e — Controllers
 
-- [ ] `BaseController` (inherits from `StimulusCalendarRails.parent_controller`)
-- [ ] `EventsController#index` — JSON list scoped by `?start=&end=`
-- [ ] `EventsController#create` — accept `optimistic_id`, persist, rely on
+- [x] `BaseController` (inherits from `StimulusCalendarRails.parent_controller`)
+- [x] `EventsController#index` — JSON list scoped by `?start=&end=`
+- [x] `EventsController#create` — accept `optimistic_id`, persist, rely on
       Broadcastable to broadcast
-- [ ] `EventsController#update` — drag/drop/resize destination; same optimistic-id
+- [x] `EventsController#update` — drag/drop/resize destination; same optimistic-id
       pattern as stimulus_grid's cell endpoint
-- [ ] `EventsController#destroy`
-- [ ] `ResourcesController#index` — JSON list
-- [ ] Controller integration tests in `gem/demo/test/integration/`
+- [x] `EventsController#destroy`
+- [x] `ResourcesController#index` — JSON list
+- [x] Controller integration tests in `gem/demo/test/integration/`
 
 ### 14f — View partial
 
-- [ ] `app/views/stimulus_calendar_rails/calendars/_calendar.html.erb` —
+- [x] `app/views/stimulus_calendar_rails/calendars/_calendar.html.erb` —
       renders the `.ec` container with all `data-controller="calendar"` value
       attributes derived from the calendar class + locals, plus
       `<%= turbo_stream_from(*StimulusCalendarRails.streamables_for(resource)) %>`
-- [ ] Helper module for `data-*` value attribute serialisation
+- [x] Helper module for `data-*` value attribute serialisation
 
 ### 14g — Dummy Rails app exercise (`gem/demo`)
 
-- [ ] `app/models/event.rb` — include `Broadcastable`, `broadcasts_calendar
+- [x] `app/models/event.rb` — include `Broadcastable`, `broadcasts_calendar
       EventCalendar`, validates
-- [ ] `app/models/resource.rb`
-- [ ] `app/calendars/event_calendar.rb` — declare fields + scope
-- [ ] `app/controllers/calendars_controller.rb#index` — render the partial
-- [ ] `db/migrate/…create_events.rb`, `…create_resources.rb`
-- [ ] Fixtures or factory helper in `test/test_helper.rb`
-- [ ] System test: drag an event → other tab updates (using
+- [x] `app/models/resource.rb`
+- [x] `app/calendars/event_calendar.rb` — declare fields + scope
+- [x] `app/controllers/calendars_controller.rb#index` — render the partial
+- [x] `db/migrate/…create_events.rb`, `…create_resources.rb`
+- [x] Fixtures or factory helper in `test/test_helper.rb`
+- [x] System test: drag an event → other tab updates (using
       `capybara-action-cable` style assertion)
 
 ### 14h — Concurrency + conflicts
 
-- [ ] Per-field `concurrency: :version_checked` honoring `lock_version`
-- [ ] `calendar-conflict` broadcast on stale write
-- [ ] `gem/demo` integration test: stale move → conflict, fresh move → succeed
+- [x] Per-field `concurrency: :version_checked` honoring `lock_version`
+- [x] `calendar-conflict` broadcast on stale write
+- [x] `gem/demo` integration test: stale move → conflict, fresh move → succeed
 
 ### 14i — Multi-tenant + auth
 
-- [ ] `parent_controller` config respected by all gem controllers
-- [ ] ActsAsTenant scoping in `streamables_for`
-- [ ] `gem/demo` test: tenant A's broadcast never reaches tenant B
+- [x] `parent_controller` config respected by all gem controllers
+- [x] ActsAsTenant scoping in `streamables_for`
+- [x] `gem/demo` test: tenant A's broadcast never reaches tenant B
 
 ### 14j — Release prep for the gem
 
-- [ ] `gem/stimulus_calendar_rails/README.md` (gem-specific quick start)
-- [ ] `gem/stimulus_calendar_rails/CHANGELOG.md`
-- [ ] `bin/rails stimulus_calendar_rails:install:migrations` task
-- [ ] `gem build stimulus_calendar_rails.gemspec` smoke step in CI
+- [x] `gem/stimulus_calendar_rails/README.md` (gem-specific quick start)
+- [x] `gem/stimulus_calendar_rails/CHANGELOG.md`
+- [x] `bin/rails stimulus_calendar_rails:install:migrations` task
+- [x] `gem build stimulus_calendar_rails.gemspec` smoke step in CI
 
 ---
 
