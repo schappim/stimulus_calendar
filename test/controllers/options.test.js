@@ -149,4 +149,15 @@ describe('CalendarController options', () => {
       `<div data-controller="calendar" data-calendar-lazy-fetching-value="false"></div>`);
     expect(el.calendarApi.getOption('lazyFetching')).toBe(false);
   });
+
+  it('highlightedDates — parsed into midnight Dates', async () => {
+    const el = await mount(`<div data-controller="calendar"
+                                  data-calendar-highlighted-dates-value='["2026-05-25","2026-05-30"]'>
+                            </div>`);
+    const dates = el.calendarApi.getOption('highlightedDates');
+    expect(dates).toHaveLength(2);
+    expect(dates[0].getUTCDate()).toBe(25);
+    expect(dates[1].getUTCDate()).toBe(30);
+    expect(dates[0].getUTCHours()).toBe(0);
+  });
 });

@@ -193,7 +193,7 @@ matching ERB usage example in `gem/demo` if the option is server-renderable.
 - [x] Option: `datesSet`
 - [x] Option: `loading`
 - [x] Option: `lazyFetching`
-- [ ] Option: `highlightedDates`
+- [x] Option: `highlightedDates`
 - [ ] Option: `titleFormat`
 - [ ] Option: `dayHeaderFormat`
 - [ ] Option: `dayHeaderAriaLabelFormat`
