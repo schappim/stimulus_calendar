@@ -226,7 +226,7 @@ Each view-introducing commit ships a `docs/images/cal-<view>.png` screenshot.
 - [x] View: `dayGridWeek` → `cal-day-grid-week.png`
 - [x] View: `dayGridDay` → `cal-day-grid-day.png`
 - [x] Day cell rendering: `day`, `today` highlight, other-month dimming
-- [ ] Option: `dayCellFormat`
+- [x] Option: `dayCellFormat`
 - [ ] Option: `dayCellContent`
 - [ ] Event rendering inside day cells (dot + title + time)
 - [ ] Option: `dayMaxEvents` — collapse with "+N more" link

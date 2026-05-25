@@ -44,6 +44,17 @@ describe('view: dayGridMonth', () => {
     expect(cell.classList.contains('ec-today')).toBe(true);
   });
 
+  it('dayCellFormat renders a day-number inside each cell', async () => {
+    const el = await mount(`<div data-controller="calendar"
+      data-calendar-plugins-value='["DayGrid"]'
+      data-calendar-view-value="dayGridMonth"
+      data-calendar-date-value="2026-05-15"></div>`);
+    const cell = el.querySelector('[data-date="2026-05-15"]');
+    const num = cell.querySelector('.ec-day-number');
+    expect(num).toBeTruthy();
+    expect(num.textContent).toBe('15');
+  });
+
   it('marks other-month days with the theme.otherMonth class', async () => {
     const el = await mount(`<div data-controller="calendar"
       data-calendar-plugins-value='["DayGrid"]'
