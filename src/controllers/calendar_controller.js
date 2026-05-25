@@ -423,13 +423,18 @@ export default class CalendarController extends Controller {
   // (b) listening for 'calendar:eventDoubleClick' on the host and calling
   // event.preventDefault(), or (c) setting options.suppressEventPopover.
   _installEventPopoverDefault() {
+    // Defer to a microtask so user listeners attached *after* the controller
+    // (e.g. in their own connect() running later in the same turn) still
+    // get the chance to call event.preventDefault() before the popover opens.
     const handler = (ev) => {
-      if (ev.defaultPrevented) return;
-      const opts = this._state.get('options');
-      if (opts?.suppressEventPopover) return;
       const { event, el } = ev.detail ?? {};
       if (!event || !el) return;
-      openEventPopover({ event, anchorEl: el, state: this._state });
+      queueMicrotask(() => {
+        if (ev.defaultPrevented) return;
+        const opts = this._state.get('options');
+        if (opts?.suppressEventPopover) return;
+        openEventPopover({ event, anchorEl: el, state: this._state });
+      });
     };
     this.element.addEventListener('calendar:eventDoubleClick', handler);
     this._teardowns.push(() => this.element.removeEventListener('calendar:eventDoubleClick', handler));
