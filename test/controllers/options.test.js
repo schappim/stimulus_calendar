@@ -61,4 +61,10 @@ describe('CalendarController options', () => {
       `<div data-controller="calendar" data-calendar-first-day-value="1"></div>`);
     expect(el.calendarApi.getOption('firstDay')).toBe(1);
   });
+
+  it('hiddenDays — JSON array, deduped through default parser', async () => {
+    const el = await mount(
+      `<div data-controller="calendar" data-calendar-hidden-days-value='[0,6,6]'></div>`);
+    expect(el.calendarApi.getOption('hiddenDays')).toEqual([0, 6]);
+  });
 });
