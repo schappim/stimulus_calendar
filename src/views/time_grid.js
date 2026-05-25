@@ -186,15 +186,31 @@ export function renderTimeGridView(container, state) {
       const overlay = createElement('div', 'ec-event-overlay');
       const dayEvents = eventsOnDay(filtered, day).filter((e) => !e.allDay);
       for (const event of dayEvents) {
-        const chip = createElement('div', theme.event, '', [
+        // Clamp the event window to THIS day so the chip's top/height
+        // reflect the portion of the event that lives on this column —
+        // not the raw event.start which might be hours past midnight on
+        // a previous day. Without clamping, a Mon 11pm → Tue 11am event
+        // showed as a 12px sliver near 11pm on BOTH columns instead of
+        // 11pm-midnight on Monday and midnight-11am on Tuesday.
+        const dayMid = setMidnight(cloneDate(day));
+        const nextDayMid = cloneDate(dayMid); addDay(nextDayMid);
+        const startsBefore = event.start < dayMid;
+        const endsAfter = event.end > nextDayMid;
+        const visStart = startsBefore ? dayMid : event.start;
+        const visEnd = endsAfter ? nextDayMid : event.end;
+
+        const classes = [theme.event];
+        if (startsBefore) classes.push('ec-event-continues-from');
+        if (endsAfter) classes.push('ec-event-continues-to');
+        const chip = createElement('div', classes.filter(Boolean).join(' '), '', [
           ['data-event-id', event.id],
           ['data-event-start', event.start.toISOString()],
           ['data-event-end',   event.end.toISOString()],
         ]);
         const minutesPerSlot = (totalSeconds(options.slotDuration) / 60);
         const slotMinMin = totalSeconds(slotTimeLimits.min) / 60;
-        const startMin = minsSinceMidnight(event.start) - slotMinMin;
-        const endMin = minsSinceMidnight(event.end) - slotMinMin;
+        const startMin = ((visStart.getTime() - dayMid.getTime()) / 60_000) - slotMinMin;
+        const endMin = ((visEnd.getTime() - dayMid.getTime()) / 60_000) - slotMinMin;
         const pxPerMin = options.slotHeight / minutesPerSlot;
         chip.style.position = 'absolute';
         chip.style.top = `${startMin * pxPerMin}px`;

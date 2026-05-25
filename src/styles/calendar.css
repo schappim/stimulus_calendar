@@ -464,6 +464,19 @@
   font-size: 0.7rem;
 }
 
+/* Multi-day timed events render one chip per day-column they span.
+ * Square off the connecting edges so the run looks like a continued
+ * event rather than two separate ones. */
+.ec-time-grid .ec-event.ec-event-continues-from {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+.ec-time-grid .ec-event.ec-event-continues-to {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
 /* now indicator */
 .ec-time-grid .ec-now-indicator {
   border-top: 2px solid var(--ec-now-indicator-color);
