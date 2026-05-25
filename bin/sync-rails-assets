@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# Copy the built JS + CSS bundles into the Rails gem so `gem build` ships
+# the real artefacts (not the loader placeholders).
+#
+# Run after `npm run build:lib`.
+
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+SRC_JS="$ROOT/dist/stimulus_calendar.js"
+SRC_CSS="$ROOT/dist/stimulus_calendar.css"
+DST_JS="$ROOT/gem/stimulus_calendar_rails/app/assets/javascripts/stimulus_calendar.bundle.js"
+DST_CSS="$ROOT/gem/stimulus_calendar_rails/app/assets/stylesheets/stimulus_calendar.css"
+
+if [[ ! -f "$SRC_JS" ]]; then
+  echo "missing $SRC_JS — run \`npm run build:lib\` first" >&2
+  exit 1
+fi
+if [[ ! -f "$SRC_CSS" ]]; then
+  echo "missing $SRC_CSS — run \`npm run build:lib\` first" >&2
+  exit 1
+fi
+
+cp "$SRC_JS"  "$DST_JS"
+cp "$SRC_CSS" "$DST_CSS"
+echo "synced:"
+echo "  $SRC_JS  →  $DST_JS"
+echo "  $SRC_CSS →  $DST_CSS"
