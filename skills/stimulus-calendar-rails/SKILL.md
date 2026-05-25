@@ -77,7 +77,9 @@ class EventCalendar < StimulusCalendarRails::Calendar
   field :color,       type: :string,   editable: false
 
   # Optional: authorization / tenant scoping. Used for every lookup + range query.
-  def scope(user) = model_class.all          # e.g. model_class.where(account: user.account)
+  # `model_class` is a class method, so reference it via self.class inside the
+  # instance method (or override the default which already returns `self.class.model_class.all`).
+  def scope(user) = self.class.model_class.where(account: user&.account)
 
   # Optional: defaults for the "new event" sentinel.
   def new_event_defaults = { title: "New event", starts_at: 1.hour.from_now, ends_at: 2.hours.from_now }
@@ -87,7 +89,10 @@ end
 **Field types** (Phase 14b): `string text integer datetime date boolean enum reference`.
 **Field options:** `editable:` (bool or `->(row, user)`), `validate:`
 (`->(value, row)` → error string/array/nil), `concurrency:`
-(`:last_write_wins` default | `:version_checked`), `header:`, `default:`.
+(`:last_write_wins` default | `:version_checked`), `enum_values:` (for
+`type: :enum`), `header:` (display label, defaults to `name.humanize`).
+Defaults for new rows live on the Calendar via
+`def new_event_defaults = { title: "New event", … }`, not per-field.
 
 ## 2. Make the model broadcastable (Phase 14d)
 
@@ -99,11 +104,10 @@ class Event < ApplicationRecord
 end
 ```
 
-After this, **every** create/update/destroy automatically broadcasts the right
-Turbo Stream action (`calendar-event-add` / `calendar-event-update` /
-`calendar-event-remove`) to the calendar's tenant-scoped stream — including
-changes made from the console, jobs, or other controllers. No manual broadcast
-calls.
+After this, **every** create/update/destroy automatically broadcasts a
+`<turbo-stream action="calendar-event" op="add|update|remove">` element
+to the calendar's tenant-scoped stream — including changes made from
+the console, jobs, or other controllers. No manual broadcast calls.
 
 ## 3. Render (Phase 14f)
 
@@ -148,20 +152,21 @@ cal.dispatchEvent(new CustomEvent("calendar-sync:delete-event", { detail: { id: 
 cal.dispatchEvent(new CustomEvent("calendar-sync:refetch"))
 ```
 
-## Custom Turbo Stream actions (Phase 14c)
+## Custom Turbo Stream action `calendar-event` (Phase 14c)
 
-The gem registers calendar-aware actions on top of the standard Turbo
-Streams set:
+Every server-emitted message is a single `<turbo-stream
+action="calendar-event">` element with an `op` attribute that
+discriminates the verb. Picking one action keeps the JS adapter trivial
+and avoids per-op registration churn.
 
-| Action | Effect |
+| `op="…"` | Effect |
 |---|---|
-| `calendar-event-add` | Insert one event by id |
-| `calendar-event-update` | Patch one event's fields by id |
-| `calendar-event-remove` | Delete one event by id |
-| `calendar-resource-add` / `…-update` / `…-remove` | Same for resources |
-| `calendar-source-refetch` | Force-refetch a server event source |
-| `calendar-bulk` | Atomic batched stream of inner actions |
-| `calendar-conflict` | Server vs client value conflict (e.g. stale `lock_version` on a move) |
+| `add` | Insert one event by id |
+| `update` | Patch one event's fields by id |
+| `remove` | Delete one event by id |
+| `refetch` | Tell the client to re-fetch its event source |
+| `bulk` | One element wrapping N inner `<turbo-stream action="calendar-event">` rows applied as one DOM reflow |
+| `conflict` | Server vs client value mismatch (e.g. stale `lock_version` on a move) — payload includes `serverValue` + `clientValue` |
 
 ```ruby
 render turbo_stream: StimulusCalendarRails::TurboStreams.event_update(

@@ -512,8 +512,6 @@ mount StimulusCalendarRails::Engine => StimulusCalendarRails.mount_path   # defa
 class EventCalendar < StimulusCalendarRails::Calendar
   resource :events
   model    Event
-  stream_name { |_user| "events" }
-
   field :title,       type: :string,   editable: true
   field :starts_at,   type: :datetime, editable: true, concurrency: :version_checked
   field :ends_at,     type: :datetime, editable: true, concurrency: :version_checked,

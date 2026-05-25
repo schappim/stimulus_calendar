@@ -33,7 +33,7 @@ class EventCalendar < StimulusCalendarRails::Calendar
   field :all_day,     type: :boolean,  editable: true
   field :color,       type: :string,   editable: false
 
-  def scope(_user) = model_class.all       # tenant scoping hook
+  def scope(_user) = self.class.model_class.all   # tenant scoping hook (override for ActsAsTenant)
   def new_event_defaults = { title: "New event", ... }
 end
 ```

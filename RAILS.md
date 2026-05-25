@@ -14,28 +14,25 @@ tabular cells. Ticked items land as PLAN.md's Phase 14 commits ship.
 ## 1. Custom Turbo Stream Actions
 
 Built-in actions are row/element-oriented; calendars need event- and
-resource-oriented actions.
+resource-oriented messages. The gem ships a **single** action
+`<turbo-stream action="calendar-event" op="…">` with the verb on `op`;
+the JS adapter routes per-op into the bus.
 
-- [ ] `calendar-event-add` — insert one event by id into every connected
-      calendar (used by `after_create_commit`).
-- [ ] `calendar-event-update` — patch one event's fields (title, times, color,
+- [x] `op="add"` — insert one event by id into every connected calendar
+      (fires from `after_create_commit`).
+- [x] `op="update"` — patch one event's fields (title, times, color,
       resourceId, …) by id without re-rendering surrounding events.
-- [ ] `calendar-event-remove` — delete one event by id.
-- [ ] `calendar-event-confirm` — clear pending/optimistic state after the
-      server reconciles a drag/resize/edit.
-- [ ] `calendar-event-revert` — restore prior times + render inline error
-      after server-side validation fails.
-- [ ] `calendar-event-conflict` — render conflict UI with `server-value` vs
-      `client-value` (e.g. stale `lock_version` on a move).
-- [ ] `calendar-resource-add` / `…-update` / `…-remove` — same surgical
-      updates for the resource axis (ResourceTimeGrid / ResourceTimeline).
-- [ ] `calendar-source-refetch` — tell a client calendar to re-fetch its
-      event source (after a coarse-grained server change you don't want to
+- [x] `op="remove"` — delete one event by id.
+- [x] `op="refetch"` — tell a client calendar to re-fetch its event
+      source (after a coarse-grained server change you don't want to
       diff).
-- [ ] `calendar-bulk` — atomic batched stream of inner actions (single DOM
-      reflow for N updates).
-- [ ] `calendar-presence` — per-user editing indicator on an event (someone
-      is dragging this event right now).
+- [x] `op="bulk"` — atomic batched stream of inner `<turbo-stream
+      action="calendar-event">` rows (single DOM reflow for N updates).
+- [x] `op="conflict"` — render conflict UI with `server-value` vs
+      `client-value` (e.g. stale `lock_version` on a move).
+- [ ] `op="confirm"` / `op="revert"` — pending/optimistic reconciliation
+      hooks. Reserved for 0.2.
+- [ ] `op="presence"` — per-user editing indicator. Reserved for 0.2.
 
 ---
 
