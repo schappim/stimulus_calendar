@@ -10,13 +10,12 @@ StimulusCalendarRails::Engine.routes.draw do
   delete "/:resource/events/:id",        to: "events#destroy", as: :destroy_event,
          constraints: { id: /[^\/]+/ }
 
-  # Bulk drag/resize/edit — RAILS.md §9.
+  # Bulk drag/resize/edit — apply N changes in a single transaction.
   post "/:resource/bulk", to: "events#bulk", as: :bulk
 
   # Resources (calendar sidebar) — Phase 8.
   get "/:resource/resources", to: "resources#index", as: :index_resources
 
-  # Undo / redo — RAILS.md §16.
-  post "/:resource/undo", to: "history#undo",        as: :undo
-  post "/:resource/redo", to: "history#redo_change", as: :redo
+  # Undo / redo were reserved for the audit-table phase but never wired —
+  # routes removed so they don't 500 when called.
 end

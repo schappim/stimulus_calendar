@@ -56,4 +56,37 @@ class EventsEndpointTest < ActionDispatch::IntegrationTest
     end
     assert_response :no_content
   end
+
+  test "POST /calendars/events/bulk applies multiple changes in one tx" do
+    e1 = Event.create!(title: "A", starts_at: 1.hour.from_now, ends_at: 1.hour.from_now + 30.minutes)
+    e2 = Event.create!(title: "B", starts_at: 2.hours.from_now, ends_at: 2.hours.from_now + 30.minutes)
+    post "#{@base}/events/bulk", as: :json, params: {
+      changes: [
+        { id: e1.id, attributes: { title: "A2" } },
+        { id: e2.id, attributes: { title: "B2" } },
+      ],
+    }
+    assert_response :success
+    body = JSON.parse(response.body)
+    assert body["ok"]
+    assert_equal "A2", e1.reload.title
+    assert_equal "B2", e2.reload.title
+  end
+
+  test "POST /calendars/events/bulk rolls back on any per-change failure" do
+    e1 = Event.create!(title: "A", starts_at: 1.hour.from_now, ends_at: 1.hour.from_now + 30.minutes)
+    e2 = Event.create!(title: "B", starts_at: 2.hours.from_now, ends_at: 2.hours.from_now + 30.minutes)
+    post "#{@base}/events/bulk", as: :json, params: {
+      changes: [
+        { id: e1.id, attributes: { title: "A2" } },
+        { id: e2.id, attributes: { color: "#ff0000" } },  # color is not editable
+      ],
+    }
+    assert_response :unprocessable_entity
+    body = JSON.parse(response.body)
+    assert_equal false, body["ok"]
+    assert body["errors"].values.flatten.any? { |e| e.include?("not editable") }
+    # The rollback should have reverted e1.title too.
+    assert_equal "A", e1.reload.title
+  end
 end

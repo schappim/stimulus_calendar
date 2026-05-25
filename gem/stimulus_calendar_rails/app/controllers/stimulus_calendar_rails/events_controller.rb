@@ -82,5 +82,60 @@ module StimulusCalendarRails
       calendar.scope.where(id: ids).destroy_all
       head :no_content
     end
+
+    # POST /:resource/bulk
+    #
+    # Body: { changes: [
+    #   { id: "1", attributes: {...}, optimistic_id: "..." },
+    #   { id: "2", attributes: {...}, optimistic_id: "..." },
+    #   ...
+    # ] }
+    #
+    # Applies each change inside one DB transaction. If any change fails
+    # validation or coercion, the whole bulk rolls back and 422 lists every
+    # error grouped by id. On success, every model commit hook still fires
+    # so each change broadcasts as a separate Turbo Stream.
+    def bulk
+      calendar = calendar_for(params[:resource])
+      changes  = Array(params[:changes]).map(&:to_unsafe_h)
+      results  = []
+      errors_by_id = {}
+
+      ::ActiveRecord::Base.transaction do
+        changes.each do |change|
+          row = find_event!(calendar, change[:id] || change["id"])
+          attrs = (change[:attributes] || change["attributes"] || {}).to_h
+          row._scr_optimistic_id = change[:optimistic_id] || change["optimistic_id"] if row.respond_to?(:_scr_optimistic_id=)
+
+          attrs.each do |name, raw|
+            field = calendar.class.fields_registry[name.to_sym]
+            next unless field
+            unless field.editable_for?(row, current_calendar_user)
+              (errors_by_id[row.id] ||= []) << "field #{name} is not editable"
+              next
+            end
+            value, coerce_err = field.coerce(raw)
+            if coerce_err
+              (errors_by_id[row.id] ||= []) << coerce_err
+              next
+            end
+            ok, errs, _ms = calendar.apply_field!(row, field, value)
+            (errors_by_id[row.id] ||= []).concat(errs) unless ok
+          end
+
+          results << { id: row.id }
+        end
+
+        if errors_by_id.any? { |_, v| v.any? }
+          raise ::ActiveRecord::Rollback
+        end
+      end
+
+      if errors_by_id.any? { |_, v| v.any? }
+        render json: { ok: false, errors: errors_by_id }, status: :unprocessable_entity
+      else
+        render json: { ok: true, results: results }
+      end
+    end
   end
 end
