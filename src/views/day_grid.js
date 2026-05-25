@@ -55,6 +55,18 @@ export function renderDayGridView(container, state) {
       ]);
       const number = createElement('div', 'ec-day-number', dayFmt.format(d));
       cell.append(number);
+      if (options.dayCellContent) {
+        const content = typeof options.dayCellContent === 'function'
+          ? options.dayCellContent({ date: d, view: state.get('view') })
+          : options.dayCellContent;
+        if (typeof content === 'string') {
+          number.innerText = content;
+        } else if (content?.html) {
+          number.innerHTML = content.html;
+        } else if (content?.domNodes) {
+          number.replaceChildren(...content.domNodes);
+        }
+      }
       row.append(cell);
     }
     grid.append(row);
