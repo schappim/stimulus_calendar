@@ -18,3 +18,24 @@ jobs:
       - run: npm ci
       - run: npm run build:lib   # IIFE + ESM library bundles must build
       - run: npm test            # vitest
+
+  rails:
+    name: Rails companion — engine + dummy app tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: gem/demo
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+          working-directory: gem/demo
+      - name: Migrate test DB
+        run: bin/rails db:test:prepare
+      - name: Run Minitest suite
+        run: bin/rails test
+      - name: Build the gem
+        working-directory: gem/stimulus_calendar_rails
+        run: gem build stimulus_calendar_rails.gemspec

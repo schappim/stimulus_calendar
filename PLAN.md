@@ -82,7 +82,7 @@ slot content into the existing files rather than inventing new layout each time.
       `Resource` model with migrations, a tiny `calendars#index` view, and
       `bin/rails test` wired up. This is the **real Rails app every Rails
       commit tests against** — never a mock.
-- [ ] `.github/workflows/ci.yml` — extend to run `bin/rails test` in
+- [x] `.github/workflows/ci.yml` — extend to run `bin/rails test` in
       `gem/demo` alongside `npm test`. Single matrix: node 22 + ruby 3.3.
 - [x] `CHANGELOG.md` — empty, ready for entries.
 
