@@ -62,6 +62,14 @@ export default class CalendarController extends Controller {
     buttonText: Object,
     customButtons: Object,
     headerToolbar: Object,
+    // DayGrid plugin options surfaced as Stimulus values so they're
+    // settable via data-calendar-<name>-value attributes too.
+    dayMaxEvents: Number,
+    dayCellFormat: Object,
+    dayPopoverFormat: Object,
+    moreLinkContent: String,
+    weekNumbers: Boolean,
+    weekNumberContent: String,
   };
 
   connect() {
@@ -323,6 +331,8 @@ CalendarController.OPTION_KEYS = [
   'views', 'lazyFetching', 'highlightedDates', 'titleFormat', 'dayHeaderFormat',
   'dayHeaderAriaLabelFormat', 'icons', 'buttonText', 'customButtons',
   'headerToolbar',
+  'dayMaxEvents', 'dayCellFormat', 'dayPopoverFormat', 'moreLinkContent',
+  'weekNumbers', 'weekNumberContent',
 ];
 
 function capitalise(s) {
