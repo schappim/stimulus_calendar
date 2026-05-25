@@ -139,19 +139,23 @@ export function renderTimeGridView(container, state) {
     for (const [iso, label] of slots) {
       const cell = createElement('div', theme.slot, '');
       cell.style.height = `${options.slotHeight}px`;
+      // macOS-style time axis labels only the hour rows. Half-hour
+      // (and finer) slots stay blank — the rule across the day column
+      // gives the eye enough information to estimate sub-hour positions.
       if (label) {
         const date = new Date(iso);
         const hours = date.getUTCHours();
         const mins = date.getUTCMinutes();
-        if (hours === 12 && mins === 0) {
+        if (mins !== 0) {
+          // skip non-hour slots
+        } else if (hours === 12) {
           cell.append(createElement('span', 'ec-slot-hour', 'Noon'));
-        } else if (hours === 0 && mins === 0) {
+        } else if (hours === 0) {
           cell.append(createElement('span', 'ec-slot-hour', 'Midnight'));
         } else {
           const h12 = (hours % 12) || 12;
           const period = hours >= 12 ? 'pm' : 'am';
-          const timeText = mins === 0 ? String(h12) : `${h12}:${String(mins).padStart(2, '0')}`;
-          cell.append(createElement('span', 'ec-slot-hour', timeText));
+          cell.append(createElement('span', 'ec-slot-hour', String(h12)));
           cell.append(createElement('span', 'ec-slot-period', period));
         }
       }

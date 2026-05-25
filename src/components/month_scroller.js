@@ -26,7 +26,12 @@ import { createDuration } from '../lib/duration.js';
 const EXTEND_THRESHOLD_PX = 600;
 const SCROLL_SETTLE_MS = 140;
 const MONTHS_PER_EXTEND = 3;
-const INITIAL_MONTHS_EACH_SIDE = 6;
+const INITIAL_MONTHS_AHEAD = 12;
+// When validRange.start is set we don't render any week earlier than it
+// (no past months in a forward-only calendar). When validRange.start is
+// undefined we still render INITIAL_MONTHS_BEHIND months behind the
+// anchor so users can scroll back if they want to.
+const INITIAL_MONTHS_BEHIND = 0;
 
 // createMonthScroller(container, state, { onDateChange })
 //
@@ -49,29 +54,42 @@ export function createMonthScroller(container, state, { onDateChange }) {
   // if this row doesn't start a new month) }.
   let weekRows = [];
 
-  // Initial range — extend INITIAL_MONTHS_EACH_SIDE months on each side
-  // of the anchor month.
+  // Initial range. When options.validRange.start is set, the scroller
+  // refuses to render any week earlier than it (forward-only calendar).
+  // Otherwise it seeds INITIAL_MONTHS_BEHIND months behind the anchor
+  // so users can scroll backwards.
   const anchor = startOfMonth(cloneDate(state.get('options').date));
-  const initStart = startOfMonth(cloneDate(anchor));
-  initStart.setUTCMonth(initStart.getUTCMonth() - INITIAL_MONTHS_EACH_SIDE);
+  const validStart = state.get('options').validRange?.start;
+  const initStart = validStart
+    ? setMidnight(cloneDate(validStart))
+    : (() => {
+        const d = startOfMonth(cloneDate(anchor));
+        d.setUTCMonth(d.getUTCMonth() - INITIAL_MONTHS_BEHIND);
+        return d;
+      })();
   const initEnd = startOfMonth(cloneDate(anchor));
-  initEnd.setUTCMonth(initEnd.getUTCMonth() + INITIAL_MONTHS_EACH_SIDE + 1);
+  initEnd.setUTCMonth(initEnd.getUTCMonth() + INITIAL_MONTHS_AHEAD);
   buildWeeks(body, initStart, initEnd, weekRows, state);
 
-  // Centre the anchor month in the viewport on mount. We disable smooth
-  // scroll for the seed so scrollTop lands instantly (otherwise the
-  // settled-scroll handler fires repeatedly during the smooth animation
-  // and snaps options.date to whatever the in-flight position happens to
-  // be), then re-enable so post-mount user scrolls feel smooth.
+  // Centre the anchor month in the viewport on mount. We match by
+  // month-and-year, not by exact monthAnchor date — refreshBanners()
+  // places monthAnchor on the row's first day, which is rarely the 1st
+  // of the month (e.g. for May 2026, monthAnchor is the Sunday May 3).
+  // Disable smooth scroll for the seed so scrollTop lands instantly
+  // (otherwise the settled-scroll handler fires repeatedly during the
+  // smooth animation and snaps options.date to whichever month happens
+  // to pass through the centre line first).
   requestAnimationFrame(() => {
-    const target = weekRows.find((r) => r.monthAnchor && datesEqual(r.monthAnchor, anchor));
+    const target = weekRows.find((r) =>
+      r.monthAnchor
+      && r.monthAnchor.getUTCFullYear() === anchor.getUTCFullYear()
+      && r.monthAnchor.getUTCMonth() === anchor.getUTCMonth(),
+    );
     if (target) {
       const desired = target.rowEl.offsetTop - 12;
       const prevBehavior = body.style.scrollBehavior;
       body.style.scrollBehavior = 'auto';
       body.scrollTop = Math.max(0, desired);
-      // Force a layout flush so the scroll position is committed before
-      // we restore smooth.
       void body.offsetTop;
       body.style.scrollBehavior = prevBehavior || '';
     }
@@ -102,7 +120,12 @@ export function createMonthScroller(container, state, { onDateChange }) {
     const date = state.get('options').date;
     if (!date) return;
     const target = startOfMonth(cloneDate(date));
-    let row = weekRows.find((r) => r.monthAnchor && datesEqual(r.monthAnchor, target));
+    const findByMonth = () => weekRows.find((r) =>
+      r.monthAnchor
+      && r.monthAnchor.getUTCFullYear() === target.getUTCFullYear()
+      && r.monthAnchor.getUTCMonth() === target.getUTCMonth(),
+    );
+    let row = findByMonth();
     if (!row) {
       // The target month is outside the seeded range — extend until it
       // is, then scroll.
@@ -111,9 +134,13 @@ export function createMonthScroller(container, state, { onDateChange }) {
       if (tooLate) {
         while (weekRows[weekRows.length - 1].weekStart < target) extendForward();
       } else if (tooEarly) {
-        while (weekRows[0].weekStart > target) extendBackward();
+        while (weekRows[0].weekStart > target) {
+          const before = weekRows[0].weekStart;
+          extendBackward();
+          if (weekRows[0].weekStart >= before) break; // hit validRange.start guard
+        }
       }
-      row = weekRows.find((r) => r.monthAnchor && datesEqual(r.monthAnchor, target));
+      row = findByMonth();
     }
     if (!row) return;
     suppressOnDateChange = true;
@@ -206,9 +233,20 @@ export function createMonthScroller(container, state, { onDateChange }) {
   function extendBackward() {
     const first = weekRows[0];
     if (!first) return;
+    const validStart = state.get('options').validRange?.start;
+    // Forward-only calendar — refuse to extend below validRange.start.
+    if (validStart) {
+      const limit = setMidnight(cloneDate(validStart));
+      if (first.weekStart <= limit) return;
+    }
     const newEnd = cloneDate(first.weekStart);
     const newStart = cloneDate(newEnd);
     newStart.setUTCMonth(newStart.getUTCMonth() - MONTHS_PER_EXTEND);
+    // Don't extend earlier than validRange.start.
+    if (validStart) {
+      const limit = setMidnight(cloneDate(validStart));
+      if (newStart < limit) newStart.setTime(limit.getTime());
+    }
     // Snap to the first weekday of the user's firstDay setting.
     const fd = state.get('options').firstDay ?? 0;
     prevClosestDay(newStart, fd);
@@ -220,7 +258,6 @@ export function createMonthScroller(container, state, { onDateChange }) {
     const newHeight = body.scrollHeight;
     suppressOnDateChange = true;
     body.scrollTop += newHeight - oldHeight;
-    // Allow date-change updates again after the layout adjustment.
     requestAnimationFrame(() => { suppressOnDateChange = false; });
   }
 
