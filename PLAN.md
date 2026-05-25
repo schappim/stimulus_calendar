@@ -124,8 +124,10 @@ with full Vitest coverage. No Stimulus controllers yet. **Rails tests N/A**
       (`bgEvent` / `previewEvent` / `ghostEvent` / `pointerEvent` /
       `helperEvent`), `createTimeElement`. `createEventContent` /
       `createEventClasses` land alongside `view.js`.
-- [ ] `lib/resources.js` — `createResources`: flat & nested input → tree with
-      parent linkage and per-node payload
+- [x] `lib/resources.js` — `createResources` (DFS flatten, per-node
+      payload of {level, children, hidden}), `createResource` (id coerce,
+      defaults), `eventBackgroundColor` / `eventTextColor` /
+      `findFirstResource` helpers
 - [ ] `lib/slots.js` — `createSlots`, `createSlotTimeLimits`
 - [ ] `lib/chunks.js` — `createEventChunk`, `groupChunks`, column / overlap
       positioning math
