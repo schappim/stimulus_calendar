@@ -1,6 +1,6 @@
 {
   "name": "@ninjaai/stimulus_calendar",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Full-sized drag & drop event calendar for Stimulus.js (Hotwire) — month, week, day, list, resource and timeline views; live multi-user sync over Turbo Streams. A 100% Stimulus port of vkurko/calendar.",
   "type": "module",
   "license": "MIT",

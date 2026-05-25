@@ -546,12 +546,12 @@ Every commit in this phase lands matching tests in `gem/demo/test/`.
 
 ## Phase 16 — Release
 
-- [ ] CI: lint step (eslint + rubocop in gem/demo) added
-- [ ] npm publish prep (`prepublishOnly`, `files` whitelist verified)
-- [ ] CDN bundle smoke test (`dist/stimulus_calendar.js` in a plain HTML page)
-- [ ] `gem build` + RubyGems publish (`stimulus_calendar_rails-0.1.0.gem`)
-- [ ] Tag `0.1.0` and write release notes
-- [ ] Verify install paths in fresh sandboxes:
+- [x] CI: lint step (eslint + rubocop in gem/demo) added
+- [x] npm publish prep (`prepublishOnly`, `files` whitelist verified)
+- [x] CDN bundle smoke test (`dist/stimulus_calendar.js` in a plain HTML page)
+- [x] `gem build` + RubyGems publish (`stimulus_calendar_rails-0.1.0.gem`)
+- [x] Tag `0.1.0` and write release notes
+- [x] Verify install paths in fresh sandboxes:
       `npm i @ninjaai/stimulus_calendar` and `bundle add stimulus_calendar_rails`
 
 ---
@@ -573,9 +573,9 @@ the GitHub repo without expanding every section.
 - [x] Phase 8 — Resources + ResourceTimeGrid
 - [x] Phase 9 — ResourceTimeline
 - [x] Phase 10 — Events surface
-- [ ] Phase 11 — Interaction plugin
-- [ ] Phase 12 — Public methods
-- [ ] Phase 13 — JS broadcast core
-- [ ] Phase 14 — Rails companion gem `stimulus_calendar_rails`
-- [ ] Phase 15 — Cross-cutting docs & polish
-- [ ] Phase 16 — Release
+- [x] Phase 11 — Interaction plugin
+- [x] Phase 12 — Public methods
+- [x] Phase 13 — JS broadcast core
+- [x] Phase 14 — Rails companion gem `stimulus_calendar_rails`
+- [x] Phase 15 — Cross-cutting docs & polish
+- [x] Phase 16 — Release
