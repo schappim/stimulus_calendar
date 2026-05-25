@@ -109,7 +109,9 @@ with full Vitest coverage. No Stimulus controllers yet. **Rails tests N/A**
       (+ upstream `btnTextDay/Week/Month/Year`, `themeView`)
 - [x] `lib/payload.js` — Symbol-keyed `setPayload` / `getPayload` /
       `hasPayload` on any object (DOM nodes, events, resources, chunks)
-- [ ] `lib/dom.js` — `createElement`, `rect`, `elementFromPoint` helpers
+- [x] `lib/dom.js` — `createElement`, `rect`, `elementFromPoint`, `ancestor`,
+      `height`, `getElementWithPayload` (with shadow-root walk), `listen`,
+      `stopPropagation`, `isRtl` (hoisted from utils.js)
 - [ ] `lib/a11y.js` — keyboard handlers, aria utilities
 - [ ] `lib/attachments.js` — `contentFrom` (html / text / dom nodes),
       `outsideEvent` dispatch
