@@ -117,11 +117,20 @@ function attachEventDragHandler(rootEl, state) {
     if (!event) return;
     const sourceCell = chip.closest('[data-date]');
     const sourceTimeCol = chip.closest('.ec-time-col');
+    // Cache the source chip's geometry so the ghost can be column-
+    // locked + snapped to the slot grid during pointermove. Without
+    // these we'd have to recompute every move.
+    const sourceColRect = sourceTimeCol?.getBoundingClientRect();
+    const chipRect = chip.getBoundingClientRect();
     drag = {
       event,
       sourceChip: chip,
       sourceDateStr: sourceCell?.getAttribute('data-date'),
       sourceTimeCol,
+      sourceColRect,
+      chipTopInCol: sourceColRect ? chipRect.top - sourceColRect.top : 0,
+      chipHeight: chipRect.height,
+      chipWidth: chipRect.width,
       startX: jsEvent.clientX,
       startY: jsEvent.clientY,
       ghost: null,
@@ -182,8 +191,33 @@ function attachEventDragHandler(rootEl, state) {
       document.body.classList.add('ec-dragging');
     }
     if (drag.ghost) {
-      drag.ghost.style.left = `${jsEvent.clientX - 20}px`;
-      drag.ghost.style.top  = `${jsEvent.clientY - 10}px`;
+      if (drag.sourceTimeCol) {
+        // TimeGrid: lock the ghost to a day-column and show the SNAPPED
+        // landing position. Detect which column the pointer is over; if
+        // it's still the source column the ghost just moves vertically
+        // (snapped to slot grid). If the pointer crossed into a
+        // different day column, the ghost snaps to that column's X with
+        // the same height + vertical-slot relationship.
+        const targetCol = timeColAtPoint(jsEvent.clientX, jsEvent.clientY) ?? drag.sourceTimeCol;
+        const colRect = targetCol.getBoundingClientRect();
+        const slotMins = totalSecondsOfDuration(options.slotDuration) / 60 || 30;
+        const snapMins = totalSecondsOfDuration(options.snapDuration) / 60 || slotMins;
+        const pxPerMin = (options.slotHeight ?? 22) / slotMins;
+        // Snap the y-delta to slot increments so the ghost sits on a
+        // slot boundary — same delta the commit math uses on pointerup.
+        const snappedDyPx =
+          Math.round((dy / pxPerMin) / snapMins) * snapMins * pxPerMin;
+        drag.ghost.style.left = `${colRect.left + 1}px`;
+        drag.ghost.style.width = `${colRect.width - 2}px`;
+        drag.ghost.style.top = `${colRect.top + drag.chipTopInCol + snappedDyPx}px`;
+        drag.ghost.style.height = `${drag.chipHeight}px`;
+      } else {
+        // DayGrid / List / Month — no slot grid to snap to; follow the
+        // pointer with a small offset so the chip doesn't sit directly
+        // under the cursor.
+        drag.ghost.style.left = `${jsEvent.clientX - 20}px`;
+        drag.ghost.style.top  = `${jsEvent.clientY - 10}px`;
+      }
     }
     // Preventing default while actively dragging stops the browser from
     // hijacking touch gestures (e.g. iOS swipe-back, page rubber-band).
