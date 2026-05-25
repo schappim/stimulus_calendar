@@ -115,7 +115,7 @@ export function createMonthScroller(container, state, { onDateChange }) {
     body.querySelectorAll('.ec-month-scroller-cell.ec-selected')
         .forEach((c) => c.classList.remove('ec-selected'));
     cell.classList.add('ec-selected');
-    onDateChange?.(new Date(dateStr + 'T00:00:00Z'));
+    emitDateChange(new Date(dateStr + 'T00:00:00Z'));
   });
   body.addEventListener('dblclick', (ev) => {
     if (ev.target.closest('[data-event-id], [data-more-link]')) return;
@@ -155,16 +155,19 @@ export function createMonthScroller(container, state, { onDateChange }) {
     if (suppressOnDateChange) return;
     const date = state.get('options').date;
     if (!date) return;
-    const target = startOfMonth(cloneDate(date));
-    const findByMonth = () => weekRows.find((r) =>
-      r.monthAnchor
-      && r.monthAnchor.getUTCFullYear() === target.getUTCFullYear()
-      && r.monthAnchor.getUTCMonth() === target.getUTCMonth(),
-    );
-    let row = findByMonth();
+    // Find the row that CONTAINS the new date — NOT the row that
+    // carries the month banner. (refreshBanners() places monthAnchor
+    // on the row whose first day is in a new month, which is rarely
+    // the same week as today; scrolling to the banner row would jump
+    // weeks past the user's intended date.)
+    const target = setMidnight(cloneDate(date));
+    const findByDate = () => weekRows.find((r) => {
+      const end = cloneDate(r.weekStart);
+      addDay(end, 7);
+      return r.weekStart <= target && target < end;
+    });
+    let row = findByDate();
     if (!row) {
-      // The target month is outside the seeded range — extend until it
-      // is, then scroll.
       const tooLate = weekRows[weekRows.length - 1]?.weekStart && weekRows[weekRows.length - 1].weekStart < target;
       const tooEarly = weekRows[0]?.weekStart && weekRows[0].weekStart > target;
       if (tooLate) {
@@ -176,7 +179,7 @@ export function createMonthScroller(container, state, { onDateChange }) {
           if (weekRows[0].weekStart >= before) break; // hit validRange.start guard
         }
       }
-      row = findByMonth();
+      row = findByDate();
     }
     if (!row) return;
     suppressOnDateChange = true;
@@ -186,6 +189,16 @@ export function createMonthScroller(container, state, { onDateChange }) {
     body.style.scrollBehavior = prevBehavior || '';
     requestAnimationFrame(() => { suppressOnDateChange = false; });
   });
+
+  // emitDateChange — wraps onDateChange so the resulting change:currentRange
+  // doesn't loop back into rangeSub and re-scroll the body away from where
+  // the user already is. Used by every internal path that wants to set
+  // options.date (scroll-settled, click-to-select, destroy-flush).
+  function emitDateChange(date) {
+    suppressOnDateChange = true;
+    onDateChange?.(date);
+    requestAnimationFrame(() => { suppressOnDateChange = false; });
+  }
 
   // --------- scroll handling ---------
 
@@ -250,7 +263,7 @@ export function createMonthScroller(container, state, { onDateChange }) {
       if (!newDate) return;
       const currentOption = state.get('options').date;
       if (Math.abs(newDate.getTime() - currentOption.getTime()) >= 86400000 / 2) {
-        onDateChange?.(newDate);
+        emitDateChange(newDate);
       }
     }, STABLE_MS);
     lastScrollTop = start;
