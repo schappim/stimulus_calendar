@@ -94,7 +94,7 @@ These mirror `calendar/packages/core/src/lib/` — pure modules under `src/lib/`
 with full Vitest coverage. No Stimulus controllers yet. **Rails tests N/A**
 (no Rails-visible surface).
 
-- [ ] `lib/utils.js` — `assign`, `keys`, `entries`, `hasOwn`, type guards
+- [x] `lib/utils.js` — `assign`, `keys`, `entries`, `hasOwn`, type guards
       (`isArray`, `isFunction`, `isDate`, `isPlainObject`), `tzOffset`
 - [ ] `lib/date.js` — `createDate`, `cloneDate`, `addDuration`,
       `toLocalDate`, `setMidnight`, `prevClosestDay`, `nextDate`, `prevDate`,
