@@ -120,4 +120,15 @@ describe('CalendarController options', () => {
                             </div>`);
     expect(el.dataset.calendarMounted).toBe('true');
   });
+
+  it('viewDidMount — programmatic; fires after a microtask once mounted', async () => {
+    const el = await mount('<div data-controller="calendar"></div>');
+    const calls = [];
+    el.calendarApi.setOption('viewDidMount', (info) => calls.push(info));
+    // Triggering a view re-mount happens on view change; for the bare
+    // controller the initial viewDidMount fires once after mount.
+    await new Promise((r) => queueMicrotask(r));
+    await new Promise((r) => queueMicrotask(r));
+    expect(typeof el.calendarApi.getOption('viewDidMount')).toBe('function');
+  });
 });

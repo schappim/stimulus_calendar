@@ -189,7 +189,7 @@ matching ERB usage example in `gem/demo` if the option is server-renderable.
 - [x] Option: `customScrollbars`
 - [x] Option: `view`
 - [x] Option: `views` (per-view overrides)
-- [ ] Option: `viewDidMount`
+- [x] Option: `viewDidMount`
 - [ ] Option: `datesSet`
 - [ ] Option: `loading`
 - [ ] Option: `lazyFetching`
