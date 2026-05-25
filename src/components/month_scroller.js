@@ -148,11 +148,11 @@ export function createMonthScroller(container, state, { onDateChange }) {
       if (renderTimer) return;
       renderTimer = setTimeout(() => {
         renderTimer = null;
-        renderEvents(weekRows, state);
+        renderEvents(weekRows, state, emitDateChange);
       }, 0);
     }
   });
-  renderEvents(weekRows, state);
+  renderEvents(weekRows, state, emitDateChange);
 
   // When the date changes via something OTHER than the scroller's own
   // scroll (Today button, gotoDate, external setOption('date', ...)),
@@ -314,7 +314,7 @@ export function createMonthScroller(container, state, { onDateChange }) {
     const newEnd = cloneDate(newStart);
     newEnd.setUTCMonth(newEnd.getUTCMonth() + MONTHS_PER_EXTEND);
     buildWeeks(body, newStart, newEnd, weekRows, state, { append: true });
-    renderEvents(weekRows, state);
+    renderEvents(weekRows, state, emitDateChange);
   }
 
   function extendBackward() {
@@ -341,7 +341,7 @@ export function createMonthScroller(container, state, { onDateChange }) {
     // DOM grows upwards.
     const oldHeight = body.scrollHeight;
     buildWeeks(body, newStart, newEnd, weekRows, state, { prepend: true });
-    renderEvents(weekRows, state);
+    renderEvents(weekRows, state, emitDateChange);
     const newHeight = body.scrollHeight;
     suppressOnDateChange = true;
     body.scrollTop += newHeight - oldHeight;
@@ -489,7 +489,11 @@ function enumerateWeekDays(weekStart) {
 
 // Stamp every event chip for every visible week row. Wipes previous
 // chips first. Runs on initial mount and on filteredEvents change.
-function renderEvents(weekRows, state) {
+// `emitDateChange` is the scroller's own helper that updates
+// options.date WITHOUT triggering the rangeSub re-scroll loop — when
+// a chip is single-clicked we set options.date to the event's start
+// so a subsequent view-switch lands on the event's week.
+function renderEvents(weekRows, state, emitDateChange) {
   const options = state.get('options');
   const theme = options.theme;
   const events = state.get('filteredEvents') ?? [];
@@ -531,6 +535,10 @@ function renderEvents(weekRows, state) {
           document.querySelectorAll('.ec-event.ec-event-selected')
             .forEach((c) => c.classList.remove('ec-event-selected'));
           chip.classList.add('ec-event-selected');
+          // Sync options.date to the event's start (silenced so the
+          // month scroll doesn't jump). Switching to Week now lands on
+          // the week that contains this event.
+          emitDateChange?.(cloneDate(event.start));
           fire?.('eventClick', { event, jsEvent, view: state.get('view') });
           jsEvent.stopPropagation();
         });
