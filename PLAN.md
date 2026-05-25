@@ -367,21 +367,21 @@ From here on every commit lands a JS test AND a Rails integration test in
 
 ## Phase 12 — Public instance methods
 
-- [ ] `setOption(name, value)`
-- [ ] `getOption(name)`
-- [ ] `addEvent(event)` → Rails test: `POST /events` round-trips into the calendar
-- [ ] `updateEvent(event)` → Rails test: `PATCH /events/:id` round-trips
-- [ ] `removeEventById(id)` → Rails test: `DELETE /events/:id` round-trips
-- [ ] `getEvents()`
-- [ ] `getEventById(id)`
-- [ ] `refetchEvents()` → Rails test: re-fetch from JSON endpoint
-- [ ] `refetchResources()` → Rails test: re-fetch from JSON endpoint
-- [ ] `getView()`
-- [ ] `next()`
-- [ ] `prev()`
-- [ ] `unselect()`
-- [ ] `dateFromPoint(x, y)`
-- [ ] IIFE convenience: `EventCalendar.create` / `EventCalendar.destroy`
+- [x] `setOption(name, value)`
+- [x] `getOption(name)`
+- [x] `addEvent(event)` → Rails test: `POST /events` round-trips into the calendar
+- [x] `updateEvent(event)` → Rails test: `PATCH /events/:id` round-trips
+- [x] `removeEventById(id)` → Rails test: `DELETE /events/:id` round-trips
+- [x] `getEvents()`
+- [x] `getEventById(id)`
+- [x] `refetchEvents()` → Rails test: re-fetch from JSON endpoint
+- [x] `refetchResources()` → Rails test: re-fetch from JSON endpoint
+- [x] `getView()`
+- [x] `next()`
+- [x] `prev()`
+- [x] `unselect()`
+- [x] `dateFromPoint(x, y)`
+- [x] IIFE convenience: `EventCalendar.create` / `EventCalendar.destroy`
 
 ---
 
