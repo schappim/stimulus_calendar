@@ -242,20 +242,20 @@ Each view-introducing commit ships a `docs/images/cal-<view>.png` screenshot.
 
 - [x] View: `timeGridWeek` — sidebar + day columns + slot grid → `cal-week.png`
 - [x] View: `timeGridDay` → `cal-day.png`
-- [ ] Slot rendering and labels
+- [x] Slot rendering and labels
 - [ ] All-day row
 - [ ] Option: `allDaySlot`
 - [ ] Option: `allDayContent`
-- [ ] Option: `scrollTime`
-- [ ] Option: `slotDuration`
-- [ ] Option: `slotHeight`
-- [ ] Option: `slotLabelInterval`
-- [ ] Option: `slotLabelFormat`
-- [ ] Option: `slotMinTime`
-- [ ] Option: `slotMaxTime`
-- [ ] Option: `flexibleSlotTimeLimits`
+- [x] Option: `scrollTime`
+- [x] Option: `slotDuration`
+- [x] Option: `slotHeight`
+- [x] Option: `slotLabelInterval`
+- [x] Option: `slotLabelFormat`
+- [x] Option: `slotMinTime`
+- [x] Option: `slotMaxTime`
+- [x] Option: `flexibleSlotTimeLimits`
 - [ ] Option: `slotEventOverlap`
-- [ ] Option: `columnWidth`
+- [x] Option: `columnWidth`
 - [ ] Now indicator (horizontal red line) → `cal-now-indicator.png`
 - [ ] Option: `nowIndicator`
 
