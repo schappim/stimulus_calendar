@@ -309,6 +309,22 @@ function attachEventResizeHandler(rootEl, state) {
     const slotMins = totalSecondsOfDuration(options.slotDuration) / 60 || 30;
     const snapMins = totalSecondsOfDuration(options.snapDuration) / 60 || slotMins;
     const pxPerMin = (options.slotHeight ?? 22) / slotMins;
+    // Every segment of the same event (chips share data-event-id across
+    // day columns for multi-day timed events). Captured here so the
+    // shrink-back branch can hide / truncate / restore each segment.
+    const segmentEls = Array.from(rootEl.querySelectorAll(`[data-event-id="${typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(id) : id}"]`));
+    const segments = segmentEls.map((el) => {
+      const col = el.closest('.ec-time-col');
+      if (!col) return null;
+      return {
+        el,
+        col,
+        originalTop: parseFloat(el.style.top || '0') || 0,
+        originalHeight: parseFloat(el.style.height || '0') || el.getBoundingClientRect().height,
+        originalDisplay: el.style.display || '',
+      };
+    }).filter(Boolean);
+
     rs = {
       chip,
       handleSide: handle.getAttribute('data-resizer') === 'start' ? 'start' : 'end',
@@ -322,9 +338,13 @@ function attachEventResizeHandler(rootEl, state) {
       moved: false,
       sourceCol: chip.closest('.ec-time-col'),
       previewChips: [],
+      segments,
     };
     chip.classList.add('ec-resizing-y');
     chip.classList.add('ec-resizing');
+    // Body class so the resize cursor sticks even when the pointer
+    // wanders off the chip onto another segment of the same event.
+    document.body.classList.add('ec-resizing-active');
     if (handle.setPointerCapture && jsEvent.pointerId !== undefined) {
       try { handle.setPointerCapture(jsEvent.pointerId); } catch { /* ignore */ }
     }
@@ -348,38 +368,63 @@ function attachEventResizeHandler(rootEl, state) {
       if (col && rootEl.contains(col)) { targetCol = col; break; }
     }
 
-    // Clear any previous preview chips on each move so we can recreate.
+    // Clear preview chips and reset every event-segment's geometry on
+    // each move. The branches below re-apply only the mutations they
+    // need; this keeps state clean when the user goes forward then
+    // back (or back then forward) without sticky height/display.
     for (const p of rs.previewChips) p.remove();
     rs.previewChips = [];
+    for (const seg of rs.segments) {
+      seg.el.style.display = seg.originalDisplay;
+      seg.el.style.top = `${seg.originalTop}px`;
+      seg.el.style.height = `${seg.originalHeight}px`;
+    }
 
-    if (rs.handleSide === 'end' && targetCol && rs.sourceCol && targetCol !== rs.sourceCol) {
-      // Multi-day stretch: cap source chip at end of its day, then
-      // paint a preview chip in every intermediate day column (full
-      // height) and one in the target column from top to the pointer
-      // (snapped). Lets the user see exactly how far the event will
-      // extend before they release.
-      const slotMaxMin = Math.min(24 * 60, (rs.originalTopPx + 24 * 60 * rs.pxPerMin) / rs.pxPerMin);
+    const colsWrap = rs.sourceCol?.parentElement;
+    const cols = colsWrap
+      ? Array.from(colsWrap.children).filter((c) => c.classList?.contains('ec-time-col'))
+      : [];
+    const sourceIdx = rs.sourceCol ? cols.indexOf(rs.sourceCol) : -1;
+    const targetIdx = targetCol ? cols.indexOf(targetCol) : -1;
+
+    if (rs.handleSide === 'end' && targetIdx >= 0 && sourceIdx >= 0 && targetIdx < sourceIdx) {
+      // SHRINK BACK: the pointer moved into an earlier day-column than
+      // the segment whose handle the user grabbed. Hide every segment
+      // past the target column, truncate the segment in the target
+      // column at the cursor's snapped y-offset (clamped to a one-snap
+      // minimum so the event never collapses below 1 increment), and
+      // leave earlier segments at their original geometry.
+      for (const seg of rs.segments) {
+        const segIdx = cols.indexOf(seg.col);
+        if (segIdx < 0 || segIdx < targetIdx) continue; // earlier — already restored
+        if (segIdx > targetIdx) {
+          seg.el.style.display = 'none';
+        } else {
+          const rect = targetCol.getBoundingClientRect();
+          const yIn = jsEvent.clientY - rect.top;
+          const snappedY = Math.round((yIn / rs.pxPerMin) / rs.snapMins) * rs.snapMins * rs.pxPerMin;
+          const minBottom = seg.originalTop + rs.snapMins * rs.pxPerMin;
+          const newBottom = Math.max(minBottom, snappedY);
+          seg.el.style.height = `${newBottom - seg.originalTop}px`;
+        }
+      }
+    } else if (rs.handleSide === 'end' && targetCol && rs.sourceCol && targetCol !== rs.sourceCol) {
+      // Multi-day stretch FORWARD: cap source chip at end of its day,
+      // paint a preview chip in every intermediate day column
+      // (full height) and one in the target column from top to the
+      // pointer (snapped). Lets the user see exactly how far the
+      // event will extend before they release.
       const sourceColH = rs.sourceCol.getBoundingClientRect().height;
       rs.chip.style.height = `${Math.max(rs.snapMins * rs.pxPerMin, sourceColH - rs.originalTopPx - 2)}px`;
 
-      // Enumerate columns from source → target. Day columns sit in
-      // .ec-days; iterate that container's children to find the range.
-      const colsWrap = rs.sourceCol.parentElement;
-      if (colsWrap) {
-        const cols = Array.from(colsWrap.children).filter((c) => c.classList?.contains('ec-time-col'));
-        const sourceIdx = cols.indexOf(rs.sourceCol);
-        const targetIdx = cols.indexOf(targetCol);
-        if (sourceIdx >= 0 && targetIdx > sourceIdx) {
-          // Intermediate columns: full-height preview chips.
-          for (let i = sourceIdx + 1; i < targetIdx; ++i) {
-            rs.previewChips.push(makePreview(cols[i], 0, cols[i].getBoundingClientRect().height - 2, rs));
-          }
-          // Target column: from top to snapped y-offset.
-          const rect = targetCol.getBoundingClientRect();
-          const yIn = Math.max(rs.snapMins * rs.pxPerMin,
-            Math.round(((jsEvent.clientY - rect.top) / rs.pxPerMin) / rs.snapMins) * rs.snapMins * rs.pxPerMin);
-          rs.previewChips.push(makePreview(targetCol, 0, yIn, rs));
+      if (sourceIdx >= 0 && targetIdx > sourceIdx) {
+        for (let i = sourceIdx + 1; i < targetIdx; ++i) {
+          rs.previewChips.push(makePreview(cols[i], 0, cols[i].getBoundingClientRect().height - 2, rs));
         }
+        const rect = targetCol.getBoundingClientRect();
+        const yIn = Math.max(rs.snapMins * rs.pxPerMin,
+          Math.round(((jsEvent.clientY - rect.top) / rs.pxPerMin) / rs.snapMins) * rs.snapMins * rs.pxPerMin);
+        rs.previewChips.push(makePreview(targetCol, 0, yIn, rs));
       }
     } else if (rs.handleSide === 'end') {
       const newH = Math.max(rs.snapMins * rs.pxPerMin, rs.originalHeightPx + deltaMin * rs.pxPerMin);
@@ -422,10 +467,20 @@ function attachEventResizeHandler(rootEl, state) {
     const r = rs; rs = null;
     r.chip.classList.remove('ec-resizing-y');
     r.chip.classList.remove('ec-resizing');
+    document.body.classList.remove('ec-resizing-active');
     // Tear down any preview chips painted during the multi-day stretch.
     for (const p of r.previewChips) p.remove();
     r.previewChips = [];
     if (!r.moved) {
+      // Restore every segment back to its pre-drag geometry — a tap on
+      // the handle without movement shouldn't leave any preview state
+      // behind. (After a real commit, the next render replaces the DOM
+      // anyway, so this matters only for the no-op path.)
+      for (const seg of r.segments) {
+        seg.el.style.display = seg.originalDisplay;
+        seg.el.style.top = `${seg.originalTop}px`;
+        seg.el.style.height = `${seg.originalHeight}px`;
+      }
       state.get('fire')?.('eventResizeStop', { event: r.event, jsEvent, view: state.get('view') });
       return;
     }
@@ -489,10 +544,14 @@ function attachEventResizeHandler(rootEl, state) {
       revert: () => { reverted = true; },
     });
     if (reverted) {
-      // Restore the chip's pre-drag geometry (next render re-applies
-      // from event data anyway).
-      r.chip.style.top = `${r.originalTopPx}px`;
-      r.chip.style.height = `${r.originalHeightPx}px`;
+      // Restore every segment's pre-drag geometry (next render
+      // re-applies from event data anyway, but the cancel path doesn't
+      // re-render).
+      for (const seg of r.segments) {
+        seg.el.style.display = seg.originalDisplay;
+        seg.el.style.top = `${seg.originalTop}px`;
+        seg.el.style.height = `${seg.originalHeight}px`;
+      }
       return;
     }
     state.get('hostEl')?.calendarApi?.updateEvent({

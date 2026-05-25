@@ -98,6 +98,81 @@ describe('Interaction — resize handle', () => {
     expect(moved.end.toISOString().substring(11, 16)).toBe('10:30');
   });
 
+  it('only renders the end-resizer on the last segment of a multi-day timed event', async () => {
+    const el = mount(`<div data-controller="calendar"
+                            data-calendar-plugins-value='["TimeGrid","Interaction"]'
+                            data-calendar-date-value="2026-05-25"
+                            data-calendar-options-value='{"editable":true}'></div>`);
+    await tick(2);
+    el.calendarApi.addEvent({
+      id: 'm1', title: 'Three-day',
+      start: '2026-05-25T10:00:00',
+      end:   '2026-05-27T14:00:00',
+    });
+    await tick();
+
+    const segments = el.querySelectorAll('[data-event-id="m1"]');
+    expect(segments.length).toBe(3);
+    // Last segment (no continues-to) is the only one with an end-resizer.
+    let withResizer = 0;
+    for (const seg of segments) {
+      if (seg.querySelector('.ec-resizer-end')) withResizer += 1;
+    }
+    expect(withResizer).toBe(1);
+    const last = el.querySelector('[data-event-id="m1"]:not(.ec-event-continues-to)');
+    expect(last.querySelector('.ec-resizer-end')).toBeTruthy();
+  });
+
+  it('dragging the last-segment resizer leftward into an earlier day shortens the event to that day', async () => {
+    const onResize = vi.fn();
+    const el = mount(`<div data-controller="calendar"
+                            data-calendar-plugins-value='["TimeGrid","Interaction"]'
+                            data-calendar-date-value="2026-05-25"
+                            data-calendar-options-value='{"editable":true}'></div>`);
+    await tick(2);
+    el.calendarApi.setOption('eventResize', onResize);
+    el.calendarApi.addEvent({
+      id: 'sb1', title: 'Three-day',
+      start: '2026-05-25T10:00:00',
+      end:   '2026-05-27T14:00:00',
+    });
+    await tick();
+
+    // Find the three day columns and pin deterministic geometry.
+    const monCol = el.querySelector('.ec-time-col[data-date="2026-05-25"]');
+    const tueCol = el.querySelector('.ec-time-col[data-date="2026-05-26"]');
+    const wedCol = el.querySelector('.ec-time-col[data-date="2026-05-27"]');
+    expect(monCol && tueCol && wedCol).toBeTruthy();
+    monCol.getBoundingClientRect = () => ({ top: 100, left: 200, bottom: 1000, right: 300, width: 100, height: 900 });
+    tueCol.getBoundingClientRect = () => ({ top: 100, left: 300, bottom: 1000, right: 400, width: 100, height: 900 });
+    wedCol.getBoundingClientRect = () => ({ top: 100, left: 400, bottom: 1000, right: 500, width: 100, height: 900 });
+    // Route elementsFromPoint by x — happy-dom won't do hit-testing itself.
+    document.elementsFromPoint = (x) => {
+      if (x >= 400) return [wedCol];
+      if (x >= 300) return [tueCol];
+      if (x >= 200) return [monCol];
+      return [];
+    };
+
+    const last = el.querySelector('[data-event-id="sb1"]:not(.ec-event-continues-to)');
+    const handle = last.querySelector('.ec-resizer-end');
+    expect(handle).toBeTruthy();
+
+    // pointerdown inside Wed col → pointermove into Tue col at clientY=250
+    // (yIn=150, pxPerMin=24/30=0.8, → 187.5min → snapped to 180min = 03:00) →
+    // pointerup. New end should be Tue May 26 03:00 UTC.
+    fire(handle, 'pointerdown', { clientX: 450, clientY: 200 });
+    fire(document, 'pointermove', { clientX: 350, clientY: 250 });
+    fire(document, 'pointerup',   { clientX: 350, clientY: 250 });
+
+    expect(onResize).toHaveBeenCalled();
+    const after = el.calendarApi.getEventById('sb1');
+    expect(after.end.toISOString().substring(0, 10)).toBe('2026-05-26');
+    expect(after.end.toISOString().substring(11, 16)).toBe('03:00');
+    // Start is unchanged.
+    expect(after.start.toISOString().substring(0, 16)).toBe('2026-05-25T10:00');
+  });
+
   it('revert() in eventResize keeps original end time', async () => {
     const el = mount(`<div data-controller="calendar"
                             data-calendar-plugins-value='["TimeGrid","Interaction"]'

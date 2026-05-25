@@ -1027,6 +1027,15 @@ body.ec-dragging * {
   user-select: none !important;
 }
 
+/* During a resize the cursor should stay as ns-resize even when the
+ * pointer wanders off the handle onto another segment of the same
+ * event (the shrink-back case for multi-day timed events). */
+body.ec-resizing-active,
+body.ec-resizing-active * {
+  cursor: ns-resize !important;
+  user-select: none !important;
+}
+
 /* -------------------------------------------------------------------------
  * Month scroller — macOS-Calendar-style continuous vertical flow.
  * One sticky weekday header at the top; below it, an open-ended list of

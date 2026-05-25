@@ -230,12 +230,21 @@ export function renderTimeGridView(container, state) {
         // opted in via options.editable (and eventDurationEditable hasn't
         // been turned off). The Interaction plugin's pointerdown handler
         // picks up [.ec-resizer] and runs the resize gesture.
+        //
+        // For multi-day timed events the end-resizer only renders on the
+        // segment that owns the event's actual end (the last segment —
+        // !endsAfter), and the start-resizer only on the first segment
+        // (!startsBefore). Middle segments' bottom edge represents
+        // midnight, not the event boundary, so a handle there would be
+        // misleading.
         if (options.editable && options.eventDurationEditable !== false) {
-          const resizer = createElement('div', `${theme.resizer ?? 'ec-resizer'} ec-resizer-end`, '', [
-            ['data-resizer', 'end'],
-          ]);
-          chip.append(resizer);
-          if (options.eventResizableFromStart) {
+          if (!endsAfter) {
+            const resizer = createElement('div', `${theme.resizer ?? 'ec-resizer'} ec-resizer-end`, '', [
+              ['data-resizer', 'end'],
+            ]);
+            chip.append(resizer);
+          }
+          if (options.eventResizableFromStart && !startsBefore) {
             const startResizer = createElement('div', `${theme.resizer ?? 'ec-resizer'} ec-resizer-start`, '', [
               ['data-resizer', 'start'],
             ]);
