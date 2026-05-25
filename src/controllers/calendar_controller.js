@@ -11,6 +11,7 @@ import {
   filteredEvents, offset, view as makeView, intlRange,
 } from '../lib/derived.js';
 import { createDate, addDuration, subtractDuration, cloneDate, setMidnight } from '../lib/date.js';
+import { createEvents } from '../lib/events.js';
 import { createDuration } from '../lib/duration.js';
 import { isArray, isFunction, isPlainObject } from '../lib/utils.js';
 import { renderToolbar } from '../components/toolbar.js';
@@ -234,23 +235,29 @@ export default class CalendarController extends Controller {
     const api = {
       // Events (full impls land in Phase 10/12)
       addEvent: (event) => {
+        const [parsed] = createEvents([event], this._state.get('offset'));
         const events = [...(this._state.get('events') ?? this._state.get('options').events ?? [])];
-        events.push(event);
+        events.push(parsed);
         this._state.set('events', events);
         this._recompute();
-        return event;
+        return parsed;
       },
       updateEvent: (event) => {
         const events = (this._state.get('events') ?? this._state.get('options').events ?? [])
-          .map((e) => (e.id === event.id ? { ...e, ...event } : e));
+          .map((e) => {
+            if (e.id !== String(event.id)) return e;
+            const [parsed] = createEvents([{ ...e, ...event }], this._state.get('offset'));
+            return parsed;
+          });
         this._state.set('events', events);
         this._recompute();
         return event;
       },
       removeEventById: (id) => {
+        const target = String(id);
         this._state.set('events',
           (this._state.get('events') ?? this._state.get('options').events ?? [])
-            .filter((e) => e.id !== id),
+            .filter((e) => e.id !== target),
         );
         this._recompute();
       },
