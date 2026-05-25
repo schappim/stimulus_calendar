@@ -90,4 +90,10 @@ describe('CalendarController options', () => {
     const theme = el.calendarApi.getOption('theme');
     expect(theme.calendar).toBe('my-cal');
   });
+
+  it('locale — flows through as a string for Intl', async () => {
+    const el = await mount(
+      `<div data-controller="calendar" data-calendar-locale-value="fr-FR"></div>`);
+    expect(el.calendarApi.getOption('locale')).toBe('fr-FR');
+  });
 });

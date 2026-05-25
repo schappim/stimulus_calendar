@@ -184,7 +184,7 @@ matching ERB usage example in `gem/demo` if the option is server-renderable.
 - [x] Option: `validRange`
 - [x] Option: `height`
 - [x] Option: `theme` (class object)
-- [ ] Option: `locale`
+- [x] Option: `locale`
 - [ ] Option: `timeZone`
 - [ ] Option: `customScrollbars`
 - [x] Option: `view`
