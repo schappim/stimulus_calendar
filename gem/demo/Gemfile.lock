@@ -1,7 +1,7 @@
 PATH
   remote: ../stimulus_calendar_rails
   specs:
-    stimulus_calendar_rails (0.0.0)
+    stimulus_calendar_rails (0.1.0)
       importmap-rails (>= 2.0)
       rails (>= 7.1)
       stimulus-rails (>= 1.3)
