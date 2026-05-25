@@ -225,7 +225,7 @@ Each view-introducing commit ships a `docs/images/cal-<view>.png` screenshot.
 - [x] View skeleton: `dayGridMonth` — weeks × days CSS grid → `cal-month.png`
 - [x] View: `dayGridWeek` → `cal-day-grid-week.png`
 - [x] View: `dayGridDay` → `cal-day-grid-day.png`
-- [ ] Day cell rendering: `day`, `today` highlight, other-month dimming
+- [x] Day cell rendering: `day`, `today` highlight, other-month dimming
 - [ ] Option: `dayCellFormat`
 - [ ] Option: `dayCellContent`
 - [ ] Event rendering inside day cells (dot + title + time)
