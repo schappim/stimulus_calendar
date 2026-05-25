@@ -102,4 +102,10 @@ describe('CalendarController options', () => {
       `<div data-controller="calendar" data-calendar-time-zone-value="+10:00"></div>`);
     expect(el.calendarApi.getOption('timeZone')).toBe('+10:00');
   });
+
+  it('customScrollbars — Boolean flows through', async () => {
+    const el = await mount(
+      `<div data-controller="calendar" data-calendar-custom-scrollbars-value="true"></div>`);
+    expect(el.calendarApi.getOption('customScrollbars')).toBe(true);
+  });
 });

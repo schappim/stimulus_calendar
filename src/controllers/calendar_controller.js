@@ -48,6 +48,7 @@ export default class CalendarController extends Controller {
     theme: Object,
     locale: String,
     timeZone: String,
+    customScrollbars: Boolean,
   };
 
   connect() {
@@ -272,7 +273,7 @@ export default class CalendarController extends Controller {
 // here and adds the matching `static values` entry.
 CalendarController.OPTION_KEYS = [
   'view', 'date', 'duration', 'dateIncrement', 'firstDay', 'hiddenDays',
-  'validRange', 'height', 'theme', 'locale', 'timeZone',
+  'validRange', 'height', 'theme', 'locale', 'timeZone', 'customScrollbars',
 ];
 
 function capitalise(s) {
