@@ -72,7 +72,7 @@ slot content into the existing files rather than inventing new layout each time.
 - [x] `RAILS.md` — Hotwire-Native Event Calendar build checklist, modeled on
       stimulus_grid's `RAILS.md`. Per-section checkboxes that flip ticked as
       Phase 14 ships.
-- [ ] `gem/stimulus_calendar_rails/` — bare engine skeleton: `gemspec`,
+- [x] `gem/stimulus_calendar_rails/` — bare engine skeleton: `gemspec`,
       `lib/stimulus_calendar_rails.rb`, `lib/stimulus_calendar_rails/version.rb`,
       `lib/stimulus_calendar_rails/engine.rb`, `config/importmap.rb`,
       `config/routes.rb`, empty `app/{assets,controllers,javascript,models,views}/`
