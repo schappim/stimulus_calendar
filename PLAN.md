@@ -112,7 +112,8 @@ with full Vitest coverage. No Stimulus controllers yet. **Rails tests N/A**
 - [x] `lib/dom.js` — `createElement`, `rect`, `elementFromPoint`, `ancestor`,
       `height`, `getElementWithPayload` (with shadow-root walk), `listen`,
       `stopPropagation`, `isRtl` (hoisted from utils.js)
-- [ ] `lib/a11y.js` — keyboard handlers, aria utilities
+- [x] `lib/a11y.js` — `keyEnter` (Enter + Space → click semantics with
+      preventDefault on Space to suppress the page-scroll)
 - [ ] `lib/attachments.js` — `contentFrom` (html / text / dom nodes),
       `outsideEvent` dispatch
 - [ ] `lib/events.js` — `createEvents`: parse + normalise input events to
