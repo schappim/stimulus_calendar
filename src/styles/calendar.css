@@ -16,6 +16,12 @@
  * ----------------------------------------------------------------------- */
 
 .ec {
+  /* The calendar is an interactive grid — text inside it (day numbers,
+   * weekday headers, event titles, month banners, toolbar button
+   * labels) shouldn't accidentally become a selection when the user
+   * click-drags or double-taps. */
+  user-select: none;
+  -webkit-user-select: none;
   --ec-bg-color:                 #ffffff;
   --ec-text-color:               #1f2937;
   --ec-muted-text-color:         #6b7280;

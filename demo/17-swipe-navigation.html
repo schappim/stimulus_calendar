@@ -7,6 +7,9 @@
   <link rel="stylesheet" href="../src/styles/calendar.css">
   <style>
     body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; margin: 2rem; max-width: 1024px; }
+    /* Calendar chrome (buttons, pill, controls) shouldn't end up
+     * highlighted when the user click-drags within the calendar. */
+    .row, .pill, .row button, #cal { user-select: none; -webkit-user-select: none; }
     .row { display: flex; gap: 0.5rem; align-items: center; margin: 0.5rem 0 1rem; }
     .pill {
       /* Fixed width so day/month/year switches don't shift the button row. */
