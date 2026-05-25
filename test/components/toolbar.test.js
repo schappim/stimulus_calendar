@@ -114,6 +114,19 @@ describe('toolbar', () => {
     expect(slot(el, 'end').querySelector('[data-toolbar-view="dayGridMonth"]')).toBeTruthy();
   });
 
+  it('prev/next disable when bounded by validRange', async () => {
+    const el = await mount(`<div data-controller="calendar"
+      data-calendar-date-value="2026-05-25"
+      data-calendar-valid-range-value='{"start":"2026-05-25","end":"2026-06-05"}'
+      data-calendar-header-toolbar-value='{"start":"prev,next","center":"title","end":""}'>
+    </div>`);
+    const prev = el.querySelector('[data-toolbar-action="prev"]');
+    expect(prev.disabled).toBe(true);
+    expect(prev.classList.contains('ec-disabled')).toBe(true);
+    const next = el.querySelector('[data-toolbar-action="next"]');
+    expect(next.disabled).toBe(false);  // duration 1 week, next would land at 6/1 → still inside
+  });
+
   it('customButton — registered button renders with its label and fires click', async () => {
     // Render via attributes so options.customButtons is in place before
     // the toolbar's initial render.

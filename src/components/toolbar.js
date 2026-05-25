@@ -85,29 +85,51 @@ function kebab(name) {
   return name.replace(/[A-Z]/g, (m) => '-' + m.toLowerCase()).replace(/^-/, '');
 }
 
+// Returns true when stepping in the given direction would land outside the
+// configured validRange. side='start' is the prev check (current range
+// already touches validRange.start), side='end' is the next check.
+function boundedAt(state, side) {
+  const valid = state.get('options')?.validRange;
+  const current = state.get('currentRange');
+  if (!valid || !current) return false;
+  if (side === 'start' && valid.start && current.start <= valid.start) return true;
+  if (side === 'end' && valid.end && current.end >= valid.end) return true;
+  return false;
+}
+
 // Token renderer registry. Each renderer returns a DOM node (or null to skip).
 const TOKEN_RENDERERS = {
   title(state, _actions, theme) {
     return createElement('h2', theme.title, state.get('viewTitle') ?? '');
   },
-  prev(_state, actions, theme) {
+  prev(state, actions, theme) {
     const btn = createElement('button', `${theme.button} ec-prev`, '', [
       ['type', 'button'],
       ['aria-label', 'Previous'],
       ['data-toolbar-action', 'prev'],
     ]);
     btn.innerHTML = '<i class="ec-icon ec-prev"></i>';
-    btn.addEventListener('click', () => actions?.prev?.());
+    if (boundedAt(state, 'start')) {
+      btn.disabled = true;
+      btn.classList.add(theme.disabled);
+    } else {
+      btn.addEventListener('click', () => actions?.prev?.());
+    }
     return btn;
   },
-  next(_state, actions, theme) {
+  next(state, actions, theme) {
     const btn = createElement('button', `${theme.button} ec-next`, '', [
       ['type', 'button'],
       ['aria-label', 'Next'],
       ['data-toolbar-action', 'next'],
     ]);
     btn.innerHTML = '<i class="ec-icon ec-next"></i>';
-    btn.addEventListener('click', () => actions?.next?.());
+    if (boundedAt(state, 'end')) {
+      btn.disabled = true;
+      btn.classList.add(theme.disabled);
+    } else {
+      btn.addEventListener('click', () => actions?.next?.());
+    }
     return btn;
   },
   today(state, actions, theme) {

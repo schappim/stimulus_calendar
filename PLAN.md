@@ -214,7 +214,7 @@ matching ERB usage example in `gem/demo` if the option is server-renderable.
 - [x] View switcher buttons (one per registered view name)
 - [x] `customButtons` rendering and click dispatch
 - [x] `headerToolbar` slot layout (`start` / `center` / `end`)
-- [ ] Disabled state on prev/next when bounded by `validRange`
+- [x] Disabled state on prev/next when bounded by `validRange`
 
 ---
 
