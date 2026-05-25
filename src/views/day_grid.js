@@ -7,6 +7,18 @@ import { createElement } from '../lib/dom.js';
 import { cloneDate, addDay, prevClosestDay, setMidnight, datesEqual } from '../lib/date.js';
 import { viewDates as viewDatesHelper } from '../lib/derived.js';
 
+function eventsOnDay(events, day) {
+  const next = cloneDate(day);
+  addDay(next);
+  return events.filter((e) => e.start < next && e.end > day);
+}
+
+function eventTimeText(event, options) {
+  if (event.allDay) return '';
+  const fmt = new Intl.DateTimeFormat(options.locale, options.eventTimeFormat);
+  return fmt.format(event.start);
+}
+
 // Mount the day-grid view into `container`. Returns a teardown thunk.
 export function renderDayGridView(container, state) {
   const render = () => {
@@ -67,6 +79,27 @@ export function renderDayGridView(container, state) {
           number.replaceChildren(...content.domNodes);
         }
       }
+
+      // Event chips inside the day cell.
+      const events = state.get('filteredEvents') ?? [];
+      const dayEvents = eventsOnDay(events, d);
+      if (dayEvents.length) {
+        const list = createElement('div', theme.events);
+        for (const event of dayEvents) {
+          const chip = createElement('div', theme.event, '', [
+            ['data-event-id', event.id],
+          ]);
+          if (event.backgroundColor) chip.style.backgroundColor = event.backgroundColor;
+          if (event.textColor) chip.style.color = event.textColor;
+          const dot = createElement('span', 'ec-event-dot');
+          const time = eventTimeText(event, options);
+          if (time) chip.append(dot, createElement('time', theme.eventTime, time + ' '));
+          else chip.append(dot);
+          chip.append(createElement('span', theme.eventTitle, event.title || ''));
+          list.append(chip);
+        }
+        cell.append(list);
+      }
       row.append(cell);
     }
     grid.append(row);
@@ -76,7 +109,7 @@ export function renderDayGridView(container, state) {
 
   render();
   const off = state.onAny(({ key }) => {
-    if (['options', 'currentRange', 'activeRange', 'viewDates'].includes(key)) {
+    if (['options', 'currentRange', 'activeRange', 'viewDates', 'filteredEvents'].includes(key)) {
       render();
     }
   });
