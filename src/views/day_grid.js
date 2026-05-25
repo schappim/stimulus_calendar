@@ -85,7 +85,12 @@ export function renderDayGridView(container, state) {
       const dayEvents = eventsOnDay(events, d);
       if (dayEvents.length) {
         const list = createElement('div', theme.events);
-        for (const event of dayEvents) {
+        const maxEvents = typeof options.dayMaxEvents === 'number'
+          ? options.dayMaxEvents
+          : Infinity;
+        const visible = dayEvents.slice(0, maxEvents);
+        const hidden = dayEvents.slice(maxEvents);
+        for (const event of visible) {
           const chip = createElement('div', theme.event, '', [
             ['data-event-id', event.id],
           ]);
@@ -97,6 +102,20 @@ export function renderDayGridView(container, state) {
           else chip.append(dot);
           chip.append(createElement('span', theme.eventTitle, event.title || ''));
           list.append(chip);
+        }
+        if (hidden.length) {
+          const moreText = typeof options.moreLinkContent === 'function'
+            ? options.moreLinkContent({ num: hidden.length, date: d })
+            : (options.moreLinkContent ?? `+${hidden.length} more`);
+          const link = createElement('button', 'ec-more-link',
+            typeof moreText === 'object' && moreText?.html ? '' : moreText, [
+              ['type', 'button'],
+              ['data-more-link', 'true'],
+              ['data-date', d.toISOString().substring(0, 10)],
+            ]);
+          if (typeof moreText === 'object' && moreText?.html) link.innerHTML = moreText.html;
+          link.addEventListener('click', () => openDayPopover(state, d, dayEvents));
+          list.append(link);
         }
         cell.append(list);
       }
@@ -140,4 +159,53 @@ function expandedActiveRange(state) {
 
 function midnightToday() {
   return setMidnight(new Date());
+}
+
+// Open a day popover listing every event for the day. Closes on outside
+// click or on the close button. Phase 5 — minimal styling; CSS adds
+// positioning + drop-shadow.
+function openDayPopover(state, day, events) {
+  const options = state.get('options');
+  const theme = options.theme;
+  const fmt = new Intl.DateTimeFormat(options.locale, options.dayPopoverFormat);
+  const popup = createElement('div', `${theme.popup} ec-day-popover`, '', [
+    ['data-popover', 'day'],
+    ['data-date', day.toISOString().substring(0, 10)],
+  ]);
+  const header = createElement('div', 'ec-popup-header');
+  header.append(createElement('div', 'ec-popup-title', fmt.format(day)));
+  const closeText = options.buttonText?.close ?? 'Close';
+  const closeBtn = createElement('button', 'ec-popup-close', closeText, [
+    ['type', 'button'], ['aria-label', 'Close'],
+  ]);
+  header.append(closeBtn);
+  popup.append(header);
+
+  const list = createElement('div', theme.events);
+  for (const event of events) {
+    const chip = createElement('div', theme.event, '', [
+      ['data-event-id', event.id],
+    ]);
+    if (event.backgroundColor) chip.style.backgroundColor = event.backgroundColor;
+    chip.append(createElement('span', 'ec-event-dot'));
+    const time = event.allDay
+      ? ''
+      : new Intl.DateTimeFormat(options.locale, options.eventTimeFormat).format(event.start);
+    if (time) chip.append(createElement('time', theme.eventTime, time + ' '));
+    chip.append(createElement('span', theme.eventTitle, event.title || ''));
+    list.append(chip);
+  }
+  popup.append(list);
+
+  document.body.append(popup);
+  const close = () => popup.remove();
+  closeBtn.addEventListener('click', close);
+  setTimeout(() => {
+    document.addEventListener('click', function onOutside(e) {
+      if (!popup.contains(e.target)) {
+        close();
+        document.removeEventListener('click', onOutside, true);
+      }
+    }, true);
+  }, 0);
 }

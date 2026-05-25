@@ -229,10 +229,10 @@ Each view-introducing commit ships a `docs/images/cal-<view>.png` screenshot.
 - [x] Option: `dayCellFormat`
 - [x] Option: `dayCellContent`
 - [x] Event rendering inside day cells (dot + title + time)
-- [ ] Option: `dayMaxEvents` — collapse with "+N more" link
-- [ ] Option: `moreLinkContent`
-- [ ] Day popover when "+N more" clicked → `cal-popover.png`
-- [ ] Option: `dayPopoverFormat`
+- [x] Option: `dayMaxEvents` — number caps visible events per cell; overflow becomes "+N more"
+- [x] Option: `moreLinkContent`
+- [x] Day popover when "+N more" clicked → `cal-popover.png`
+- [x] Option: `dayPopoverFormat`
 - [ ] Option: `weekNumbers`
 - [ ] Option: `weekNumberContent`
 
