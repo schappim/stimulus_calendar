@@ -137,8 +137,9 @@ with full Vitest coverage. No Stimulus controllers yet. **Rails tests N/A**
       (WeakMap-backed stable ids across re-renders)
 - [x] `lib/view.js` — `createView` factory (type, title, currentStart/End,
       activeStart/End, calendar), `toViewWithLocalDates` (public-API clone)
-- [ ] `lib/derived.js` — pure helpers behind `currentRange`, `activeRange`,
-      `viewDates`, `viewTitle`, `filteredEvents`, `offset`
+- [x] `lib/derived.js` — pure helpers behind `currentRange`, `activeRange`,
+      `viewDates`, `viewTitle`, `filteredEvents`, `offset`, `view`, plus the
+      `intl` / `intlRange` Intl wrappers (with iOS<16 ordering fix)
 
 ---
 
