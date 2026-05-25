@@ -178,7 +178,7 @@ matching ERB usage example in `gem/demo` if the option is server-renderable.
       duration is always normalised before reaching `addDuration`.
 - [x] Option: `date`
 - [x] Option: `duration`
-- [ ] Option: `dateIncrement`
+- [x] Option: `dateIncrement`
 - [ ] Option: `firstDay`
 - [ ] Option: `hiddenDays`
 - [ ] Option: `validRange`
