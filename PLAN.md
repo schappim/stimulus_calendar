@@ -190,7 +190,7 @@ matching ERB usage example in `gem/demo` if the option is server-renderable.
 - [x] Option: `view`
 - [x] Option: `views` (per-view overrides)
 - [x] Option: `viewDidMount`
-- [ ] Option: `datesSet`
+- [x] Option: `datesSet`
 - [ ] Option: `loading`
 - [ ] Option: `lazyFetching`
 - [ ] Option: `highlightedDates`

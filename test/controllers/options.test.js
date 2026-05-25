@@ -131,4 +131,10 @@ describe('CalendarController options', () => {
     await new Promise((r) => queueMicrotask(r));
     expect(typeof el.calendarApi.getOption('viewDidMount')).toBe('function');
   });
+
+  it('datesSet — programmatic callback retained', async () => {
+    const el = await mount('<div data-controller="calendar"></div>');
+    el.calendarApi.setOption('datesSet', () => {});
+    expect(typeof el.calendarApi.getOption('datesSet')).toBe('function');
+  });
 });
