@@ -67,4 +67,13 @@ describe('CalendarController options', () => {
       `<div data-controller="calendar" data-calendar-hidden-days-value='[0,6,6]'></div>`);
     expect(el.calendarApi.getOption('hiddenDays')).toEqual([0, 6]);
   });
+
+  it('validRange — parsed through createDateRange (Dates at midnight)', async () => {
+    const el = await mount(`<div data-controller="calendar"
+                                  data-calendar-valid-range-value='{"start":"2026-05-01","end":"2026-05-31"}'></div>`);
+    const r = el.calendarApi.getOption('validRange');
+    expect(r.start.getUTCDate()).toBe(1);
+    expect(r.end.getUTCDate()).toBe(31);
+    expect(r.start.getUTCHours()).toBe(0);
+  });
 });
