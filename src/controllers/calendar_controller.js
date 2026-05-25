@@ -55,6 +55,7 @@ export default class CalendarController extends Controller {
     titleFormat: Object,
     dayHeaderFormat: Object,
     dayHeaderAriaLabelFormat: Object,
+    icons: Object,
   };
 
   connect() {
@@ -281,7 +282,7 @@ CalendarController.OPTION_KEYS = [
   'view', 'date', 'duration', 'dateIncrement', 'firstDay', 'hiddenDays',
   'validRange', 'height', 'theme', 'locale', 'timeZone', 'customScrollbars',
   'views', 'lazyFetching', 'highlightedDates', 'titleFormat', 'dayHeaderFormat',
-  'dayHeaderAriaLabelFormat',
+  'dayHeaderAriaLabelFormat', 'icons',
 ];
 
 function capitalise(s) {

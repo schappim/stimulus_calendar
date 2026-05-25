@@ -178,4 +178,10 @@ describe('CalendarController options', () => {
                                   data-calendar-day-header-aria-label-format-value='{"dateStyle":"long"}'></div>`);
     expect(el.calendarApi.getOption('dayHeaderAriaLabelFormat')).toEqual({ dateStyle: 'long' });
   });
+
+  it('icons — Object flows through (e.g. { collapse: {html: "-"} })', async () => {
+    const el = await mount(`<div data-controller="calendar"
+                                  data-calendar-icons-value='{"collapse":{"html":"-"}}'></div>`);
+    expect(el.calendarApi.getOption('icons')).toEqual({ collapse: { html: '-' } });
+  });
 });
