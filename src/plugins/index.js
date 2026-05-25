@@ -2,9 +2,11 @@
 // resolved here when a user passes them via `data-calendar-plugins-value`.
 
 import { DayGridPlugin } from './day_grid.js';
+import { TimeGridPlugin } from './time_grid.js';
 
 export const PLUGINS = {
   DayGrid: DayGridPlugin,
+  TimeGrid: TimeGridPlugin,
 };
 
 export function resolvePluginNames(names) {
