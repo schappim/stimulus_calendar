@@ -627,6 +627,72 @@ Test posture after Phase 17:
 
 ---
 
+## Phase 18 — docs / code reconciliation
+
+Triggered by a docs-vs-code audit: the README, skill docs, and PLAN.md
+claimed features the implementation shipped as placeholders or stubs.
+Resolved by *implementing* the missing surfaces where reasonably scope-able,
+and *aligning* docs where the design genuinely changed.
+
+- [x] `feat(rails-gem)` — ship the real JS+CSS bundle. Gem assets were
+      console.warn placeholders; now a tiny loader that injects
+      `stimulus_calendar.bundle.js` (synced from `dist/` by
+      `bin/sync-rails-assets`). Stimulus glue auto-starts the calendar
+      controller against the host app's Application. Commit `d09b55c`.
+- [x] `feat(api)` — implement the four public-API stubs:
+      `refetchEvents` (URL/function/array sources + extraParams),
+      `refetchResources` (same shape), `unselect` (clears
+      `state.selection` + fires options.unselect + dispatches
+      `calendar:unselect`), `dateFromPoint` (walks elementsFromPoint
+      for `[data-date]`, derives minute-resolution in TimeGrid via the
+      slot pixel grid). 6-test public_api.test.js. Commit `37dfef6`.
+- [x] `feat(events)` — dispatch the documented `calendar:*` DOM
+      CustomEvents (eventClick, eventMouseEnter/Leave, eventDidMount,
+      dateClick, datesSet, viewDidMount, eventAllUpdated, unselect,
+      eventDragStart/Stop, eventDrop, eventSourceSuccess/Failure,
+      resourceSourceSuccess/Failure). Added `state.fire(name, detail)`
+      helper that always calls the user callback AND dispatches the
+      matching DOM event. 6-test dispatched_events.test.js. Commit
+      `a7d18c4`.
+- [x] `feat(rails-gem)` — implement `events#bulk` (transactional
+      multi-change endpoint with per-id error rollback); drop the
+      stale undo/redo routes that pointed at a non-existent
+      HistoryController. 2 new minitests in events_endpoint_test.rb.
+      Commit `d0bcdd9`.
+- [x] `docs` — align with shipped Rails API: removed the non-existent
+      `stream_name {…}` DSL claim, fixed `def scope(user) =
+      model_class.all` (needs `self.class.`), corrected the Field
+      options table (no `default:` parameter), and replaced the
+      separate calendar-event-add/-update/-remove action list with the
+      shipped single `<turbo-stream action="calendar-event" op="…">`
+      shape. Commit `6052ac5`.
+- [x] `feat(interaction)` — real pointer-driven event drag in
+      `src/plugins/interaction.js`. pointerdown → drag prime,
+      pointermove past `eventDragMinDistance` → ghost chip + dim source,
+      pointerup → fires `eventDragStop` + `eventDrop({event, oldEvent,
+      delta, jsEvent, view, revert()})`. Commits via
+      `calendarApi.updateEvent()` so the change flows through the
+      normal mutate → recompute → broadcast pipeline. Whole-day
+      resolution for now (sub-day TimeGrid resize alongside the
+      resizer follow-up). 3-test interaction_drag.test.js. Updated
+      demo/10-drag.html to use real drag instead of the synthesised
+      ghost. Commit `eee0cf1`.
+
+Out-of-scope for 0.1.x (called out in the audit; deferred):
+- Pointer-driven event RESIZE (top/bottom drag handles) — same engine
+  as drag, but per-edge.
+- Range SELECT pipeline (`selectable: true` + mouse selection across
+  cells).
+- `op="confirm"` / `op="revert"` / `op="presence"` Turbo Stream ops.
+- Audit table + undo/redo (`history#undo`/`redo_change` routes were
+  removed in Phase 18 to stop them 500-ing).
+
+Test posture after Phase 18:
+- 266 JS tests passing (was 251, +15: 6 public_api, 6 dispatched_events, 3 drag)
+- 19 Rails tests passing (was 17, +2 bulk endpoint)
+
+---
+
 ## Progress counter
 
 When a phase is fully done, tick it here too — gives an at-a-glance view in
@@ -651,3 +717,4 @@ the GitHub repo without expanding every section.
 - [x] Phase 15 — Cross-cutting docs & polish
 - [x] Phase 16 — Release
 - [x] Phase 17 — 0.1.1 patch sweep (post-release polish)
+- [x] Phase 18 — docs/code reconciliation
