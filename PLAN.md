@@ -241,7 +241,7 @@ Each view-introducing commit ships a `docs/images/cal-<view>.png` screenshot.
 ## Phase 6 — TimeGrid view (week / day with slots)
 
 - [x] View: `timeGridWeek` — sidebar + day columns + slot grid → `cal-week.png`
-- [ ] View: `timeGridDay` → `cal-day.png`
+- [x] View: `timeGridDay` → `cal-day.png`
 - [ ] Slot rendering and labels
 - [ ] All-day row
 - [ ] Option: `allDaySlot`
