@@ -28,4 +28,15 @@ describe('CalendarController options', () => {
       `<div data-controller="calendar" data-calendar-view-value="timeGridWeek"></div>`);
     expect(el.calendarApi.getOption('view')).toBe('timeGridWeek');
   });
+
+  it('date — data-calendar-date-value parses to a Date at UTC midnight', async () => {
+    const el = await mount(
+      `<div data-controller="calendar" data-calendar-date-value="2026-05-25"></div>`);
+    const date = el.calendarApi.getOption('date');
+    expect(date instanceof Date).toBe(true);
+    expect(date.getUTCFullYear()).toBe(2026);
+    expect(date.getUTCMonth()).toBe(4);
+    expect(date.getUTCDate()).toBe(25);
+    expect(date.getUTCHours()).toBe(0);
+  });
 });

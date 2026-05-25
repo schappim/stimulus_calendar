@@ -176,7 +176,7 @@ matching ERB usage example in `gem/demo` if the option is server-renderable.
       derivation pipeline (currentRange → activeRange → viewDates → offset →
       view → filteredEvents), default parsers wired into options_store so
       duration is always normalised before reaching `addDuration`.
-- [ ] Option: `date`
+- [x] Option: `date`
 - [ ] Option: `duration`
 - [ ] Option: `dateIncrement`
 - [ ] Option: `firstDay`
