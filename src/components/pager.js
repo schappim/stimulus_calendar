@@ -1,21 +1,21 @@
 // Pager — macOS-Calendar-style swipe navigation between adjacent date
-// pages. Wraps the view factory in a three-page carousel; pre-renders
-// the previous and next date pages lazily on first gesture, follows the
-// finger/pointer/wheel with a translate3d transform, snaps to the
-// nearest page on release, and commits the navigation by setting
-// options.date through the public API. The same pipeline backs:
+// pages. Wraps a view factory in a three-page carousel; pre-renders the
+// previous and next date pages lazily on first gesture, follows the
+// finger/pointer/wheel with a translate3d transform, and on commit
+// rotates which slot is "live" so the swipe rests in place (no snap-back
+// to centre). Backs:
 //
 //   - touch swipe + mouse drag (Pointer Events)
 //   - trackpad horizontal scroll (deltaX accumulation)
 //   - keyboard left/right arrows (instant nav, no animation)
 //
-// The pager subscribes to nothing — the controller still owns
-// _mountView, so a date change re-enters _mountView which destroys the
-// pager and rebuilds it with the new center page. The visual
-// continuity comes from: by the time the new pager renders, the
-// snapshot of the destination date is already on screen (animated into
-// place) and the live render lands in the same DOM position the
-// snapshot occupied.
+// Layout: the pager is `position: relative; overflow: hidden;` and the
+// track holds three pages. The CURRENT page is in normal flow, so the
+// pager's height tracks the live view's natural height. PREV / NEXT pages
+// are absolutely positioned at right:100% and left:100% respectively, so
+// adjacent snapshots never bleed into the pager's measured height — the
+// month view stays the same height when scrolling between months of
+// different week-counts.
 
 import {
   addDuration, subtractDuration, cloneDate,
@@ -30,65 +30,117 @@ import {
   filteredEvents as computeFilteredEvents,
 } from '../lib/derived.js';
 
-const SWIPE_THRESHOLD_FRACTION = 0.25;
+const SWIPE_THRESHOLD_FRACTION = 0.22;
 const SWIPE_THRESHOLD_MAX = 140;
-const SWIPE_ANIM_MS = 240;
+const SWIPE_ANIM_MS = 260;
 const SWIPE_EASE = 'cubic-bezier(0.22, 1, 0.36, 1)';
 const VERTICAL_GUARD = 6;
-const WHEEL_END_DEBOUNCE = 160;
+const WHEEL_END_DEBOUNCE = 180;
 const WHEEL_THRESHOLD_FRACTION = 0.35;
 const WHEEL_THRESHOLD_MAX = 200;
 
 // createPager(container, state, factory, { onNavigate }) → { destroy }
 //
 //   container — the calendar's main view slot (this._mainEl)
-//   state     — the live MainState (so the center view stays fully reactive)
+//   state     — the live MainState (so the centre view stays fully reactive)
 //   factory   — the view component factory returned by setViewOptions
-//   onNavigate({ direction, date }) — fires after the swipe completes; the
-//     handler should call the calendarApi.next() / prev() / gotoDate(date)
-//     to actually advance the view.
+//   onNavigate({ direction }) — called AFTER the pager has already
+//     reshuffled internally to rest on the destination page; the host
+//     should call api.next() / api.prev() to commit the new date so the
+//     freshly-mounted live view re-renders with the right data.
 export function createPager(container, state, factory, { onNavigate }) {
   const pager = el('div', 'ec-pager', { tabindex: '0' });
   const track = el('div', 'ec-pager-track');
-  const prevPage = el('div', 'ec-pager-page ec-pager-page-prev', { 'aria-hidden': 'true' });
-  const currentPage = el('div', 'ec-pager-page ec-pager-page-current');
-  const nextPage = el('div', 'ec-pager-page ec-pager-page-next', { 'aria-hidden': 'true' });
-  track.append(prevPage, currentPage, nextPage);
+  // Three persistent slot elements. Class names are assigned dynamically
+  // (current / prev / next) based on the current rotation, so the slot
+  // that's about to become the new "current" can take that role without
+  // moving in the DOM.
+  const slots = [
+    el('div', 'ec-pager-page'),
+    el('div', 'ec-pager-page'),
+    el('div', 'ec-pager-page'),
+  ];
+  track.append(...slots);
   pager.append(track);
   container.replaceChildren(pager);
 
-  // Mount the live view inside the centre page. The view's own onAny
-  // subscriptions stay wired to the parent state — small mutations
-  // (e.g. addEvent) re-render in place without recreating the pager.
-  let liveTeardown = factory(currentPage, state);
+  // Rotation pointer: slots[liveIdx] holds the live view; the other two
+  // hold lazy snapshots of the prev/next date pages. Starts at 1 (middle).
+  let liveIdx = 1;
+  // Per-slot snapshot teardowns; live slot keeps its teardown in
+  // liveTeardown. snapshotTeardowns[liveIdx] is always null while liveIdx
+  // is the live slot.
+  const snapshotTeardowns = [null, null, null];
 
-  // Snapshot teardowns — built on first gesture, cleared once the
-  // gesture commits or cancels.
-  let prevTeardown = null;
-  let nextTeardown = null;
+  applySlotClasses();
+  let liveTeardown = factory(slots[liveIdx], state);
+  setTransform(0, false);
+
+  // When the date changes via something OTHER than this pager (toolbar
+  // prev/next, .calendarApi.gotoDate, dates picker, etc.) the live view
+  // re-renders inside its slot via its own onAny subscriptions, but any
+  // stale prev/next snapshots stay around. Clear them so the next gesture
+  // builds fresh ones for the new date. We deliberately do NOT touch the
+  // track transform here — when the change is external, the track is
+  // already at rest. When the change comes from animateAndCommit below, we
+  // call clearSnapshots ourselves at the right point.
+  let suppressRangeSub = false;
+  const rangeSub = state.on('change:currentRange', () => {
+    if (suppressRangeSub) return;
+    clearAllSnapshots();
+  });
+
+  // ----------------------------------------------------------------------
+
+  function applySlotClasses() {
+    const prevIdx = mod3(liveIdx - 1);
+    const nextIdx = mod3(liveIdx + 1);
+    for (let i = 0; i < 3; ++i) {
+      const slot = slots[i];
+      slot.classList.remove('ec-pager-page-prev', 'ec-pager-page-current', 'ec-pager-page-next');
+      slot.removeAttribute('aria-hidden');
+      if (i === liveIdx) {
+        slot.classList.add('ec-pager-page-current');
+      } else if (i === prevIdx) {
+        slot.classList.add('ec-pager-page-prev');
+        slot.setAttribute('aria-hidden', 'true');
+      } else if (i === nextIdx) {
+        slot.classList.add('ec-pager-page-next');
+        slot.setAttribute('aria-hidden', 'true');
+      }
+    }
+  }
 
   function ensureSnapshots() {
     const options = state.get('options');
     const inc = options.dateIncrement ?? options.duration;
     if (!inc) return;
+    const prevIdx = mod3(liveIdx - 1);
+    const nextIdx = mod3(liveIdx + 1);
 
-    if (!prevTeardown) {
+    if (!snapshotTeardowns[prevIdx]) {
       const date = subtractDuration(cloneDate(options.date), inc);
-      const snapState = createSnapshotState(state, date);
-      prevPage.replaceChildren();
-      prevTeardown = factory(prevPage, snapState);
+      const snap = createSnapshotState(state, date);
+      slots[prevIdx].replaceChildren();
+      snapshotTeardowns[prevIdx] = factory(slots[prevIdx], snap);
     }
-    if (!nextTeardown) {
+    if (!snapshotTeardowns[nextIdx]) {
       const date = addDuration(cloneDate(options.date), inc);
-      const snapState = createSnapshotState(state, date);
-      nextPage.replaceChildren();
-      nextTeardown = factory(nextPage, snapState);
+      const snap = createSnapshotState(state, date);
+      slots[nextIdx].replaceChildren();
+      snapshotTeardowns[nextIdx] = factory(slots[nextIdx], snap);
     }
   }
 
-  function clearSnapshots() {
-    if (prevTeardown) { prevTeardown(); prevTeardown = null; prevPage.replaceChildren(); }
-    if (nextTeardown) { nextTeardown(); nextTeardown = null; nextPage.replaceChildren(); }
+  function clearAllSnapshots() {
+    for (let i = 0; i < 3; ++i) {
+      if (i === liveIdx) continue;
+      if (snapshotTeardowns[i]) {
+        snapshotTeardowns[i]();
+        snapshotTeardowns[i] = null;
+      }
+      slots[i].replaceChildren();
+    }
   }
 
   function setTransform(px, animate) {
@@ -96,6 +148,55 @@ export function createPager(container, state, factory, { onNavigate }) {
       ? `transform ${SWIPE_ANIM_MS}ms ${SWIPE_EASE}`
       : 'none';
     track.style.transform = `translate3d(${px}px, 0, 0)`;
+  }
+
+  // After the swipe animation lands at ±pageWidth, rotate which slot is
+  // "live" so the rest position is exactly where we ended — no snap-back.
+  // direction = +1 (we slid LEFT to expose next) or -1 (we slid RIGHT to
+  // expose prev).
+  function rotateAndCommit(direction) {
+    // The snapshot that's been animated into the viewport is the new live.
+    const newLiveIdx = mod3(liveIdx + direction);
+
+    // Tear down the old live view in its (now off-screen) slot.
+    if (liveTeardown) { liveTeardown(); liveTeardown = null; }
+    slots[liveIdx].replaceChildren();
+
+    // The slot opposite the direction we travelled (now far away in the
+    // ring) holds an old snapshot of the OLD date's other neighbour — it's
+    // stale because the date is about to change. Tear it down.
+    const oppositeIdx = mod3(liveIdx - direction);
+    if (snapshotTeardowns[oppositeIdx]) {
+      snapshotTeardowns[oppositeIdx]();
+      snapshotTeardowns[oppositeIdx] = null;
+    }
+    slots[oppositeIdx].replaceChildren();
+
+    // Promote the destination slot.
+    liveIdx = newLiveIdx;
+
+    // Reset the track transform to the rest position without animation,
+    // simultaneously reassigning prev/current/next classes. The snapshot
+    // that the user is already looking at stays put visually because it's
+    // now in the .ec-pager-page-current slot, which is in normal flow and
+    // sits at viewport left:0 with track.translateX(0).
+    applySlotClasses();
+    setTransform(0, false);
+
+    // Replace the snapshot with the live view. Replace the children in a
+    // single replaceChildren batch — the factory's first render builds a
+    // fresh DOM tree and assigns it atomically. Suppress the range
+    // subscription so it doesn't clobber things while api.next() fires.
+    suppressRangeSub = true;
+    onNavigate?.({ direction });
+    // Tear down the snapshot teardown (its DOM children get replaced by
+    // the factory's render below).
+    if (snapshotTeardowns[liveIdx]) {
+      snapshotTeardowns[liveIdx]();
+      snapshotTeardowns[liveIdx] = null;
+    }
+    liveTeardown = factory(slots[liveIdx], state);
+    suppressRangeSub = false;
   }
 
   // --- pointer (touch + mouse) ------------------------------------------
@@ -106,7 +207,7 @@ export function createPager(container, state, factory, { onNavigate }) {
     if (drag || wheelGesture) return;
     if (ev.button !== undefined && ev.button !== 0) return;
     // Skip gestures that start on something interactive — chips, resizers,
-    // expanders, more-links, buttons.
+    // more-links, expanders, buttons.
     if (ev.target.closest?.('[data-event-id], [data-more-link], [data-popover-action], .ec-resizer, .ec-pager-no-swipe, .ec-button, button, input, select, textarea, a')) return;
     drag = {
       startX: ev.clientX, startY: ev.clientY,
@@ -122,8 +223,6 @@ export function createPager(container, state, factory, { onNavigate }) {
     const dx = ev.clientX - drag.startX;
     const dy = ev.clientY - drag.startY;
     if (!drag.decided) {
-      // If the user moves mostly vertically first, let the browser scroll
-      // and don't hijack the gesture.
       if (Math.abs(dy) > Math.abs(dx) + VERTICAL_GUARD) {
         drag.abandoned = true;
         return;
@@ -169,8 +268,6 @@ export function createPager(container, state, factory, { onNavigate }) {
 
   function onWheel(ev) {
     if (drag) return;
-    // Two-finger horizontal scroll on macOS sets deltaX, deltaY ≈ 0.
-    // Plain vertical wheel passes through to the browser.
     if (Math.abs(ev.deltaX) <= Math.abs(ev.deltaY)) return;
     ev.preventDefault();
     if (!wheelGesture) {
@@ -186,14 +283,12 @@ export function createPager(container, state, factory, { onNavigate }) {
     const threshold = Math.min(width * WHEEL_THRESHOLD_FRACTION, WHEEL_THRESHOLD_MAX);
     clearTimeout(wheelGesture.endTimer);
     if (wheelGesture.acc <= -threshold) {
-      const g = wheelGesture; wheelGesture = null;
+      wheelGesture = null;
       pager.classList.remove('ec-pager-dragging');
-      clearTimeout(g.endTimer);
       animateAndCommit(-width, +1);
     } else if (wheelGesture.acc >= threshold) {
-      const g = wheelGesture; wheelGesture = null;
+      wheelGesture = null;
       pager.classList.remove('ec-pager-dragging');
-      clearTimeout(g.endTimer);
       animateAndCommit(+width, -1);
     } else {
       wheelGesture.endTimer = setTimeout(() => {
@@ -204,7 +299,7 @@ export function createPager(container, state, factory, { onNavigate }) {
       }, WHEEL_END_DEBOUNCE);
     }
     clearTimeout(wheelCleanupTimer);
-    wheelCleanupTimer = setTimeout(clearSnapshots, 1500);
+    wheelCleanupTimer = setTimeout(clearAllSnapshots, 1500);
   }
 
   // --- keyboard ---------------------------------------------------------
@@ -213,15 +308,13 @@ export function createPager(container, state, factory, { onNavigate }) {
     if (ev.target !== pager && !pager.contains(ev.target)) return;
     if (ev.metaKey || ev.ctrlKey || ev.altKey) return;
     if (ev.target.matches?.('input, textarea, select, [contenteditable="true"]')) return;
-    if (ev.key === 'ArrowLeft')  { ev.preventDefault(); onNavigate?.({ direction: -1 }); }
-    else if (ev.key === 'ArrowRight') { ev.preventDefault(); onNavigate?.({ direction: +1 }); }
+    if (ev.key === 'ArrowLeft')  { ev.preventDefault(); ensureSnapshots(); animateAndCommit(window.innerWidth || pager.offsetWidth, -1); }
+    else if (ev.key === 'ArrowRight') { ev.preventDefault(); ensureSnapshots(); animateAndCommit(-(window.innerWidth || pager.offsetWidth), +1); }
   }
 
   function animateAndCommit(toPx, direction) {
     setTransform(toPx, true);
-    setTimeout(() => onNavigate?.({ direction }), SWIPE_ANIM_MS);
-    // Snapshots are torn down when the pager itself is destroyed by the
-    // controller's _mountView callback.
+    setTimeout(() => rotateAndCommit(direction), SWIPE_ANIM_MS);
   }
 
   pager.addEventListener('pointerdown', onPointerDown);
@@ -230,8 +323,9 @@ export function createPager(container, state, factory, { onNavigate }) {
 
   return {
     destroy() {
+      rangeSub?.();
       try { if (liveTeardown) liveTeardown(); } catch { /* ignore */ }
-      clearSnapshots();
+      clearAllSnapshots();
       clearTimeout(wheelCleanupTimer);
       pager.removeEventListener('pointerdown', onPointerDown);
       pager.removeEventListener('wheel', onWheel);
@@ -243,7 +337,14 @@ export function createPager(container, state, factory, { onNavigate }) {
     },
     // Test helper — surfaces the inner DOM nodes without coupling tests
     // to the class names directly.
-    _nodes() { return { pager, track, prevPage, currentPage, nextPage }; },
+    _nodes() {
+      return {
+        pager, track,
+        prevPage: slots.find((s) => s.classList.contains('ec-pager-page-prev')),
+        currentPage: slots.find((s) => s.classList.contains('ec-pager-page-current')),
+        nextPage: slots.find((s) => s.classList.contains('ec-pager-page-next')),
+      };
+    },
   };
 }
 
@@ -304,4 +405,8 @@ function el(tag, className, attrs = {}) {
   node.className = className;
   for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
   return node;
+}
+
+function mod3(n) {
+  return ((n % 3) + 3) % 3;
 }

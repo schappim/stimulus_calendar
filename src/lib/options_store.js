@@ -208,6 +208,9 @@ function baseDefaults() {
     broadcastChannel: undefined,
     broadcastFilter: undefined,
     buttonText: { today: 'today' },
+    // Opt-in macOS-Calendar-style continuous vertical scroll for the
+    // dayGridMonth view (see components/month_scroller.js).
+    continuousMonthScroll: false,
     customButtons: {},
     customScrollbars: false,
     date: new Date(),

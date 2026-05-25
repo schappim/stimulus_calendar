@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <title>stimulus_calendar — swipe navigation</title>
+  <link rel="stylesheet" href="../src/styles/calendar.css">
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; margin: 2rem; max-width: 1024px; }
+    .row { display: flex; gap: 0.5rem; align-items: center; margin: 0.5rem 0 1rem; }
+    .pill {
+      /* Fixed width so day/month/year switches don't shift the button row. */
+      width: 12rem;
+      flex: 0 0 auto;
+      padding: 0.25rem 0.75rem;
+      border-radius: 999px;
+      background: #ecfeff;
+      color: #0e7490;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      text-align: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .row button {
+      font: inherit; padding: 0.25rem 0.625rem;
+      border-radius: 4px; border: 1px solid #cbd5e1;
+      background: #ffffff; cursor: pointer;
+      flex: 0 0 auto;
+    }
+    .row button.active { background: #2563eb; color: #fff; border-color: #2563eb; }
+    kbd {
+      display: inline-block; padding: 1px 6px;
+      border: 1px solid #cbd5e1; border-bottom-width: 2px;
+      border-radius: 4px; background: #f8fafc;
+      font: 11px/1 ui-monospace, "SF Mono", Menlo, monospace;
+      color: #475569;
+    }
+    .ec { width: 100%; }
+    .hint { color: #6b7280; font-size: 0.875rem; margin-top: 1rem; }
+  </style>
+</head>
+<body>
+  <h1>Swipe navigation</h1>
+  <p>Two-finger horizontal swipe on a trackpad, finger swipe on touch, or
+     pointer drag on a mouse — all advance the calendar one page in either
+     direction. Tap or click an event to interact; double-click for the
+     popover; drag an event chip to move; drag its bottom edge in week/day
+     view to resize. Use <kbd>←</kbd> / <kbd>→</kbd> for keyboard navigation.</p>
+
+  <div class="row">
+    <span class="pill" id="title-pill">May 2026</span>
+    <button data-view="dayGridMonth" class="active">Month</button>
+    <button data-view="dayGridWeek">Week</button>
+    <button data-view="dayGridDay">Day</button>
+    <button data-view="timeGridWeek">Week (time)</button>
+    <button data-view="timeGridDay">Day (time)</button>
+    <button data-view="listWeek">List</button>
+  </div>
+
+  <div id="cal"
+       data-controller="calendar"
+       data-calendar-plugins-value='["DayGrid","TimeGrid","List","Interaction"]'
+       data-calendar-view-value="dayGridMonth"
+       data-calendar-date-value="2026-05-15"
+       data-calendar-options-value='{"editable":true,"eventDurationEditable":true,"scrollTime":"08:00:00","continuousMonthScroll":true}'
+       data-calendar-header-toolbar-value='{"start":"today","center":"title","end":"prev,next"}'>
+  </div>
+
+  <p class="hint">
+    Behind the scenes the pager mounts every view inside a translateX-able
+    track of three pages; the prev and next dates pre-render on first gesture
+    so the swipe shows real content (not a placeholder).
+  </p>
+
+  <script type="module">
+    import { Application } from '/node_modules/@hotwired/stimulus/dist/stimulus.js';
+    import CalendarController from '/src/controllers/calendar_controller.js';
+
+    const app = Application.start();
+    app.register('calendar', CalendarController);
+    await new Promise((r) => setTimeout(r, 60));
+
+    const el = document.getElementById('cal');
+    const seed = (rows) => rows.forEach((r) => el.calendarApi.addEvent(r));
+
+    seed([
+      { id: 's1', title: 'Conference',  start: '2026-05-04', end: '2026-05-07', allDay: true, backgroundColor: '#0ea5e9' },
+      { id: 's2', title: 'Sales review',start: '2026-05-11T10:00', end: '2026-05-11T11:00' },
+      { id: 's3', title: 'Design crit', start: '2026-05-13T14:00', end: '2026-05-13T15:30', backgroundColor: '#dc2626' },
+      { id: 's4', title: 'Standup',     start: '2026-05-14T09:00', end: '2026-05-14T09:30' },
+      { id: 's5', title: 'Lunch w/ J',  start: '2026-05-14T12:00', end: '2026-05-14T13:00', backgroundColor: '#16a34a' },
+      { id: 's6', title: '1:1 Alex',    start: '2026-05-19T11:00', end: '2026-05-19T11:30' },
+      { id: 's7', title: 'Offsite',     start: '2026-05-20', end: '2026-05-23', allDay: true, backgroundColor: '#9333ea' },
+      { id: 's8', title: 'Release',     start: '2026-05-28T17:00', end: '2026-05-28T18:00', backgroundColor: '#dc2626' },
+      // Spill into the next month so the swipe-right destination has events too.
+      { id: 's9', title: 'Planning',    start: '2026-06-02T10:00', end: '2026-06-02T11:00' },
+      { id: 'sa', title: 'All-hands',   start: '2026-06-05T14:00', end: '2026-06-05T15:00', backgroundColor: '#dc2626' },
+    ]);
+
+    // View-switching pills.
+    document.querySelectorAll('.row button[data-view]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.row button[data-view]').forEach((b) =>
+          b.classList.toggle('active', b === btn));
+        el.calendarApi.setOption('view', btn.dataset.view);
+      });
+    });
+
+    // Live title pill that mirrors the calendar's own viewTitle.
+    const titlePill = document.getElementById('title-pill');
+    const ctrl = app.getControllerForElementAndIdentifier(el, 'calendar');
+    ctrl._state.on('change:viewTitle', ({ value }) => { titlePill.textContent = value; });
+  </script>
+</body>
+</html>

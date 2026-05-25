@@ -138,11 +138,11 @@ export function renderTimeGridView(container, state) {
         chip.style.right = '0';
         if (event.backgroundColor) chip.style.backgroundColor = event.backgroundColor;
         chip.append(createElement('div', theme.eventTitle, event.title || ''));
-        // Resize handle (bottom edge). Surfaces only when editing is
-        // enabled; the Interaction plugin's pointerdown handler picks
-        // up [.ec-resizer] and runs the resize gesture.
-        const canResize = (options.editable || options.eventDurationEditable) && !event.editable === false;
-        if (canResize !== false && (options.editable || options.eventDurationEditable)) {
+        // Resize handle (bottom edge). Surfaces only when the user has
+        // opted in via options.editable (and eventDurationEditable hasn't
+        // been turned off). The Interaction plugin's pointerdown handler
+        // picks up [.ec-resizer] and runs the resize gesture.
+        if (options.editable && options.eventDurationEditable !== false) {
           const resizer = createElement('div', `${theme.resizer ?? 'ec-resizer'} ec-resizer-end`, '', [
             ['data-resizer', 'end'],
           ]);

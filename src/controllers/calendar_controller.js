@@ -19,6 +19,7 @@ import {
   openEventPopover, closeEventPopover, isEventPopoverOpen, openEventPopoverId,
 } from '../components/event_popover.js';
 import { createPager } from '../components/pager.js';
+import { createMonthScroller } from '../components/month_scroller.js';
 import { resolvePluginNames } from '../plugins/index.js';
 import { BroadcastBus, resolveAdapter } from '../lib/broadcast/index.js';
 
@@ -331,6 +332,21 @@ export default class CalendarController extends Controller {
   _mountView() {
     if (this._viewTeardown) this._viewTeardown();
     const factory = this._state.get('viewComponent');
+    const options = this._state.get('options');
+    const viewName = options?.view;
+    // dayGridMonth + options.continuousMonthScroll = continuous vertical
+    // flow (macOS Calendar pattern). The default for dayGridMonth remains
+    // the single-month pager-wrapped grid for backwards compatibility;
+    // opting in via `continuousMonthScroll: true` swaps in the scroller.
+    if (viewName === 'dayGridMonth' && options?.continuousMonthScroll && typeof factory === 'function') {
+      const scroller = createMonthScroller(this._mainEl, this._state, {
+        onDateChange: (date) => this.element.calendarApi?.gotoDate(date),
+      });
+      this._monthScroller = scroller;
+      this._pager = null;
+      this._viewTeardown = () => { scroller.destroy(); this._monthScroller = null; };
+      return;
+    }
     if (typeof factory === 'function') {
       const pager = createPager(this._mainEl, this._state, factory, {
         onNavigate: ({ direction, date }) => {
@@ -340,11 +356,13 @@ export default class CalendarController extends Controller {
         },
       });
       this._pager = pager;
+      this._monthScroller = null;
       this._viewTeardown = () => { pager.destroy(); this._pager = null; };
     } else {
       this._mainEl.replaceChildren();
       this._viewTeardown = null;
       this._pager = null;
+      this._monthScroller = null;
     }
   }
 
@@ -588,8 +606,38 @@ export default class CalendarController extends Controller {
     if (key === 'dateIncrement' && value !== undefined && !isFunction(value)) {
       value = createDuration(value);
     }
+    const prevView = this._state.get('options').view;
     this._setOption(key, value);
+    // View name change → re-apply per-view option overrides, swap the
+    // viewComponent, and remount the main view. setOption mutates the
+    // live options object in place so change:options never fires
+    // automatically; we trigger the switch explicitly here.
+    if (key === 'view' && value !== prevView) {
+      const initComponent = this._setViewOptions(value);
+      if (typeof initComponent === 'function') {
+        this._state.set('viewComponent', initComponent(this._state));
+      }
+      this._recompute();
+      this._mountView();
+      // Re-render the toolbar so the active view-button highlight tracks.
+      const actions = this._toolbarActions();
+      renderToolbar(this._toolbarEl, this._state, actions);
+      return;
+    }
     this._recompute();
+  }
+
+  _toolbarActions() {
+    return {
+      prev: () => this._navigate(-1),
+      next: () => this._navigate(+1),
+      today: () => this.setOption('date', new Date()),
+      gotoView: (name) => this.setOption('view', name),
+      fireCustomButton: (name) => {
+        const button = this._state.get('options').customButtons?.[name];
+        if (typeof button?.click === 'function') button.click();
+      },
+    };
   }
 }
 
