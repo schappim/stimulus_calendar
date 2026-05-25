@@ -10,7 +10,7 @@ import {
   currentRange, activeRange, viewDates, viewTitle,
   filteredEvents, offset, view as makeView, intlRange,
 } from '../lib/derived.js';
-import { createDate, addDuration, subtractDuration, cloneDate, setMidnight } from '../lib/date.js';
+import { createDate, addDuration, subtractDuration, cloneDate, setMidnight, toISOString } from '../lib/date.js';
 import { createEvents } from '../lib/events.js';
 import { createDuration } from '../lib/duration.js';
 import { isArray, isFunction, isPlainObject } from '../lib/utils.js';
@@ -166,14 +166,22 @@ export default class CalendarController extends Controller {
       state.set('intlTitle', intlTitle);
       state.set('viewTitle', viewTitle(intlTitle, cr));
       state.set('view', makeView(options.view, state.get('viewTitle'), cr, ar));
+      // options.events can be an array, a function, a URL string, or an
+      // EventSource object — only an array is iterable here, so route
+      // non-arrays to refetchEvents() (called by datesSet effect) and
+      // fall back to an empty list while we wait for the fetch to land.
+      const eventsRaw = state.get('events') ?? options.events ?? [];
+      const eventsArr = Array.isArray(eventsRaw) ? eventsRaw : [];
+      const resourcesRaw = state.get('resources') ?? options.resources ?? [];
+      const resourcesArr = Array.isArray(resourcesRaw) ? resourcesRaw : [];
       state.set('filteredEvents', filteredEvents(
-        state.get('events') ?? options.events ?? [],
+        eventsArr,
         state.get('view'),
         {
           eventFilter: options.eventFilter,
           eventOrder: options.eventOrder,
           filterEventsWithResources: options.filterEventsWithResources,
-          resources: state.get('resources') ?? options.resources ?? [],
+          resources: resourcesArr,
         },
       ));
     };
@@ -345,10 +353,10 @@ export default class CalendarController extends Controller {
       },
       getEvents: () => this._state.get('filteredEvents') ?? [],
       getEventById: (id) => (this._state.get('filteredEvents') ?? []).find((e) => e.id === id),
-      refetchEvents: async () => { /* fetch wiring lands in Phase 10 */ },
+      refetchEvents: async () => this._refetchEvents(),
 
-      // Resources (impl in Phase 8)
-      refetchResources: async () => {},
+      // Resources
+      refetchResources: async () => this._refetchResources(),
       getResources: () => this._state.get('resources') ?? [],
 
       // Navigation
@@ -362,11 +370,13 @@ export default class CalendarController extends Controller {
       setOption: (key, value) => this.setOption(key, value),
       getOption: (key) => this._state.get('options')[key],
 
-      // Selection (impl in Phase 11)
-      unselect: () => {},
+      // Selection — clears any active select range + fires the user
+      // callback if registered.
+      unselect: (jsEvent) => this._unselect(jsEvent),
 
-      // Pointer geometry (impl in Phase 11)
-      dateFromPoint: () => null,
+      // Pointer geometry — find the calendar cell whose [data-date]
+      // covers (x, y) and return a Date pointing at that day or slot.
+      dateFromPoint: (x, y) => this._dateFromPoint(x, y),
     };
     this.element.calendarApi = api;
   }
@@ -378,6 +388,123 @@ export default class CalendarController extends Controller {
     if (direction > 0) addDuration(date, inc);
     else subtractDuration(date, inc);
     this.setOption('date', date);
+  }
+
+  // Pull fresh event data from options.eventSources (function or URL) +
+  // any legacy options.events function and replace state.events. Called
+  // by the public refetchEvents() and on dates-set when lazyFetching is
+  // on. URL sources are fetched against the active range as
+  // ?start=&end= ISO strings.
+  async _refetchEvents() {
+    const options = this._state.get('options');
+    const sources = [];
+    if (options.events !== undefined) sources.push(options.events);
+    if (Array.isArray(options.eventSources)) sources.push(...options.eventSources);
+
+    const ar = this._state.get('activeRange');
+    const params = ar ? {
+      start: toISOString(ar.start, 10),
+      end:   toISOString(ar.end,   10),
+    } : {};
+
+    const out = [];
+    for (const src of sources) {
+      const resolved = await this._resolveSource(src, params);
+      if (Array.isArray(resolved)) out.push(...resolved);
+    }
+    if (out.length || sources.length) {
+      const parsed = createEvents(out, this._state.get('offset'));
+      this._state.set('events', parsed);
+      this._recompute();
+      this.dispatch('eventSourceSuccess', { detail: { events: parsed } });
+    }
+    return out;
+  }
+
+  async _refetchResources() {
+    const options = this._state.get('options');
+    if (options.resources === undefined) return [];
+    const resolved = await this._resolveSource(options.resources, {});
+    if (Array.isArray(resolved)) {
+      this._state.set('resources', resolved);
+      this._recompute();
+      this.dispatch('resourceSourceSuccess', { detail: { resources: resolved } });
+    }
+    return resolved;
+  }
+
+  // Resolves a source descriptor (array | function | URL string | object
+  // with .url and optional .extraParams) into an array of events/resources.
+  async _resolveSource(src, params) {
+    if (Array.isArray(src)) return src;
+    if (typeof src === 'function') {
+      return await src({ ...params, start: params.start && new Date(params.start), end: params.end && new Date(params.end) });
+    }
+    if (typeof src === 'string') return this._fetchJSON(src, params);
+    if (src && typeof src === 'object' && src.url) {
+      const merged = { ...params, ...(src.extraParams ?? {}) };
+      return this._fetchJSON(src.url, merged);
+    }
+    return null;
+  }
+
+  async _fetchJSON(url, params) {
+    const u = new URL(url, globalThis.location?.href ?? 'http://localhost');
+    for (const [k, v] of Object.entries(params)) if (v != null) u.searchParams.set(k, v);
+    try {
+      const res = await fetch(u.toString(), { headers: { Accept: 'application/json' } });
+      if (!res.ok) {
+        this.dispatch('eventSourceFailure', { detail: { url: u.toString(), status: res.status } });
+        return null;
+      }
+      return await res.json();
+    } catch (err) {
+      this.dispatch('eventSourceFailure', { detail: { url: u.toString(), error: err.message } });
+      return null;
+    }
+  }
+
+  // Clear the active selection (set by the Interaction plugin) and call
+  // options.unselect when registered.
+  _unselect(jsEvent) {
+    const sel = this._state.get('selection');
+    if (sel) {
+      this._state.set('selection', null);
+      const options = this._state.get('options');
+      if (typeof options.unselect === 'function') {
+        options.unselect({ jsEvent, view: this._state.get('view') });
+      }
+      this.dispatch('unselect', { detail: { jsEvent } });
+    }
+  }
+
+  // Lookup a Date from a viewport (x,y) point by walking the elements
+  // under the point until we hit one carrying [data-date]. TimeGrid
+  // cells additionally have y-offset → minutes via slot height.
+  _dateFromPoint(x, y) {
+    if (!this._root) return null;
+    const els = (typeof document !== 'undefined' && document.elementsFromPoint)
+      ? document.elementsFromPoint(x, y)
+      : [];
+    for (const el of els) {
+      const cell = el.closest?.('[data-date]');
+      if (cell && this._root.contains(cell)) {
+        const dateStr = cell.getAttribute('data-date');
+        const date = createDate(dateStr);
+        // TimeGrid: derive the time-of-day from the y offset within the col.
+        const timeCol = el.closest?.('.ec-time-col');
+        if (timeCol) {
+          const rect = timeCol.getBoundingClientRect();
+          const options = this._state.get('options');
+          const slotMinutes = ((options.slotDuration?.seconds ?? 1800) / 60) || 30;
+          const pxPerMin = (options.slotHeight ?? 22) / slotMinutes;
+          const minutes = Math.max(0, Math.round((y - rect.top) / pxPerMin));
+          date.setUTCMinutes(date.getUTCMinutes() + minutes);
+        }
+        return date;
+      }
+    }
+    return null;
   }
 
   // Public setOption — used by the API and by attribute-watcher callbacks.
