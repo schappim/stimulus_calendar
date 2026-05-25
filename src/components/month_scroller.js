@@ -122,7 +122,17 @@ export function createMonthScroller(container, state, { onDateChange }) {
     body.querySelectorAll('.ec-month-scroller-cell.ec-selected')
         .forEach((c) => c.classList.remove('ec-selected'));
     cell.classList.add('ec-selected');
-    emitDateChange(new Date(dateStr + 'T00:00:00Z'));
+    // Pass a LOCAL Date (not new Date(iso + 'Z') which is UTC and
+    // shifts the day by the TZ offset before the controller's
+    // createDate re-encodes it). Building from parsed components keeps
+    // the wall-clock day stable in any TZ.
+    const [yy, mm, dd] = dateStr.split('-').map(Number);
+    // The click is an explicit intent — mark the scroll position as
+    // "external" so a follow-up view-switch's flushPendingDate doesn't
+    // override the user's selection with whatever row happens to be at
+    // the top of the scroll.
+    scrollIsExternal = true;
+    emitDateChange(new Date(yy, mm - 1, dd));
   });
   body.addEventListener('dblclick', (ev) => {
     if (ev.target.closest('[data-event-id], [data-more-link]')) return;
@@ -203,8 +213,12 @@ export function createMonthScroller(container, state, { onDateChange }) {
   // doesn't loop back into rangeSub and re-scroll the body away from where
   // the user already is. Used by every internal path that wants to set
   // options.date (scroll-settled, click-to-select, destroy-flush).
-  function emitDateChange(date) {
+  function emitDateChange(date, external = true) {
     suppressOnDateChange = true;
+    // Explicit user intent (day click, chip click) marks the scroll
+    // position as "external" so flushPendingDate doesn't later override
+    // the new options.date with a scroll-position guess.
+    if (external) scrollIsExternal = true;
     onDateChange?.(date);
     requestAnimationFrame(() => { suppressOnDateChange = false; });
   }
@@ -238,11 +252,11 @@ export function createMonthScroller(container, state, { onDateChange }) {
 
   function currentCentreDate() {
     // Snap on a WEEK basis, not a month basis. Find the row at the top
-    // of the viewport and return its weekStart so options.date follows
-    // the user's actual scroll position — switching from month to week
-    // view lands on the week the user was looking at, not on a
-    // month-anchor that might be many weeks away. Settled-scroll never
-    // forces a scrollTop change; only options.date is updated.
+    // of the viewport and return its weekStart's mid-week day so
+    // options.date follows the user's actual scroll position.
+    // Returns a LOCAL Date (built from UTC components of the internal
+    // UTC-encoded weekStart) so the controller's createDate doesn't
+    // shift the day by the TZ offset.
     const ref = body.scrollTop + body.clientHeight / 4;
     let row = null;
     for (const r of weekRows) {
@@ -251,12 +265,9 @@ export function createMonthScroller(container, state, { onDateChange }) {
     }
     row = row ?? weekRows[0];
     if (!row) return null;
-    // Return the row's mid-week day (Wed-ish) so day-view fallback lands
-    // mid-week rather than on a Sunday boundary, but the WEEK is what
-    // matters for week-view destinations.
     const d = cloneDate(row.weekStart);
     addDay(d, 3);
-    return d;
+    return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
   }
 
   // Wait until scrollTop has been stable for STABLE_MS before treating
@@ -281,7 +292,9 @@ export function createMonthScroller(container, state, { onDateChange }) {
       if (!newDate) return;
       const currentOption = state.get('options').date;
       if (Math.abs(newDate.getTime() - currentOption.getTime()) >= 86400000 / 2) {
-        emitDateChange(newDate);
+        // Scroll-driven update — don't flip scrollIsExternal back to
+        // true (the user IS in the middle of scrolling).
+        emitDateChange(newDate, false);
       }
     }, STABLE_MS);
     lastScrollTop = start;
@@ -540,10 +553,17 @@ function renderEvents(weekRows, state, emitDateChange) {
             .forEach((c) => c.classList.remove('ec-event-selected'));
           chip.classList.add('ec-event-selected');
           state.set('selectedEventId', event.id);
-          // Sync options.date to the event's start (silenced so the
-          // month scroll doesn't jump). Switching to Week now lands on
-          // the week that contains this event.
-          emitDateChange?.(cloneDate(event.start));
+          // Build a LOCAL Date from the event's wall-clock day so the
+          // controller's createDate re-encodes it without a TZ-shift.
+          // (cloneDate(event.start) is UTC-encoded; createDate's
+          // _fromLocalDate would interpret the timestamp via local
+          // methods and shift the day by the TZ offset.)
+          const day = new Date(
+            event.start.getUTCFullYear(),
+            event.start.getUTCMonth(),
+            event.start.getUTCDate(),
+          );
+          emitDateChange?.(day);
           fire?.('eventClick', { event, jsEvent, view: state.get('view') });
           jsEvent.stopPropagation();
         });
