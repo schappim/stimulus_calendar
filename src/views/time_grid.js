@@ -35,12 +35,53 @@ export function renderTimeGridView(container, state) {
     }
     root.append(header);
 
+    const filtered = state.get('filteredEvents') ?? [];
+
+    // All-day row — a horizontal strip across the top showing all-day
+    // events per day. Suppressed when options.allDaySlot is false.
+    if (options.allDaySlot) {
+      const allDayRow = createElement('div', theme.allDay, '', [
+        ['data-row', 'all-day'],
+      ]);
+      const allDayLabel = createElement('div', theme.sidebar + ' ec-all-day-label');
+      const labelContent = options.allDayContent;
+      if (typeof labelContent === 'function') {
+        const c = labelContent({ view: state.get('view') });
+        if (typeof c === 'string') allDayLabel.textContent = c;
+        else if (c?.html) allDayLabel.innerHTML = c.html;
+      } else if (typeof labelContent === 'string') {
+        allDayLabel.textContent = labelContent;
+      } else if (labelContent?.html) {
+        allDayLabel.innerHTML = labelContent.html;
+      } else {
+        allDayLabel.textContent = 'all-day';
+      }
+      allDayRow.append(allDayLabel);
+      const allDayCols = createElement('div', 'ec-all-day-cols');
+      allDayCols.style.setProperty('--ec-cols', String(days.length));
+      for (const day of days) {
+        const cell = createElement('div', `${theme.day} ec-all-day-cell`, '', [
+          ['data-date', day.toISOString().substring(0, 10)],
+        ]);
+        const allDayEvents = eventsOnDay(filtered, day).filter((e) => e.allDay);
+        for (const event of allDayEvents) {
+          const chip = createElement('div', theme.event, '', [
+            ['data-event-id', event.id],
+          ]);
+          if (event.backgroundColor) chip.style.backgroundColor = event.backgroundColor;
+          chip.append(createElement('div', theme.eventTitle, event.title || ''));
+          cell.append(chip);
+        }
+        allDayCols.append(cell);
+      }
+      allDayRow.append(allDayCols);
+      root.append(allDayRow);
+    }
+
     // Body: sidebar + per-day columns.
     const body = createElement('div', 'ec-time-body', '', [
       ['data-row', 'body'],
     ]);
-
-    const filtered = state.get('filteredEvents') ?? [];
     const slotTimeLimits = createSlotTimeLimits(
       options.slotMinTime, options.slotMaxTime,
       options.flexibleSlotTimeLimits, days, filtered,

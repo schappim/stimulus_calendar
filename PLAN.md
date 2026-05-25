@@ -243,9 +243,9 @@ Each view-introducing commit ships a `docs/images/cal-<view>.png` screenshot.
 - [x] View: `timeGridWeek` — sidebar + day columns + slot grid → `cal-week.png`
 - [x] View: `timeGridDay` → `cal-day.png`
 - [x] Slot rendering and labels
-- [ ] All-day row
-- [ ] Option: `allDaySlot`
-- [ ] Option: `allDayContent`
+- [x] All-day row
+- [x] Option: `allDaySlot`
+- [x] Option: `allDayContent`
 - [x] Option: `scrollTime`
 - [x] Option: `slotDuration`
 - [x] Option: `slotHeight`
