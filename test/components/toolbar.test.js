@@ -102,6 +102,18 @@ describe('toolbar', () => {
     expect(date.getFullYear()).toBeGreaterThan(2024);
   });
 
+  it('headerToolbar layout — tokens render into the slot they belong to', async () => {
+    const el = await mount(`<div data-controller="calendar"
+      data-calendar-views-value='{"dayGridMonth":{},"timeGridWeek":{}}'
+      data-calendar-header-toolbar-value='{"start":"today","center":"title","end":"prev,next dayGridMonth,timeGridWeek"}'>
+    </div>`);
+    expect(slot(el, 'start').querySelector('[data-toolbar-action="today"]')).toBeTruthy();
+    expect(slot(el, 'center').querySelector('h2.ec-title')).toBeTruthy();
+    expect(slot(el, 'end').querySelector('[data-toolbar-action="prev"]')).toBeTruthy();
+    expect(slot(el, 'end').querySelector('[data-toolbar-action="next"]')).toBeTruthy();
+    expect(slot(el, 'end').querySelector('[data-toolbar-view="dayGridMonth"]')).toBeTruthy();
+  });
+
   it('customButton — registered button renders with its label and fires click', async () => {
     // Render via attributes so options.customButtons is in place before
     // the toolbar's initial render.

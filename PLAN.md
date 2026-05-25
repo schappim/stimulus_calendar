@@ -213,7 +213,7 @@ matching ERB usage example in `gem/demo` if the option is server-renderable.
 - [x] `today` button + click behaviour
 - [x] View switcher buttons (one per registered view name)
 - [x] `customButtons` rendering and click dispatch
-- [ ] `headerToolbar` slot layout (`start` / `center` / `end`)
+- [x] `headerToolbar` slot layout (`start` / `center` / `end`)
 - [ ] Disabled state on prev/next when bounded by `validRange`
 
 ---
