@@ -308,6 +308,8 @@ function attachEventResizeHandler(rootEl, state) {
       slotMins,
       snapMins,
       moved: false,
+      sourceCol: chip.closest('.ec-time-col'),
+      previewChips: [],
     };
     chip.classList.add('ec-resizing-y');
     chip.classList.add('ec-resizing');
@@ -324,7 +326,50 @@ function attachEventResizeHandler(rootEl, state) {
     const dy = jsEvent.clientY - rs.startY;
     const deltaMin = Math.round((dy / rs.pxPerMin) / rs.snapMins) * rs.snapMins;
     if (deltaMin !== 0) rs.moved = true;
-    if (rs.handleSide === 'end') {
+
+    // Detect the time-col currently under the pointer.
+    let targetCol = null;
+    const els = (typeof document !== 'undefined' && document.elementsFromPoint)
+      ? document.elementsFromPoint(jsEvent.clientX, jsEvent.clientY) : [];
+    for (const el of els) {
+      const col = el.closest?.('.ec-time-col');
+      if (col && rootEl.contains(col)) { targetCol = col; break; }
+    }
+
+    // Clear any previous preview chips on each move so we can recreate.
+    for (const p of rs.previewChips) p.remove();
+    rs.previewChips = [];
+
+    if (rs.handleSide === 'end' && targetCol && rs.sourceCol && targetCol !== rs.sourceCol) {
+      // Multi-day stretch: cap source chip at end of its day, then
+      // paint a preview chip in every intermediate day column (full
+      // height) and one in the target column from top to the pointer
+      // (snapped). Lets the user see exactly how far the event will
+      // extend before they release.
+      const slotMaxMin = Math.min(24 * 60, (rs.originalTopPx + 24 * 60 * rs.pxPerMin) / rs.pxPerMin);
+      const sourceColH = rs.sourceCol.getBoundingClientRect().height;
+      rs.chip.style.height = `${Math.max(rs.snapMins * rs.pxPerMin, sourceColH - rs.originalTopPx - 2)}px`;
+
+      // Enumerate columns from source → target. Day columns sit in
+      // .ec-days; iterate that container's children to find the range.
+      const colsWrap = rs.sourceCol.parentElement;
+      if (colsWrap) {
+        const cols = Array.from(colsWrap.children).filter((c) => c.classList?.contains('ec-time-col'));
+        const sourceIdx = cols.indexOf(rs.sourceCol);
+        const targetIdx = cols.indexOf(targetCol);
+        if (sourceIdx >= 0 && targetIdx > sourceIdx) {
+          // Intermediate columns: full-height preview chips.
+          for (let i = sourceIdx + 1; i < targetIdx; ++i) {
+            rs.previewChips.push(makePreview(cols[i], 0, cols[i].getBoundingClientRect().height - 2, rs));
+          }
+          // Target column: from top to snapped y-offset.
+          const rect = targetCol.getBoundingClientRect();
+          const yIn = Math.max(rs.snapMins * rs.pxPerMin,
+            Math.round(((jsEvent.clientY - rect.top) / rs.pxPerMin) / rs.snapMins) * rs.snapMins * rs.pxPerMin);
+          rs.previewChips.push(makePreview(targetCol, 0, yIn, rs));
+        }
+      }
+    } else if (rs.handleSide === 'end') {
       const newH = Math.max(rs.snapMins * rs.pxPerMin, rs.originalHeightPx + deltaMin * rs.pxPerMin);
       rs.chip.style.height = `${newH}px`;
     } else {
@@ -339,11 +384,35 @@ function attachEventResizeHandler(rootEl, state) {
     if (jsEvent.cancelable) jsEvent.preventDefault();
   };
 
+  // Build a translucent preview chip that mirrors the source chip's
+  // styling, anchored to the given column at top..top+height.
+  function makePreview(col, topPx, heightPx, r) {
+    const clone = r.chip.cloneNode(true);
+    // Strip the resize handles so the user can't grab them on the preview.
+    clone.querySelectorAll('.ec-resizer').forEach((n) => n.remove());
+    clone.classList.add('ec-event-preview');
+    clone.style.position = 'absolute';
+    clone.style.top = `${topPx}px`;
+    clone.style.height = `${heightPx}px`;
+    clone.style.left = '0';
+    clone.style.right = '0';
+    clone.style.opacity = '0.6';
+    clone.style.pointerEvents = 'none';
+    // Use the column's event overlay (.ec-event-overlay) if present so
+    // the preview lives in the same positioned context as real chips.
+    const overlay = col.querySelector('.ec-event-overlay') ?? col;
+    overlay.appendChild(clone);
+    return clone;
+  }
+
   const onPointerUp = (jsEvent) => {
     if (!rs) return;
     const r = rs; rs = null;
     r.chip.classList.remove('ec-resizing-y');
     r.chip.classList.remove('ec-resizing');
+    // Tear down any preview chips painted during the multi-day stretch.
+    for (const p of r.previewChips) p.remove();
+    r.previewChips = [];
     if (!r.moved) {
       state.get('fire')?.('eventResizeStop', { event: r.event, jsEvent, view: state.get('view') });
       return;
