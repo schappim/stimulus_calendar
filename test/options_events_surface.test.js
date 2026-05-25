@@ -28,7 +28,7 @@ describe('events surface', () => {
     el.calendarApi.setOption('eventColor', '#10b981');
     el.calendarApi.addEvent({ id:'1', start:'2026-05-15T09:00', end:'2026-05-15T10:00' });
     const chip = el.querySelector('[data-event-id="1"]');
-    expect(chip.style.backgroundColor).toBe('rgb(16, 185, 129)');
+    expect(chip.style.backgroundColor.toLowerCase()).toMatch(/#10b981|rgb\(16, 185, 129\)/);
   });
 
   it('eventClassNames — global classes added to every event', async () => {
@@ -89,6 +89,6 @@ describe('events surface', () => {
     });
     const bg = el.querySelector('.ec-bg-event[data-event-id="bg"]');
     expect(bg).toBeTruthy();
-    expect(bg.style.backgroundColor).toBe('rgb(254, 243, 199)');
+    expect(bg.style.backgroundColor.toLowerCase()).toMatch(/#fef3c7|rgb\(254, 243, 199\)/);
   });
 });
