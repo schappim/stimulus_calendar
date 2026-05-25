@@ -337,10 +337,13 @@
 
 .ec-time-grid .ec-day-head:last-child { border-right: none; }
 
-/* all-day row */
+/* All-day row — uses the same grid template as the header so its day
+ * columns align with the per-day columns above and below. The inner
+ * .ec-all-day-cols wrapper participates in the parent grid via
+ * `display: contents` so its child cells inherit the column tracks. */
 .ec-time-grid .ec-all-day {
   display: grid;
-  grid-template-columns: var(--ec-sidebar-width) 1fr;
+  grid-template-columns: var(--ec-sidebar-width) repeat(var(--ec-cols, 7), minmax(0, 1fr));
   border-bottom: 1px solid var(--ec-border-color);
   min-height: 1.75rem;
   background: var(--ec-bg-color);
@@ -355,16 +358,13 @@
 }
 
 .ec-time-grid .ec-all-day-cols {
-  display: grid;
-  grid-template-columns: repeat(var(--ec-cols, 7), minmax(0, 1fr));
-  gap: 2px;
-  padding: 2px;
+  display: contents;
 }
 
 .ec-time-grid .ec-all-day-cell {
   min-height: 1.25rem;
-  border-right: 1px dashed var(--ec-border-color);
-  padding: 0;
+  border-right: 1px solid var(--ec-border-color);
+  padding: 2px;
 }
 
 .ec-time-grid .ec-all-day-cell:last-child { border-right: none; }
