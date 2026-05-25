@@ -65,4 +65,14 @@ describe('view: dayGridMonth', () => {
     expect(april26).toBeTruthy();
     expect(april26.classList.contains('ec-other-month')).toBe(true);
   });
+
+  it('dayCellContent (function) replaces the day-number body', async () => {
+    const el = await mount(`<div data-controller="calendar"
+      data-calendar-plugins-value='["DayGrid"]'
+      data-calendar-view-value="dayGridMonth"
+      data-calendar-date-value="2026-05-15"></div>`);
+    el.calendarApi.setOption('dayCellContent', ({ date }) => `★${date.getUTCDate()}`);
+    const cell = el.querySelector('[data-date="2026-05-15"] .ec-day-number');
+    expect(cell.textContent).toBe('★15');
+  });
 });
