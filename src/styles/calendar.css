@@ -905,6 +905,22 @@
 .ec-pager-page-prev { right: 100%; }
 .ec-pager-page-next { left: 100%; }
 
+/* Adjacent snapshots are only visually meaningful while a gesture is
+ * in flight — at rest they sit just off the viewport but can leak
+ * through into the live page (e.g. overflowing all-day chips, header
+ * column edges). Hide them by default and reveal during a drag so the
+ * time axis of the current week never gets overlaid by the prev/next
+ * snapshot's content. */
+.ec-pager-page-prev,
+.ec-pager-page-next {
+  visibility: hidden;
+}
+
+.ec-pager.ec-pager-dragging .ec-pager-page-prev,
+.ec-pager.ec-pager-dragging .ec-pager-page-next {
+  visibility: visible;
+}
+
 /* Time-axis columns (the time-of-day sidebar in TimeGrid views) stay
  * horizontally fixed during a swipe — only the day columns slide. They
  * read --ec-pager-px from the pager element and counter-translate by

@@ -253,8 +253,8 @@ export function createPager(container, state, factory, { onNavigate }) {
     document.removeEventListener('pointermove', onPointerMove);
     document.removeEventListener('pointerup', onPointerUp);
     document.removeEventListener('pointercancel', onPointerUp);
-    pager.classList.remove('ec-pager-dragging');
     if (!d.decided || d.abandoned) {
+      pager.classList.remove('ec-pager-dragging');
       setTransform(0, false);
       return;
     }
@@ -266,8 +266,11 @@ export function createPager(container, state, factory, { onNavigate }) {
     } else if (dx >= threshold) {
       animateAndCommit(+width, -1);
     } else {
+      // Snap back — keep the dragging class on until the snap-back
+      // animation completes so the prev/next pages stay visible while
+      // they slide back off-screen.
       setTransform(0, true);
-      // Snapshots can stay — next gesture will reuse them.
+      setTimeout(() => pager.classList.remove('ec-pager-dragging'), SWIPE_ANIM_MS);
     }
   }
 
@@ -318,13 +321,25 @@ export function createPager(container, state, factory, { onNavigate }) {
     if (ev.target !== pager && !pager.contains(ev.target)) return;
     if (ev.metaKey || ev.ctrlKey || ev.altKey) return;
     if (ev.target.matches?.('input, textarea, select, [contenteditable="true"]')) return;
-    if (ev.key === 'ArrowLeft')  { ev.preventDefault(); ensureSnapshots(); animateAndCommit(window.innerWidth || pager.offsetWidth, -1); }
-    else if (ev.key === 'ArrowRight') { ev.preventDefault(); ensureSnapshots(); animateAndCommit(-(window.innerWidth || pager.offsetWidth), +1); }
+    if (ev.key === 'ArrowLeft')  {
+      ev.preventDefault();
+      ensureSnapshots();
+      pager.classList.add('ec-pager-dragging');
+      animateAndCommit(window.innerWidth || pager.offsetWidth, -1);
+    } else if (ev.key === 'ArrowRight') {
+      ev.preventDefault();
+      ensureSnapshots();
+      pager.classList.add('ec-pager-dragging');
+      animateAndCommit(-(window.innerWidth || pager.offsetWidth), +1);
+    }
   }
 
   function animateAndCommit(toPx, direction) {
     setTransform(toPx, true);
-    setTimeout(() => rotateAndCommit(direction), SWIPE_ANIM_MS);
+    setTimeout(() => {
+      rotateAndCommit(direction);
+      pager.classList.remove('ec-pager-dragging');
+    }, SWIPE_ANIM_MS);
   }
 
   pager.addEventListener('pointerdown', onPointerDown);
