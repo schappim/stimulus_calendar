@@ -91,18 +91,22 @@
     el.calendarApi.setOption('validRange', { start: today });
 
     // Seed events relative to TODAY so the demo content is always
-    // current regardless of when the page is opened.
+    // current regardless of when the page is opened. The calendar treats
+    // a no-TZ ISO string as wall-clock, so we emit `YYYY-MM-DDTHH:mm:ss`
+    // built from local components (NOT via .toISOString(), which would
+    // convert to UTC and shift the event by the user's TZ offset).
     const seed = (rows) => rows.forEach((r) => el.calendarApi.addEvent(r));
+    const pad = (n) => String(n).padStart(2, '0');
     const day = (offset, hh = 0, mm = 0) => {
       const d = new Date(today);
       d.setDate(d.getDate() + offset);
       d.setHours(hh, mm, 0, 0);
-      return d.toISOString();
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:00`;
     };
     const dayDate = (offset) => {
       const d = new Date(today);
       d.setDate(d.getDate() + offset);
-      return d.toISOString().substring(0, 10);
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
     };
 
     seed([
