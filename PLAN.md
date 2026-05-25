@@ -149,8 +149,10 @@ with full Vitest coverage. No Stimulus controllers yet. **Rails tests N/A**
       `on(event, fn)` / `onAny(fn)`). Replaces Svelte runes with a plain
       pub/sub model. `set` short-circuits when value didn't change; `assign`
       dispatches one change at a time; `destroy` clears subscribers + data.
-- [ ] `lib/options_store.js` — option defaults table, per-view override merge,
-      `setOption` / `getOption`, parsers registry
+- [x] `lib/options_store.js` — `createOptionsStore` (base defaults + plugin
+      contributions, per-view override merge, parsers registry, function-
+      mergeable options receive prev value), `setOption` / `setViewOptions`,
+      `diff(current, prev)`
 - [ ] `lib/plugins.js` — plugin registration: `createOptions`, `createParsers`,
       `initState`, view registry
 - [ ] Effects model — when state changes, recompute derived state, dispatch
