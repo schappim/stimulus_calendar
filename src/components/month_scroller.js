@@ -227,24 +227,9 @@ function buildWeeks(body, from, to, weekRows, state, opts = {}) {
     // Skip if this exact week is already in weekRows (de-dup at boundary).
     const exists = weekRows.find((r) => datesEqual(r.weekStart, weekStart));
     if (!exists) {
-      const monthAnchor = days.find((d) => d.getUTCDate() === 1) ?? null;
       const rowEl = createElement('div', 'ec-month-scroller-row', '', [
         ['data-week-start', toISODate(weekStart)],
       ]);
-      if (monthAnchor) {
-        const banner = createElement('div', 'ec-month-scroller-month-banner', '');
-        const mfmt = new Intl.DateTimeFormat(options.locale, {
-          timeZone: 'UTC', month: 'long', year: 'numeric',
-        });
-        const parts = mfmt.formatToParts(monthAnchor);
-        // Render "October 2026" with a soft tone on the year part.
-        const monthSpan = createElement('span', 'ec-month-scroller-month-name',
-          parts.filter((p) => p.type === 'month').map((p) => p.value).join(''));
-        const yearSpan = createElement('span', 'ec-month-scroller-month-year',
-          parts.filter((p) => p.type === 'year').map((p) => p.value).join(''));
-        banner.append(monthSpan, createElement('span', '', ' '), yearSpan);
-        rowEl.append(banner);
-      }
       const cells = createElement('div', 'ec-month-scroller-cells');
       const todayMid = setMidnight(new Date());
       for (const d of days) {
@@ -258,7 +243,13 @@ function buildWeeks(body, from, to, weekRows, state, opts = {}) {
         cells.append(cell);
       }
       rowEl.append(cells);
-      newRows.push({ rowEl, weekStart: cloneDate(weekStart), monthAnchor });
+      // monthAnchor is assigned later by refreshBanners() based on the
+      // row's position relative to its neighbours — a row gets a banner
+      // only when its FIRST day is in a different month than the
+      // previous row's first day, mirroring macOS Calendar (a partial
+      // week that spills into a new month doesn't get the new-month
+      // banner; only the next full row does).
+      newRows.push({ rowEl, weekStart: cloneDate(weekStart), monthAnchor: null });
     }
     addDay(weekStart, 7);
   }
@@ -272,6 +263,39 @@ function buildWeeks(body, from, to, weekRows, state, opts = {}) {
   } else {
     for (const r of newRows) body.append(r.rowEl);
     weekRows.push(...newRows);
+  }
+  refreshBanners(weekRows, options);
+}
+
+// Walks weekRows in order, computes the canonical "month of this row" as
+// the month of the row's first day, and adds / removes the
+// .ec-month-scroller-month-banner whenever the month changes between
+// adjacent rows.
+function refreshBanners(weekRows, options) {
+  const mfmt = new Intl.DateTimeFormat(options.locale, {
+    timeZone: 'UTC', month: 'long', year: 'numeric',
+  });
+  let prevKey = null;
+  for (const r of weekRows) {
+    const d = r.weekStart;
+    const key = `${d.getUTCFullYear()}-${d.getUTCMonth()}`;
+    const needs = key !== prevKey;
+    const existing = r.rowEl.querySelector('.ec-month-scroller-month-banner');
+    if (needs && !existing) {
+      const banner = createElement('div', 'ec-month-scroller-month-banner', '');
+      const parts = mfmt.formatToParts(d);
+      const monthSpan = createElement('span', 'ec-month-scroller-month-name',
+        parts.filter((p) => p.type === 'month').map((p) => p.value).join(''));
+      const yearSpan = createElement('span', 'ec-month-scroller-month-year',
+        parts.filter((p) => p.type === 'year').map((p) => p.value).join(''));
+      banner.append(monthSpan, createElement('span', '', ' '), yearSpan);
+      r.rowEl.insertBefore(banner, r.rowEl.firstChild);
+      r.monthAnchor = cloneDate(d);
+    } else if (!needs && existing) {
+      existing.remove();
+      r.monthAnchor = null;
+    }
+    prevKey = key;
   }
 }
 

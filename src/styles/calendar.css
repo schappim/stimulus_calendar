@@ -886,6 +886,35 @@
 .ec-pager-page-prev { right: 100%; }
 .ec-pager-page-next { left: 100%; }
 
+/* Time-axis columns (the time-of-day sidebar in TimeGrid views) stay
+ * horizontally fixed during a swipe — only the day columns slide. They
+ * read --ec-pager-px from the pager element and counter-translate by
+ * the negative of the track's translate so the net viewport position
+ * stays put. Both the transform and the transition come from the same
+ * CSS variable as the track so they animate together when the pager
+ * commits a swipe. */
+.ec-pager-page-current .ec-time-grid .ec-corner,
+.ec-pager-page-current .ec-time-grid [data-row="body"] > .ec-sidebar,
+.ec-pager-page-current .ec-time-grid .ec-all-day > .ec-sidebar {
+  position: relative;
+  z-index: 4;
+  background: var(--ec-bg-color);
+  transform: translate3d(calc(-1 * var(--ec-pager-px, 0px)), 0, 0);
+  transition: var(--ec-pager-transition, none);
+}
+
+/* Adjacent snapshot pages bring their own (now stale) time-axis cells
+ * into view as the user swipes; hide them so the user only ever sees
+ * the live, pinned sidebar. */
+.ec-pager-page-prev .ec-time-grid .ec-corner,
+.ec-pager-page-prev .ec-time-grid [data-row="body"] > .ec-sidebar,
+.ec-pager-page-prev .ec-time-grid .ec-all-day > .ec-sidebar,
+.ec-pager-page-next .ec-time-grid .ec-corner,
+.ec-pager-page-next .ec-time-grid [data-row="body"] > .ec-sidebar,
+.ec-pager-page-next .ec-time-grid .ec-all-day > .ec-sidebar {
+  visibility: hidden;
+}
+
 /* Body cursor + escape-hatch when actively swiping. */
 .ec-pager.ec-pager-dragging { cursor: grabbing; }
 .ec-pager.ec-pager-dragging .ec-pager-track { will-change: transform; }
@@ -1037,12 +1066,13 @@ body.ec-dragging * {
 
 /* The "Month Year" banner — overlays the row so the day cells are
  * unaffected; pushes vertical space so the row is visually distinct
- * when a new month begins. */
+ * when a new month begins. Sits above day cells (z-index) and never
+ * intercepts pointer events so taps land on the day underneath. */
 .ec-month-scroller-month-banner {
   position: absolute;
   top: 0.5rem;
   left: 0.75rem;
-  z-index: 1;
+  z-index: 5;
   font-weight: 700;
   font-size: 1.65rem;
   letter-spacing: -0.01em;

@@ -51,12 +51,12 @@
 
   <div class="row">
     <span class="pill" id="title-pill">May 2026</span>
+    <button data-view="timeGridDay">Day</button>
+    <button data-view="timeGridWeek">Week</button>
     <button data-view="dayGridMonth" class="active">Month</button>
-    <button data-view="dayGridWeek">Week</button>
-    <button data-view="dayGridDay">Day</button>
-    <button data-view="timeGridWeek">Week (time)</button>
-    <button data-view="timeGridDay">Day (time)</button>
     <button data-view="listWeek">List</button>
+    <span style="flex:1"></span>
+    <button id="add-event">+ Event</button>
   </div>
 
   <div id="cal"
@@ -64,7 +64,7 @@
        data-calendar-plugins-value='["DayGrid","TimeGrid","List","Interaction"]'
        data-calendar-view-value="dayGridMonth"
        data-calendar-date-value="2026-05-15"
-       data-calendar-options-value='{"editable":true,"eventDurationEditable":true,"scrollTime":"08:00:00","continuousMonthScroll":true}'
+       data-calendar-options-value='{"editable":true,"eventDurationEditable":true,"scrollTime":"08:00:00","continuousMonthScroll":true,"snapDuration":"00:15:00"}'
        data-calendar-header-toolbar-value='{"start":"today","center":"title","end":"prev,next"}'>
   </div>
 
@@ -112,6 +112,45 @@
     const titlePill = document.getElementById('title-pill');
     const ctrl = app.getControllerForElementAndIdentifier(el, 'calendar');
     ctrl._state.on('change:viewTitle', ({ value }) => { titlePill.textContent = value; });
+
+    // Click-to-create — click any empty slot to add an event. TimeGrid
+    // passes through the precise time (snapped to options.snapDuration).
+    let eventCounter = 100;
+    const palette = ['#2563eb', '#16a34a', '#dc2626', '#9333ea', '#f59e0b', '#0ea5e9'];
+    function colourFor(id) { return palette[id % palette.length]; }
+    el.calendarApi.setOption('dateClick', ({ date, allDay }) => {
+      const title = window.prompt('Event title?');
+      if (!title) return;
+      const start = date;
+      const end = allDay
+        ? new Date(start.getTime() + 24 * 60 * 60 * 1000)
+        : new Date(start.getTime() + 60 * 60 * 1000);
+      const id = String(++eventCounter);
+      el.calendarApi.addEvent({
+        id, title,
+        start: start.toISOString(),
+        end:   end.toISOString(),
+        allDay,
+        backgroundColor: colourFor(eventCounter),
+      });
+    });
+
+    // "+ Event" toolbar button — adds an event one hour from now on
+    // the current calendar date.
+    document.getElementById('add-event').addEventListener('click', () => {
+      const title = window.prompt('Event title?', 'New event');
+      if (!title) return;
+      const start = new Date(el.calendarApi.getOption('date'));
+      start.setUTCHours(new Date().getHours() + 1, 0, 0, 0);
+      const end = new Date(start.getTime() + 60 * 60 * 1000);
+      const id = String(++eventCounter);
+      el.calendarApi.addEvent({
+        id, title,
+        start: start.toISOString(),
+        end:   end.toISOString(),
+        backgroundColor: colourFor(eventCounter),
+      });
+    });
   </script>
 </body>
 </html>

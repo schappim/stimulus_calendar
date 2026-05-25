@@ -144,6 +144,16 @@ export function createPager(container, state, factory, { onNavigate }) {
   }
 
   function setTransform(px, animate) {
+    // Drive the track transform via a CSS custom property on the pager
+    // element so any child that wants to "stay put" during a swipe (e.g.
+    // the TimeGrid time-axis column) can counter-translate by reading
+    // var(--ec-pager-px) and applying the negative — without us having
+    // to know about every fixed-axis element in JS.
+    pager.style.setProperty('--ec-pager-px', `${px}px`);
+    pager.style.setProperty('--ec-pager-transition',
+      animate ? `transform ${SWIPE_ANIM_MS}ms ${SWIPE_EASE}` : 'none');
+    // Keep the direct style as a fallback so anything that doesn't read
+    // the var still works.
     track.style.transition = animate
       ? `transform ${SWIPE_ANIM_MS}ms ${SWIPE_EASE}`
       : 'none';

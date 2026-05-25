@@ -187,10 +187,13 @@ function attachEventDragHandler(rootEl, state) {
     if (!targetDateStr) return;
 
     // Decide between a day-grid (whole-day) shift and a TimeGrid (sub-day
-    // snapped to slotDuration) shift. TimeGrid carries .ec-time-col on
-    // both source and target; without it, fall through to day-grid logic.
+    // snapped to snapDuration ?? slotDuration) shift. TimeGrid carries
+    // .ec-time-col on both source and target; without it, fall through
+    // to day-grid logic. snapDuration governs the resolution at which
+    // drops snap (e.g. 15-min ticks even when slotDuration is 30-min).
     const options = state.get('options');
     const slotMins = totalSecondsOfDuration(options.slotDuration) / 60 || 30;
+    const snapMins = totalSecondsOfDuration(options.snapDuration) / 60 || slotMins;
     const slotHeight = options.slotHeight ?? 22;
     const pxPerMin = slotHeight / slotMins;
 
@@ -203,7 +206,7 @@ function attachEventDragHandler(rootEl, state) {
       const yInTargetCol = jsEvent.clientY - colRect.top;
       const yInSourceCol = d.startY - sourceColRect.top;
       const minOffset = (yInTargetCol - yInSourceCol) / pxPerMin;
-      const snappedMin = Math.round(minOffset / slotMins) * slotMins;
+      const snappedMin = Math.round(minOffset / snapMins) * snapMins;
       // Day-of-day part: target date - source date.
       const fromMid = new Date(d.sourceDateStr + 'T00:00:00Z').getTime();
       const toMid   = new Date(targetDateStr   + 'T00:00:00Z').getTime();
@@ -273,6 +276,7 @@ function attachEventResizeHandler(rootEl, state) {
     const event = (state.get('filteredEvents') ?? []).find((e) => e.id === id);
     if (!event) return;
     const slotMins = totalSecondsOfDuration(options.slotDuration) / 60 || 30;
+    const snapMins = totalSecondsOfDuration(options.snapDuration) / 60 || slotMins;
     const pxPerMin = (options.slotHeight ?? 22) / slotMins;
     rs = {
       chip,
@@ -283,6 +287,7 @@ function attachEventResizeHandler(rootEl, state) {
       originalHeightPx: parseFloat(chip.style.height || '0') || chip.getBoundingClientRect().height,
       pxPerMin,
       slotMins,
+      snapMins,
       moved: false,
     };
     chip.classList.add('ec-resizing-y');
@@ -298,16 +303,16 @@ function attachEventResizeHandler(rootEl, state) {
   const onPointerMove = (jsEvent) => {
     if (!rs) return;
     const dy = jsEvent.clientY - rs.startY;
-    const deltaMin = Math.round((dy / rs.pxPerMin) / rs.slotMins) * rs.slotMins;
+    const deltaMin = Math.round((dy / rs.pxPerMin) / rs.snapMins) * rs.snapMins;
     if (deltaMin !== 0) rs.moved = true;
     if (rs.handleSide === 'end') {
-      const newH = Math.max(rs.slotMins * rs.pxPerMin, rs.originalHeightPx + deltaMin * rs.pxPerMin);
+      const newH = Math.max(rs.snapMins * rs.pxPerMin, rs.originalHeightPx + deltaMin * rs.pxPerMin);
       rs.chip.style.height = `${newH}px`;
     } else {
       // Resize-from-start: shift top down (or up) and shrink (or grow) height.
       const shift = Math.max(
         -rs.originalTopPx, // can't go above col start
-        Math.min(rs.originalHeightPx - rs.slotMins * rs.pxPerMin, deltaMin * rs.pxPerMin),
+        Math.min(rs.originalHeightPx - rs.snapMins * rs.pxPerMin, deltaMin * rs.pxPerMin),
       );
       rs.chip.style.top = `${rs.originalTopPx + shift}px`;
       rs.chip.style.height = `${rs.originalHeightPx - shift}px`;
@@ -332,10 +337,10 @@ function attachEventResizeHandler(rootEl, state) {
     let newEnd   = new Date(r.event.end.getTime());
     if (r.handleSide === 'end') {
       newEnd = new Date(newEnd.getTime() + deltaMs);
-      if (newEnd <= newStart) newEnd = new Date(newStart.getTime() + r.slotMins * 60_000);
+      if (newEnd <= newStart) newEnd = new Date(newStart.getTime() + r.snapMins * 60_000);
     } else {
       newStart = new Date(newStart.getTime() + deltaMs);
-      if (newStart >= newEnd) newStart = new Date(newEnd.getTime() - r.slotMins * 60_000);
+      if (newStart >= newEnd) newStart = new Date(newEnd.getTime() - r.snapMins * 60_000);
     }
 
     let reverted = false;
@@ -385,14 +390,36 @@ function attachDateClickHandler(rootEl, state) {
   const handler = (jsEvent) => {
     const cell = jsEvent.target.closest('[data-date]');
     if (!cell) return;
-    // Skip clicks that land on events (those fire eventClick).
-    if (jsEvent.target.closest('[data-event-id]')) return;
+    // Skip clicks that land on events (those fire eventClick), on a
+    // resize handle, or on the more-link / popover controls.
+    if (jsEvent.target.closest('[data-event-id], .ec-resizer, [data-more-link], [data-popover-action]')) return;
     const dateStr = cell.getAttribute('data-date');
     const fire = state.get('fire');
+    // TimeGrid: derive time-of-day from the click's y-offset within the
+    // time column, snapped to snapDuration ?? slotDuration.
+    const timeCol = jsEvent.target.closest('.ec-time-col');
+    let date, allDay;
+    if (timeCol) {
+      const options = state.get('options');
+      const slotMins = totalSecondsOfDuration(options.slotDuration) / 60 || 30;
+      const snapMins = totalSecondsOfDuration(options.snapDuration) / 60 || slotMins;
+      const slotHeight = options.slotHeight ?? 22;
+      const pxPerMin = slotHeight / slotMins;
+      const rect = timeCol.getBoundingClientRect();
+      const yIn = jsEvent.clientY - rect.top;
+      const slotMinMin = totalSecondsOfDuration(options.slotMinTime) / 60 || 0;
+      const minutes = Math.max(0, Math.round((yIn / pxPerMin) / snapMins) * snapMins) + slotMinMin;
+      date = new Date(dateStr + 'T00:00:00Z');
+      date.setUTCMinutes(date.getUTCMinutes() + minutes);
+      allDay = false;
+    } else {
+      date = new Date(dateStr + 'T00:00:00Z');
+      allDay = true;
+    }
     fire?.('dateClick', {
-      date: new Date(dateStr + 'T00:00:00Z'),
-      dateStr,
-      allDay: true,
+      date,
+      dateStr: date.toISOString().substring(0, allDay ? 10 : 16),
+      allDay,
       jsEvent,
       view: state.get('view'),
     });
