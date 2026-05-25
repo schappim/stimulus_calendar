@@ -63,4 +63,15 @@ describe('toolbar', () => {
     expect(slot(el, 'center')).toBeTruthy();
     expect(slot(el, 'end')).toBeTruthy();
   });
+
+  it('next button click invokes calendarApi.next', async () => {
+    const el = await mount(`<div data-controller="calendar"
+      data-calendar-date-value="2026-05-25"
+      data-calendar-header-toolbar-value='{"start":"prev,next","center":"title","end":""}'>
+    </div>`);
+    const before = el.calendarApi.getOption('date').getTime();
+    el.querySelector('[data-toolbar-action="next"]').click();
+    const after = el.calendarApi.getOption('date').getTime();
+    expect(after).toBeGreaterThan(before);
+  });
 });
