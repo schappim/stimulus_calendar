@@ -835,6 +835,103 @@
 }
 
 /* -------------------------------------------------------------------------
+ * Pager — macOS-Calendar-style horizontal swipe between adjacent date
+ * pages. The track is 3 × 100% wide; only the centre page is visible at
+ * rest. Pointer/touch/trackpad drags translateX the track to follow the
+ * gesture; on commit the controller swaps the live view into the new
+ * centre page and the track snaps back to 0.
+ * ----------------------------------------------------------------------- */
+
+.ec-pager {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  /* Allow the browser to scroll the page vertically with touch while we
+   * intercept the horizontal portion of any swipe. Vertical scrolling
+   * inside scrollable view regions (e.g. TimeGrid body) still works. */
+  touch-action: pan-y;
+  outline: none;
+}
+
+.ec-pager-track {
+  display: flex;
+  width: 300%;
+  /* Sit centred at rest (showing the "current" page); transform-driven
+   * navigation moves left/right from here. */
+  transform: translate3d(0, 0, 0);
+  will-change: transform;
+}
+
+.ec-pager-page {
+  flex: 0 0 33.3333%;
+  min-width: 33.3333%;
+}
+
+.ec-pager-page-prev,
+.ec-pager-page-next {
+  /* Off-screen at rest. The track's transform-translate at 0 means
+   * these naturally sit outside the visible viewport. */
+}
+
+/* Body cursor + escape-hatch when actively swiping. */
+.ec-pager.ec-pager-dragging { cursor: grabbing; }
+.ec-pager.ec-pager-dragging .ec-pager-track { will-change: transform; }
+.ec-pager.ec-pager-dragging * { user-select: none; }
+
+.ec-pager:focus-visible {
+  box-shadow: 0 0 0 2px var(--ec-active-bg-color, #2563eb);
+  border-radius: 0.25rem;
+}
+
+/* -------------------------------------------------------------------------
+ * Event resizers — bottom-edge handle on TimeGrid event chips, surfaced
+ * when options.editable / eventDurationEditable is on.
+ * ----------------------------------------------------------------------- */
+
+.ec-time-grid .ec-event { position: absolute; }
+
+.ec-event .ec-resizer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 10px;
+  bottom: -4px;
+  cursor: ns-resize;
+  /* Bigger target on touch devices — sticks out a few px to grab. */
+  touch-action: none;
+  z-index: 2;
+}
+
+.ec-event .ec-resizer.ec-resizer-start {
+  bottom: auto;
+  top: -4px;
+  cursor: ns-resize;
+}
+
+.ec-event:hover .ec-resizer::after,
+.ec-event.ec-resizing .ec-resizer::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 3px;
+  width: 24px;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.85);
+}
+
+.ec-event.ec-resizing-y { opacity: 0.85; }
+
+/* When the user is dragging or resizing, prevent the browser from
+ * fighting the pointer with scroll/select gestures. */
+body.ec-dragging,
+body.ec-dragging * {
+  cursor: grabbing !important;
+  user-select: none !important;
+}
+
+/* -------------------------------------------------------------------------
  * Utilities
  * ----------------------------------------------------------------------- */
 

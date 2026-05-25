@@ -18,6 +18,7 @@ import { renderToolbar } from '../components/toolbar.js';
 import {
   openEventPopover, closeEventPopover, isEventPopoverOpen, openEventPopoverId,
 } from '../components/event_popover.js';
+import { createPager } from '../components/pager.js';
 import { resolvePluginNames } from '../plugins/index.js';
 import { BroadcastBus, resolveAdapter } from '../lib/broadcast/index.js';
 
@@ -331,10 +332,19 @@ export default class CalendarController extends Controller {
     if (this._viewTeardown) this._viewTeardown();
     const factory = this._state.get('viewComponent');
     if (typeof factory === 'function') {
-      this._viewTeardown = factory(this._mainEl, this._state);
+      const pager = createPager(this._mainEl, this._state, factory, {
+        onNavigate: ({ direction, date }) => {
+          if (date) this.element.calendarApi?.gotoDate(date);
+          else if (direction > 0) this.element.calendarApi?.next();
+          else if (direction < 0) this.element.calendarApi?.prev();
+        },
+      });
+      this._pager = pager;
+      this._viewTeardown = () => { pager.destroy(); this._pager = null; };
     } else {
       this._mainEl.replaceChildren();
       this._viewTeardown = null;
+      this._pager = null;
     }
   }
 
