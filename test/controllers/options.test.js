@@ -96,4 +96,10 @@ describe('CalendarController options', () => {
       `<div data-controller="calendar" data-calendar-locale-value="fr-FR"></div>`);
     expect(el.calendarApi.getOption('locale')).toBe('fr-FR');
   });
+
+  it('timeZone — flows through; "+HH:MM" parses into offset', async () => {
+    const el = await mount(
+      `<div data-controller="calendar" data-calendar-time-zone-value="+10:00"></div>`);
+    expect(el.calendarApi.getOption('timeZone')).toBe('+10:00');
+  });
 });
