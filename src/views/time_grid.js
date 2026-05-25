@@ -143,7 +143,12 @@ export function renderTimeGridView(container, state) {
       // (and finer) slots stay blank — the rule across the day column
       // gives the eye enough information to estimate sub-hour positions.
       if (label) {
-        const date = new Date(iso);
+        // iso comes from toISOString().substring(0, 19) — the trailing
+        // 'Z' is stripped, so new Date(iso) would parse as local time
+        // and getUTCHours() would shift by the TZ offset (e.g. in
+        // Sydney +10 the first 00:00 slot reads as 14:00 → "2 pm").
+        // Re-add the Z so the slot's wall-clock matches its label.
+        const date = new Date(iso + 'Z');
         const hours = date.getUTCHours();
         const mins = date.getUTCMinutes();
         if (mins !== 0) {

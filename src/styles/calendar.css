@@ -35,7 +35,7 @@
   --ec-bg-event-color:           #94a3b8;
   --ec-bg-event-opacity:         0.25;
   --ec-now-indicator-color:      #dc2626;
-  --ec-sidebar-width:            72px;
+  --ec-sidebar-width:            64px;
   --ec-slot-height:              22px;
 
   box-sizing: border-box;
@@ -389,7 +389,7 @@
 }
 
 .ec-time-grid .ec-sidebar .ec-slot {
-  font-size: 0.85rem;
+  font-size: 0.7rem;
   color: var(--ec-muted-text-color);
   text-align: right;
   padding: 0 0.5rem;
@@ -397,11 +397,11 @@
   align-items: flex-start;
   justify-content: flex-end;
   white-space: nowrap;
-  gap: 0.125rem;
+  gap: 0.1rem;
 }
 
 .ec-time-grid .ec-sidebar .ec-slot-hour {
-  font-size: 0.95rem;
+  font-size: 0.78rem;
   font-weight: 500;
   color: var(--ec-text-color);
   font-variant-numeric: tabular-nums;
@@ -409,10 +409,10 @@
 }
 
 .ec-time-grid .ec-sidebar .ec-slot-period {
-  font-size: 0.65rem;
+  font-size: 0.6rem;
   color: var(--ec-muted-text-color);
   text-transform: lowercase;
-  margin-top: 2px;
+  margin-top: 1px;
   line-height: 1;
   letter-spacing: 0.02em;
 }

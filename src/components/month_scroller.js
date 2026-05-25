@@ -170,30 +170,24 @@ export function createMonthScroller(container, state, { onDateChange }) {
   }
 
   function currentCentreDate() {
-    const centreY = body.scrollTop + body.clientHeight / 2;
-    let best = null;
-    let bestDist = Infinity;
+    // The "current" month is the LAST banner whose top has been scrolled
+    // above a reference line near the top of the viewport. This matches
+    // user perception: you're "in" a month from the moment its banner
+    // crosses the top, not when its mid-month-day reaches the centre.
+    // Using a centre-of-row dominant-month picker flipped months too
+    // early at every June/July-style boundary because the boundary row
+    // (e.g. Jun 28 – Jul 4) has more July days than June days but the
+    // user perceives themselves as still in June.
+    const ref = body.scrollTop + body.clientHeight / 4;
+    let last = null;
     for (const r of weekRows) {
-      const mid = r.rowEl.offsetTop + r.rowEl.offsetHeight / 2;
-      const d = Math.abs(mid - centreY);
-      if (d < bestDist) { bestDist = d; best = r; }
+      if (!r.monthAnchor) continue;
+      if (r.rowEl.offsetTop > ref) break;
+      last = r;
     }
-    if (!best) return null;
-    const days = enumerateWeekDays(best.weekStart);
-    const cnt = {};
-    for (const d of days) {
-      const k = `${d.getUTCFullYear()}-${d.getUTCMonth()}`;
-      cnt[k] = (cnt[k] ?? 0) + 1;
-    }
-    let bestMonthKey = null, bestMonthCnt = 0;
-    for (const [k, v] of Object.entries(cnt)) {
-      if (v > bestMonthCnt) { bestMonthKey = k; bestMonthCnt = v; }
-    }
-    const [y, m] = bestMonthKey.split('-').map(Number);
-    // Use the 15th of the centred month — picking a mid-month day means
-    // that when the user switches to week/day view, the destination
-    // doesn't snap to a partial week straddling the previous month.
-    return new Date(Date.UTC(y, m, 15));
+    const anchor = last?.monthAnchor ?? weekRows[0]?.monthAnchor;
+    if (!anchor) return null;
+    return new Date(Date.UTC(anchor.getUTCFullYear(), anchor.getUTCMonth(), 15));
   }
 
   function onScrollSettled() {
