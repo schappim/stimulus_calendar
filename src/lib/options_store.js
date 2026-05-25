@@ -84,8 +84,15 @@ export function createOptionsStore(plugins, userOptions = {}) {
   }
 
   // Activate the initial view's options on the live options object.
+  // When no view is registered (e.g. the bare controller in tests before any
+  // view plugin loads), still merge user options on top so the user's
+  // explicit settings aren't lost.
   if (viewOptions[options.view]) {
     assign(options, viewOptions[options.view]);
+  } else {
+    // Per-view bags are empty; apply parsedUser directly so the user
+    // attributes take effect even without a plugin-registered view.
+    assign(options, parsedUser);
   }
 
   function setOption(key, value, parsed = true) {
