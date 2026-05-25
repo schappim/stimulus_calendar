@@ -123,6 +123,28 @@ describe('view: dayGridMonth', () => {
     expect(more.textContent).toBe('1 hidden');
   });
 
+  it('weekNumbers renders a leading week-number column with default W##', async () => {
+    const el = await mount(`<div data-controller="calendar"
+      data-calendar-plugins-value='["DayGrid"]'
+      data-calendar-view-value="dayGridMonth"
+      data-calendar-date-value="2026-05-15"></div>`);
+    el.calendarApi.setOption('weekNumbers', true);
+    const weeks = el.querySelectorAll('[data-week]');
+    expect(weeks.length).toBeGreaterThan(0);
+    expect(weeks[0].textContent).toMatch(/^W\d{2}$/);
+  });
+
+  it('weekNumberContent overrides the default W## label', async () => {
+    const el = await mount(`<div data-controller="calendar"
+      data-calendar-plugins-value='["DayGrid"]'
+      data-calendar-view-value="dayGridMonth"
+      data-calendar-date-value="2026-05-15"></div>`);
+    el.calendarApi.setOption('weekNumbers', true);
+    el.calendarApi.setOption('weekNumberContent', ({ week }) => `#${week}`);
+    const w = el.querySelector('[data-week]');
+    expect(w.textContent).toMatch(/^#\d+$/);
+  });
+
   it('clicking +N more opens a day popover listing every event', async () => {
     const el = await mount(`<div data-controller="calendar"
       data-calendar-plugins-value='["DayGrid"]'

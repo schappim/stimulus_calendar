@@ -4,7 +4,10 @@
 // and week numbers.
 
 import { createElement } from '../lib/dom.js';
-import { cloneDate, addDay, prevClosestDay, setMidnight, datesEqual } from '../lib/date.js';
+import {
+  cloneDate, addDay, prevClosestDay, setMidnight, datesEqual,
+  getWeekNumber, createWeekNumberContent,
+} from '../lib/date.js';
 import { viewDates as viewDatesHelper } from '../lib/derived.js';
 
 function eventsOnDay(events, day) {
@@ -34,10 +37,13 @@ export function renderDayGridView(container, state) {
     ]);
     grid.style.setProperty('--ec-cols', String(visibleWeekdays));
 
-    // Day-of-week headers row.
+    // Day-of-week headers row. Optional leading week-number column.
     const headers = createElement('div', theme.colHead, '', [
       ['data-row', 'header'],
     ]);
+    if (options.weekNumbers) {
+      headers.append(createElement('div', theme.weekNumber, ''));
+    }
     const headerFmt = new Intl.DateTimeFormat(options.locale, options.dayHeaderFormat);
     for (const d of days.slice(0, visibleWeekdays)) {
       const head = createElement('div', theme.dayHead, headerFmt.format(d), [
@@ -46,6 +52,8 @@ export function renderDayGridView(container, state) {
       headers.append(head);
     }
     grid.append(headers);
+    grid.style.setProperty('--ec-cols-with-week',
+      String(visibleWeekdays + (options.weekNumbers ? 1 : 0)));
 
     // Day cells, chunked into rows.
     let row = createElement('div', '', '', [['data-row', 'days']]);
@@ -58,6 +66,18 @@ export function renderDayGridView(container, state) {
         row = createElement('div', '', '', [['data-row', 'days']]);
       }
       const d = days[i];
+      // Week-number column at the start of each row.
+      if (options.weekNumbers && i % visibleWeekdays === 0) {
+        const week = getWeekNumber(d, options.firstDay ?? 0);
+        const content = createWeekNumberContent(week, options.weekNumberContent, d);
+        const weekEl = createElement('div', theme.weekNumber, '', [
+          ['data-week', String(week)],
+        ]);
+        if (typeof content === 'string') weekEl.textContent = content;
+        else if (content?.html) weekEl.innerHTML = content.html;
+        else if (content?.domNodes) weekEl.replaceChildren(...content.domNodes);
+        row.append(weekEl);
+      }
       const cls = [theme.day];
       const inCurrent = !currentRange || (d >= currentRange.start && d < currentRange.end);
       if (!inCurrent) cls.push(theme.otherMonth);

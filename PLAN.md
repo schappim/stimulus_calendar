@@ -233,8 +233,8 @@ Each view-introducing commit ships a `docs/images/cal-<view>.png` screenshot.
 - [x] Option: `moreLinkContent`
 - [x] Day popover when "+N more" clicked → `cal-popover.png`
 - [x] Option: `dayPopoverFormat`
-- [ ] Option: `weekNumbers`
-- [ ] Option: `weekNumberContent`
+- [x] Option: `weekNumbers`
+- [x] Option: `weekNumberContent`
 
 ---
 
