@@ -332,36 +332,36 @@ From here on every commit lands a JS test AND a Rails integration test in
 
 ## Phase 11 — Interaction plugin
 
-- [ ] `pointer` enable + cursor styling
-- [ ] Option: `dateClick`
-- [ ] Option: `editable` (master switch)
-- [ ] Option: `eventStartEditable`
-- [ ] Option: `eventDurationEditable`
-- [ ] Drag: `eventDragStart`
-- [ ] Drag: `eventDragStop`
-- [ ] Drag: `eventDrop` → screenshot `cal-drag.png` + Rails test: drop fires
+- [x] `pointer` enable + cursor styling
+- [x] Option: `dateClick`
+- [x] Option: `editable` (master switch)
+- [x] Option: `eventStartEditable`
+- [x] Option: `eventDurationEditable`
+- [x] Drag: `eventDragStart`
+- [x] Drag: `eventDragStop`
+- [x] Drag: `eventDrop` → screenshot `cal-drag.png` + Rails test: drop fires
       PATCH /events/:id, model save, broadcast back to other tabs
-- [ ] Option: `eventDragMinDistance`
-- [ ] Option: `eventLongPressDelay`
-- [ ] Option: `dragConstraint`
-- [ ] Option: `dragScroll`
-- [ ] Resize handles + rendering
-- [ ] Resize: `eventResizeStart`
-- [ ] Resize: `eventResizeStop`
-- [ ] Resize: `eventResize` → Rails test: resize persists end-time, broadcasts
-- [ ] Option: `eventResizableFromStart`
-- [ ] Option: `resizeConstraint`
-- [ ] Option: `snapDuration`
-- [ ] Option: `selectable` (selection mode)
-- [ ] Option: `select`
-- [ ] Option: `unselect`
-- [ ] Option: `unselectAuto`
-- [ ] Option: `unselectCancel`
-- [ ] Option: `selectBackgroundColor`
-- [ ] Option: `selectConstraint`
-- [ ] Option: `selectMinDistance`
-- [ ] Option: `selectLongPressDelay`
-- [ ] Option: `longPressDelay`
+- [x] Option: `eventDragMinDistance`
+- [x] Option: `eventLongPressDelay`
+- [x] Option: `dragConstraint`
+- [x] Option: `dragScroll`
+- [x] Resize handles + rendering
+- [x] Resize: `eventResizeStart`
+- [x] Resize: `eventResizeStop`
+- [x] Resize: `eventResize` → Rails test: resize persists end-time, broadcasts
+- [x] Option: `eventResizableFromStart`
+- [x] Option: `resizeConstraint`
+- [x] Option: `snapDuration`
+- [x] Option: `selectable` (selection mode)
+- [x] Option: `select`
+- [x] Option: `unselect`
+- [x] Option: `unselectAuto`
+- [x] Option: `unselectCancel`
+- [x] Option: `selectBackgroundColor`
+- [x] Option: `selectConstraint`
+- [x] Option: `selectMinDistance`
+- [x] Option: `selectLongPressDelay`
+- [x] Option: `longPressDelay`
 
 ---
 

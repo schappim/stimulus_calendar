@@ -6,6 +6,7 @@ import { TimeGridPlugin } from './time_grid.js';
 import { ListPlugin } from './list.js';
 import { ResourceTimeGridPlugin } from './resource_time_grid.js';
 import { ResourceTimelinePlugin } from './resource_timeline.js';
+import { InteractionPlugin } from './interaction.js';
 
 export const PLUGINS = {
   DayGrid: DayGridPlugin,
@@ -14,6 +15,7 @@ export const PLUGINS = {
   Resource: ResourceTimeGridPlugin,
   ResourceTimeGrid: ResourceTimeGridPlugin,
   ResourceTimeline: ResourceTimelinePlugin,
+  Interaction: InteractionPlugin,
 };
 
 export function resolvePluginNames(names) {

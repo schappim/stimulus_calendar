@@ -234,6 +234,15 @@ export default class CalendarController extends Controller {
     this._teardowns.push(
       this._state.on('change:options', () => this._mountView()),
     );
+
+    // Aux components contributed by plugins (e.g. Interaction). Each is
+    // { name, mount(rootEl, state) -> teardown }. Mounted on the root
+    // element so they can delegate listeners across all view contents.
+    const auxComponents = this._state.get('auxComponents') ?? [];
+    for (const aux of auxComponents) {
+      const teardown = aux.mount?.(this._root, this._state);
+      if (typeof teardown === 'function') this._teardowns.push(teardown);
+    }
   }
 
   _mountView() {
