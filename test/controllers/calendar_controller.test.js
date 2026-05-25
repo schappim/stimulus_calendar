@@ -88,12 +88,10 @@ describe('CalendarController', () => {
     expect(el.calendarApi).toBeUndefined();
   });
 
-  it('warns when plugin names are passed (lookup not implemented yet)', async () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    mount(`<div data-controller="calendar"
-                 data-calendar-plugins-value='["DayGrid"]'></div>`);
+  it('resolves built-in plugin names (DayGrid registers dayGridMonth view)', async () => {
+    const el = mount(`<div data-controller="calendar"
+                            data-calendar-plugins-value='["DayGrid"]'></div>`);
     await new Promise((r) => setTimeout(r, 0));
-    expect(warn).toHaveBeenCalled();
-    warn.mockRestore();
+    expect(el.calendarApi.getOption('view')).toBe('dayGridMonth');
   });
 });

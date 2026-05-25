@@ -14,6 +14,7 @@ import { createDate, addDuration, subtractDuration, cloneDate, setMidnight } fro
 import { createDuration } from '../lib/duration.js';
 import { isArray, isFunction, isPlainObject } from '../lib/utils.js';
 import { renderToolbar } from '../components/toolbar.js';
+import { resolvePluginNames } from '../plugins/index.js';
 
 // Stimulus calendar controller. One Stimulus controller per calendar; each
 // owns its own MainState, plugin set, and DOM tree. The HTML attribute
@@ -117,19 +118,9 @@ export default class CalendarController extends Controller {
   }
 
   _loadPlugins(names) {
-    // Names like ["DayGrid", "TimeGrid", ...] need resolving to plugin
-    // factories. Until the per-view plugins are ported (Phases 5-9), we
-    // pass through pre-resolved plugin objects only.
-    if (!isArray(names)) return [];
-    if (!names.length) return [];
-    if (typeof names[0] === 'string') {
-      // No plugins registered yet — silently drop and warn so HTML written
-      // against the eventual surface doesn't blow up during the port.
-      // eslint-disable-next-line no-console
-      console.warn('[stimulus_calendar] plugin lookup by name is not yet implemented; ignoring', names);
-      return [];
-    }
-    return normalisePlugins(names);
+    if (!isArray(names) || !names.length) return [];
+    const resolved = resolvePluginNames(names);
+    return normalisePlugins(resolved);
   }
 
   // Install the derived-state pipeline. _recompute() is exposed on `this`
@@ -215,6 +206,26 @@ export default class CalendarController extends Controller {
     this._teardowns.push(
       this._state.on('change:viewTitle', () => renderToolbar(this._toolbarEl, this._state, actions)),
     );
+
+    // Mount the view renderer. setViewOptions returns the view's
+    // component factory; for our ported plugins it returns a render
+    // function that takes (container, state) and returns a teardown.
+    this._mainEl = main;
+    this._mountView();
+    this._teardowns.push(
+      this._state.on('change:options', () => this._mountView()),
+    );
+  }
+
+  _mountView() {
+    if (this._viewTeardown) this._viewTeardown();
+    const factory = this._state.get('viewComponent');
+    if (typeof factory === 'function') {
+      this._viewTeardown = factory(this._mainEl, this._state);
+    } else {
+      this._mainEl.replaceChildren();
+      this._viewTeardown = null;
+    }
   }
 
   // -- Public API (`element.calendarApi`) ----------------------------------

@@ -222,7 +222,7 @@ matching ERB usage example in `gem/demo` if the option is server-renderable.
 
 Each view-introducing commit ships a `docs/images/cal-<view>.png` screenshot.
 
-- [ ] View skeleton: `dayGridMonth` — weeks × days CSS grid → `cal-month.png`
+- [x] View skeleton: `dayGridMonth` — weeks × days CSS grid → `cal-month.png`
 - [ ] View: `dayGridWeek` → `cal-day-grid-week.png`
 - [ ] View: `dayGridDay` → `cal-day-grid-day.png`
 - [ ] Day cell rendering: `day`, `today` highlight, other-month dimming

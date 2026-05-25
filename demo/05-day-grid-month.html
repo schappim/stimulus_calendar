@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>stimulus_calendar — DayGrid month view</title>
+  <link rel="stylesheet" href="../src/styles/calendar.css">
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; margin: 2rem; }
+    .ec { width: 900px; }
+    .ec-toolbar { display: flex; gap: 1rem; align-items: center; justify-content: space-between; }
+    [data-toolbar-slot] { display: flex; gap: 0.5rem; }
+    .ec-button { padding: 0.25rem 0.75rem; }
+    .ec-button.ec-active { background: #2563eb; color: white; }
+    .ec-title { font-size: 1.25rem; margin: 0; }
+    .ec-grid.ec-day-grid {
+      display: grid;
+      grid-template-rows: auto 1fr;
+      border: 1px solid #ddd;
+      margin-top: 1rem;
+    }
+    [data-row="header"] {
+      display: grid;
+      grid-template-columns: repeat(var(--ec-cols, 7), 1fr);
+      border-bottom: 1px solid #ddd;
+      background: #f8fafc;
+    }
+    [data-row="days"] {
+      display: grid;
+      grid-template-columns: repeat(var(--ec-cols, 7), 1fr);
+    }
+    .ec-day-head, .ec-day {
+      padding: 0.5rem;
+      border-right: 1px solid #ddd;
+      border-bottom: 1px solid #ddd;
+      min-height: 90px;
+    }
+    .ec-day-head { font-weight: 600; min-height: auto; text-align: right; }
+    .ec-day::before {
+      content: attr(data-date);
+      display: block;
+      font-size: 0.75rem;
+      color: #475569;
+      margin-bottom: 0.25rem;
+    }
+    .ec-day.ec-other-month { background: #fafafa; color: #94a3b8; }
+    .ec-day.ec-today { background: #fef3c7; }
+  </style>
+</head>
+<body>
+  <h1>DayGrid month view</h1>
+  <p>Phase 5 — first view ported.</p>
+
+  <div data-controller="calendar"
+       data-calendar-plugins-value='["DayGrid"]'
+       data-calendar-view-value="dayGridMonth"
+       data-calendar-date-value="2026-05-15"
+       data-calendar-header-toolbar-value='{"start":"today","center":"title","end":"prev,next"}'>
+  </div>
+
+  <script type="module">
+    import { Application } from '/node_modules/@hotwired/stimulus/dist/stimulus.js';
+    import CalendarController from '/src/controllers/calendar_controller.js';
+    const app = Application.start();
+    app.register('calendar', CalendarController);
+  </script>
+</body>
+</html>
