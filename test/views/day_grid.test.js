@@ -66,6 +66,21 @@ describe('view: dayGridMonth', () => {
     expect(april26.classList.contains('ec-other-month')).toBe(true);
   });
 
+  it('renders events inside day cells as chips with time + title', async () => {
+    const el = await mount(`<div data-controller="calendar"
+      data-calendar-plugins-value='["DayGrid"]'
+      data-calendar-view-value="dayGridMonth"
+      data-calendar-date-value="2026-05-15"></div>`);
+    el.calendarApi.addEvent({
+      id: '1', title: 'Standup',
+      start: '2026-05-15T09:00', end: '2026-05-15T09:30',
+    });
+    const cell = el.querySelector('[data-date="2026-05-15"]');
+    const chip = cell.querySelector('[data-event-id="1"]');
+    expect(chip).toBeTruthy();
+    expect(chip.textContent).toContain('Standup');
+  });
+
   it('dayCellContent (function) replaces the day-number body', async () => {
     const el = await mount(`<div data-controller="calendar"
       data-calendar-plugins-value='["DayGrid"]'
