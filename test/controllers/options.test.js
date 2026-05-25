@@ -76,4 +76,11 @@ describe('CalendarController options', () => {
     expect(r.end.getUTCDate()).toBe(31);
     expect(r.start.getUTCHours()).toBe(0);
   });
+
+  it('height — flows to options.height and applies CSS height on the root', async () => {
+    const el = await mount(
+      `<div data-controller="calendar" data-calendar-height-value="480px"></div>`);
+    expect(el.calendarApi.getOption('height')).toBe('480px');
+    expect(el.querySelector('[data-calendar-root]').style.height).toBe('480px');
+  });
 });
