@@ -116,8 +116,14 @@ with full Vitest coverage. No Stimulus controllers yet. **Rails tests N/A**
       preventDefault on Space to suppress the page-scroll)
 - [x] `lib/attachments.js` — `contentFrom` (html / text / dom nodes),
       `outsideEvent` dispatch, `resizeObserver`, `intersectionObserver`
-- [ ] `lib/events.js` — `createEvents`: parse + normalise input events to
-      internal shape, with timezone offset applied
+- [x] `lib/events.js` — `createEvents` (id coercion, allDay inference,
+      allDay end-bump, resourceIds normalisation, color/backgroundColor
+      fallback), `createEventSources` (url trim, method upcase),
+      `cloneEvent` / `toEventWithLocalDates`, `runReposition`,
+      `eventIntersects`, display-type predicates
+      (`bgEvent` / `previewEvent` / `ghostEvent` / `pointerEvent` /
+      `helperEvent`), `createTimeElement`. `createEventContent` /
+      `createEventClasses` land alongside `view.js`.
 - [ ] `lib/resources.js` — `createResources`: flat & nested input → tree with
       parent linkage and per-node payload
 - [ ] `lib/slots.js` — `createSlots`, `createSlotTimeLimits`
