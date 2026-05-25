@@ -213,8 +213,17 @@ export function createMonthScroller(container, state, { onDateChange }) {
 
   let settleTimer = null;
   let suppressOnDateChange = false;
+  // True when the current scroll position was set by something OTHER
+  // than the user (initial mount centring, rangeSub jumping to a new
+  // month after Today/gotoDate). False once the user scrolls themselves.
+  // flushPendingDate uses this to decide whether to override options.date
+  // on view-switch — if the scroll is from an external nav, the user's
+  // intent IS options.date and we shouldn't replace it with whatever
+  // row happens to be near the top.
+  let scrollIsExternal = true;
 
   function onScroll() {
+    if (!suppressOnDateChange) scrollIsExternal = false;
     // Extend bottom?
     if (body.scrollHeight - (body.scrollTop + body.clientHeight) < EXTEND_THRESHOLD_PX) {
       extendForward();
@@ -283,7 +292,13 @@ export function createMonthScroller(container, state, { onDateChange }) {
     // commits to options.date BEFORE the new view mounts. Without this,
     // switching from month → week immediately after a scroll lands the
     // week view on whatever options.date was when the scroll started.
+    //
+    // Skip when the scroll position was set externally (rangeSub jumped
+    // to a Today / gotoDate target). Otherwise switching to Week
+    // immediately after Today would override options.date with the
+    // middle-row of the auto-scrolled month, not today's week.
     if (suppressOnDateChange) return;
+    if (scrollIsExternal) return;
     const newDate = currentCentreDate();
     if (!newDate) return;
     const currentOption = state.get('options').date;
