@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>stimulus_calendar — event popover</title>
+  <link rel="stylesheet" href="../src/styles/calendar.css">
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; margin: 2rem; }
+    .ec { width: 920px; }
+  </style>
+</head>
+<body>
+  <h1>Event popover — double-click any chip</h1>
+  <p>Double-click an event to open a popover with its details. <code>Edit</code> /
+     <code>Delete</code> fire <code>calendar:eventPopoverEdit</code> /
+     <code>calendar:eventPopoverDelete</code> for the host app to handle.
+     Suppress the default by listening for <code>calendar:eventDoubleClick</code>
+     and calling <code>preventDefault()</code>, or by setting
+     <code>options.suppressEventPopover</code>.</p>
+
+  <div data-controller="calendar"
+       data-calendar-plugins-value='["TimeGrid"]'
+       data-calendar-view-value="timeGridWeek"
+       data-calendar-date-value="2026-05-25"
+       data-calendar-options-value='{"scrollTime":"08:00:00"}'
+       data-calendar-header-toolbar-value='{"start":"today","center":"title","end":"prev,next"}'>
+  </div>
+
+  <script type="module">
+    import { Application } from '/node_modules/@hotwired/stimulus/dist/stimulus.js';
+    import CalendarController from '/src/controllers/calendar_controller.js';
+    Application.start().register('calendar', CalendarController);
+    await new Promise((r) => setTimeout(r, 80));
+    const el = document.querySelector('[data-controller="calendar"]');
+    el.calendarApi.addEvent({
+      id:'1', title:'Design crit',
+      start:'2026-05-26T14:00', end:'2026-05-26T15:30',
+      backgroundColor:'#dc2626',
+      extendedProps: {
+        category: 'design',
+        description: 'Review the new layout proposals from the brand team.',
+        location: 'Studio B',
+        attendees: 'Alex, Sam, Marcus',
+      },
+    });
+    el.calendarApi.addEvent({
+      id:'2', title:'Standup',
+      start:'2026-05-25T09:00', end:'2026-05-25T09:30',
+      extendedProps: { category: 'engineering', description: 'Daily 15-min sync.' },
+    });
+    el.calendarApi.addEvent({
+      id:'3', title:'Release v1.2',
+      start:'2026-05-28T17:00', end:'2026-05-28T18:00',
+      backgroundColor:'#9333ea',
+      extendedProps: { category: 'ops', description: 'Cut the v1.2 tag, push to prod.' },
+    });
+
+    // Auto-open one popover so the screenshot captures the UX.
+    setTimeout(() => el.calendarApi.openEventPopover('1'), 120);
+  </script>
+</body>
+</html>

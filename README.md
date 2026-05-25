@@ -147,6 +147,38 @@ connected user sees it move within ~50ms.
 
 ![Animated GIF: two browser windows side-by-side showing the same calendar; an event moves on the left and the right window updates within ~50&nbsp;ms](docs/images/cal-broadcast.gif)
 
+## Event popover (double-click)
+
+Double-click any event chip — in any view — and the built-in popover
+opens next to it with title, time range, description, and any
+`extendedProps`. `Edit` / `Delete` fire `calendar:eventPopoverEdit` /
+`calendar:eventPopoverDelete` for your host app to wire up its own
+modal flow. See [`demo/16-event-popover.html`](demo/16-event-popover.html).
+
+![timeGridWeek with the Design crit event highlighted in red and a floating popover next to it titled "Design crit" containing the time "Tue, May 26 · 2:00 PM – 3:30 PM", the description "Review the new layout proposals from the brand team", a key/value list (Category: design, Location: Studio B, Attendees: Alex, Sam, Marcus), and Edit + Delete buttons in the footer](docs/images/cal-event-popover.png)
+
+```js
+// Programmatic
+el.calendarApi.openEventPopover('event-id')
+el.calendarApi.closeEventPopover()
+
+// Suppress the default popover for one chip
+el.addEventListener('calendar:eventDoubleClick', (e) => {
+  if (e.detail.event.id === 'special') e.preventDefault()
+})
+
+// …or disable globally
+el.calendarApi.setOption('suppressEventPopover', true)
+
+// React to popover actions
+el.addEventListener('calendar:eventPopoverEdit',   (e) => openMyEditModal(e.detail.event))
+el.addEventListener('calendar:eventPopoverDelete', (e) => confirmDelete(e.detail.event))
+```
+
+Works in DayGrid, TimeGrid, List, ResourceTimeGrid, and ResourceTimeline —
+every view dispatches `calendar:eventDoubleClick` with `{ event, jsEvent,
+view, el, resource? }`.
+
 ## Filtering, search & nested resources
 
 The same `eventFilter` hook backs every "show me only X" interaction.
