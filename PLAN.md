@@ -180,7 +180,7 @@ matching ERB usage example in `gem/demo` if the option is server-renderable.
 - [x] Option: `duration`
 - [x] Option: `dateIncrement`
 - [x] Option: `firstDay`
-- [ ] Option: `hiddenDays`
+- [x] Option: `hiddenDays`
 - [ ] Option: `validRange`
 - [ ] Option: `height`
 - [ ] Option: `theme` (class object)
