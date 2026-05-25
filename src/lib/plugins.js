@@ -30,7 +30,7 @@ import { MainState } from './state.js';
 //                      // factories — replaced with our own renderers later)
 //   }
 export function createPluginState(plugins, userOptions = {}) {
-  const { options, setOption, setViewOptions, viewComponents } =
+  const { options, setOption, setViewOptions, viewComponents, viewNames } =
     createOptionsStore(plugins, userOptions);
 
   const state = new MainState({
@@ -38,13 +38,14 @@ export function createPluginState(plugins, userOptions = {}) {
     auxComponents: [],   // populated by plugins (e.g. Interaction)
     features: [],        // populated by per-view init (list, dayNumber, …)
     extensions: {},      // per-view overrides for activeRange, viewResources
+    viewNames,           // sorted list of registered view names
   });
 
   for (const plugin of plugins) {
     plugin.initState?.(state);
   }
 
-  return { state, options, setOption, setViewOptions, viewComponents };
+  return { state, options, setOption, setViewOptions, viewComponents, viewNames };
 }
 
 // Convenience helpers for app code that wants to assert plugin shape early

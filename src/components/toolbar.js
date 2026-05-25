@@ -44,9 +44,10 @@ function renderToken(token, state, actions, theme) {
   const renderer = TOKEN_RENDERERS[token];
   if (renderer) return renderer(state, actions, theme);
   // Unknown token → treat as a view-switcher button if a view by that name
-  // is registered (Phase 5+ plugins populate options.views).
+  // is registered (Phase 5+ plugins populate state.viewNames).
   const options = state.get('options');
-  if (options.views && Object.hasOwn(options.views, token)) {
+  const viewNames = state.get('viewNames') ?? [];
+  if (viewNames.includes(token)) {
     return renderViewButton(token, state, actions, theme);
   }
   // Custom button (Phase 4 — customButtons commit).

@@ -116,7 +116,16 @@ export function createOptionsStore(plugins, userOptions = {}) {
     return viewComponents[view];
   }
 
-  return { options, setOption, setViewOptions, viewComponents };
+  return {
+    options,
+    setOption,
+    setViewOptions,
+    viewComponents,
+    // Sorted list of every view name registered by defaults + plugins +
+    // the user. The controller exposes this on state so the toolbar can
+    // tokenise view-switcher entries.
+    viewNames: [...viewNames].sort(),
+  };
 }
 
 // Diff two option objects — emits [key, value] tuples for each difference.
