@@ -84,7 +84,7 @@ slot content into the existing files rather than inventing new layout each time.
       commit tests against** — never a mock.
 - [ ] `.github/workflows/ci.yml` — extend to run `bin/rails test` in
       `gem/demo` alongside `npm test`. Single matrix: node 22 + ruby 3.3.
-- [ ] `CHANGELOG.md` — empty, ready for entries.
+- [x] `CHANGELOG.md` — empty, ready for entries.
 
 ---
 
