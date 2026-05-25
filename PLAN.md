@@ -69,7 +69,7 @@ slot content into the existing files rather than inventing new layout each time.
 - [x] `skills/stimulus-calendar-rails/SKILL.md` — frontmatter + section
       outline (setup, declaring an EventCalendar, Broadcastable, render
       partial, custom Turbo Stream actions, gotchas).
-- [ ] `RAILS.md` — Hotwire-Native Event Calendar build checklist, modeled on
+- [x] `RAILS.md` — Hotwire-Native Event Calendar build checklist, modeled on
       stimulus_grid's `RAILS.md`. Per-section checkboxes that flip ticked as
       Phase 14 ships.
 - [ ] `gem/stimulus_calendar_rails/` — bare engine skeleton: `gemspec`,
