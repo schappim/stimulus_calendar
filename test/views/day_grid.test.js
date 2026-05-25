@@ -90,4 +90,50 @@ describe('view: dayGridMonth', () => {
     const cell = el.querySelector('[data-date="2026-05-15"] .ec-day-number');
     expect(cell.textContent).toBe('★15');
   });
+
+  it('dayMaxEvents (via setOption) collapses overflow to a +N more link', async () => {
+    const el = await mount(`<div data-controller="calendar"
+      data-calendar-plugins-value='["DayGrid"]'
+      data-calendar-view-value="dayGridMonth"
+      data-calendar-date-value="2026-05-15"></div>`);
+    el.calendarApi.setOption('dayMaxEvents', 2);
+    for (let i = 0; i < 5; ++i) {
+      el.calendarApi.addEvent({
+        id: `e${i}`, title: `E${i}`,
+        start: '2026-05-15T09:00', end: '2026-05-15T09:30',
+      });
+    }
+    const cell = el.querySelector('[data-date="2026-05-15"]');
+    expect(cell.querySelectorAll('[data-event-id]').length).toBe(2);
+    const more = cell.querySelector('[data-more-link]');
+    expect(more).toBeTruthy();
+    expect(more.textContent).toBe('+3 more');
+  });
+
+  it('moreLinkContent overrides the +N more label', async () => {
+    const el = await mount(`<div data-controller="calendar"
+      data-calendar-plugins-value='["DayGrid"]'
+      data-calendar-view-value="dayGridMonth"
+      data-calendar-date-value="2026-05-15"></div>`);
+    el.calendarApi.setOption('dayMaxEvents', 1);
+    el.calendarApi.setOption('moreLinkContent', ({ num }) => `${num} hidden`);
+    el.calendarApi.addEvent({ id: 'a', start: '2026-05-15T09:00', end: '2026-05-15T09:30' });
+    el.calendarApi.addEvent({ id: 'b', start: '2026-05-15T10:00', end: '2026-05-15T10:30' });
+    const more = el.querySelector('[data-more-link]');
+    expect(more.textContent).toBe('1 hidden');
+  });
+
+  it('clicking +N more opens a day popover listing every event', async () => {
+    const el = await mount(`<div data-controller="calendar"
+      data-calendar-plugins-value='["DayGrid"]'
+      data-calendar-view-value="dayGridMonth"
+      data-calendar-date-value="2026-05-15"></div>`);
+    el.calendarApi.setOption('dayMaxEvents', 1);
+    el.calendarApi.addEvent({ id: 'a', title: 'A', start: '2026-05-15T09:00', end: '2026-05-15T10:00' });
+    el.calendarApi.addEvent({ id: 'b', title: 'B', start: '2026-05-15T11:00', end: '2026-05-15T12:00' });
+    el.querySelector('[data-more-link]').click();
+    const popup = document.querySelector('[data-popover="day"]');
+    expect(popup).toBeTruthy();
+    expect(popup.querySelectorAll('[data-event-id]').length).toBe(2);
+  });
 });
