@@ -527,20 +527,20 @@ Every commit in this phase lands matching tests in `gem/demo/test/`.
 
 ## Phase 15 — Cross-cutting docs & polish
 
-- [ ] Accessibility audit: aria roles per view, keyboard nav, focus management
-- [ ] Mobile touch behaviour (long-press, scroll-vs-drag)
-- [ ] Dark mode (`ec-dark` class) — match upstream demo
-- [ ] Locale pack examples (en, fr, de, es, ja, …) using `Intl`
-- [ ] Timezone support via `Intl.DateTimeFormat` with named TZ
-- [ ] Performance pass: virtualise long event lists in list / timeline views
-- [ ] Browser support matrix in README
-- [ ] `docs/REFERENCE.md` — full programmatic JS API reference
-- [ ] `docs/RAILS_REFERENCE.md` — full server-side `Calendar` / `Field` / DSL
+- [x] Accessibility audit: aria roles per view, keyboard nav, focus management
+- [x] Mobile touch behaviour (long-press, scroll-vs-drag)
+- [x] Dark mode (`ec-dark` class) — match upstream demo
+- [x] Locale pack examples (en, fr, de, es, ja, …) using `Intl`
+- [x] Timezone support via `Intl.DateTimeFormat` with named TZ
+- [x] Performance pass: virtualise long event lists in list / timeline views
+- [x] Browser support matrix in README
+- [x] `docs/REFERENCE.md` — full programmatic JS API reference
+- [x] `docs/RAILS_REFERENCE.md` — full server-side `Calendar` / `Field` / DSL
       reference
-- [ ] `skills/stimulus-calendar-js/SKILL.md` — final pass for LLM usage
-- [ ] `skills/stimulus-calendar-rails/SKILL.md` — final pass
-- [ ] `README.md` — full screenshots filled in (no placeholders remaining)
-- [ ] `CHANGELOG.md` — 0.1.0 entry
+- [x] `skills/stimulus-calendar-js/SKILL.md` — final pass for LLM usage
+- [x] `skills/stimulus-calendar-rails/SKILL.md` — final pass
+- [x] `README.md` — full screenshots filled in (no placeholders remaining)
+- [x] `CHANGELOG.md` — 0.1.0 entry
 
 ---
 
