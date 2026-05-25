@@ -530,11 +530,16 @@ function renderEvents(weekRows, state, emitDateChange) {
           chip.append(createElement('time', theme.eventTime ?? 'ec-event-time', t + ' '));
         }
         chip.append(createElement('span', theme.eventTitle ?? 'ec-event-title', event.title || ''));
+        // Re-apply selection across re-renders: the selected event id is
+        // stashed on state so a renderEvents call triggered by
+        // emitDateChange (or any other state change) repaints the chip
+        // with .ec-event-selected.
+        if (state.get('selectedEventId') === event.id) chip.classList.add('ec-event-selected');
         chip.addEventListener('click', (jsEvent) => {
-          // Visually select this event; clear any previously-selected chips.
           document.querySelectorAll('.ec-event.ec-event-selected')
             .forEach((c) => c.classList.remove('ec-event-selected'));
           chip.classList.add('ec-event-selected');
+          state.set('selectedEventId', event.id);
           // Sync options.date to the event's start (silenced so the
           // month scroll doesn't jump). Switching to Week now lands on
           // the week that contains this event.
