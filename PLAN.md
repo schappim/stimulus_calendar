@@ -114,8 +114,8 @@ with full Vitest coverage. No Stimulus controllers yet. **Rails tests N/A**
       `stopPropagation`, `isRtl` (hoisted from utils.js)
 - [x] `lib/a11y.js` — `keyEnter` (Enter + Space → click semantics with
       preventDefault on Space to suppress the page-scroll)
-- [ ] `lib/attachments.js` — `contentFrom` (html / text / dom nodes),
-      `outsideEvent` dispatch
+- [x] `lib/attachments.js` — `contentFrom` (html / text / dom nodes),
+      `outsideEvent` dispatch, `resizeObserver`, `intersectionObserver`
 - [ ] `lib/events.js` — `createEvents`: parse + normalise input events to
       internal shape, with timezone offset applied
 - [ ] `lib/resources.js` — `createResources`: flat & nested input → tree with
