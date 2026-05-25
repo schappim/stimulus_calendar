@@ -169,7 +169,13 @@ function attachEventDragHandler(rootEl, state) {
       ghost.style.right = 'auto';
       ghost.style.bottom = 'auto';
       drag.ghost = ghost;
-      const scope = drag.sourceChip.closest('.ec-time-grid, .ec-day-grid, .ec-list, .ec-timeline, .ec') ?? document.body;
+      // Keep the ghost inside the same view-scope as the source chip so
+      // descendant CSS rules that style the chip stay in cascade. The
+      // MonthScroller's chips live under .ec-month-scroller-cell, which
+      // also needs to be in the closest() list — otherwise the ghost
+      // ends up at document.body and loses the .ec-month-scroller-cell
+      // .ec-event font / padding / dot styles.
+      const scope = drag.sourceChip.closest('.ec-month-scroller-cell, .ec-month-scroller, .ec-time-grid, .ec-day-grid, .ec-list, .ec-timeline, .ec') ?? document.body;
       scope.appendChild(ghost);
       drag.sourceChip.style.opacity = '0.4';
       document.body.classList.add('ec-dragging');
