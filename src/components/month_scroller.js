@@ -192,17 +192,32 @@ export function createMonthScroller(container, state, { onDateChange }) {
     return d;
   }
 
+  // Wait until scrollTop has been stable for STABLE_MS before treating
+  // the scroll as settled — covers trackpad / touch inertia that keeps
+  // firing scroll events for hundreds of ms after the user released.
+  const STABLE_MS = 220;
+  let lastScrollTop = 0;
+  let stableCheckTimer = null;
   function onScrollSettled() {
     if (suppressOnDateChange) return;
-    const newDate = currentCentreDate();
-    if (!newDate) return;
-    // Update options.date when the centred week differs from the
-    // currently-set week (any change of ≥ 1 day is enough — week
-    // boundaries flip the date forward).
-    const currentOption = state.get('options').date;
-    if (Math.abs(newDate.getTime() - currentOption.getTime()) >= 86400000 / 2) {
-      onDateChange?.(newDate);
-    }
+    clearTimeout(stableCheckTimer);
+    const start = body.scrollTop;
+    stableCheckTimer = setTimeout(function poll() {
+      const now = body.scrollTop;
+      if (now !== lastScrollTop) {
+        // scroll moved during the wait — inertia is still going. Reset.
+        lastScrollTop = now;
+        stableCheckTimer = setTimeout(poll, STABLE_MS);
+        return;
+      }
+      const newDate = currentCentreDate();
+      if (!newDate) return;
+      const currentOption = state.get('options').date;
+      if (Math.abs(newDate.getTime() - currentOption.getTime()) >= 86400000 / 2) {
+        onDateChange?.(newDate);
+      }
+    }, STABLE_MS);
+    lastScrollTop = start;
   }
 
   function flushPendingDate() {

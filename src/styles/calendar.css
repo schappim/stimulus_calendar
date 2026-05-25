@@ -1053,18 +1053,17 @@ body.ec-dragging * {
   -webkit-overflow-scrolling: touch;
   scroll-behavior: smooth;
   position: relative;
-  /* Touch + trackpad scrolling alike snap to the nearest row at the
-   * top of the viewport — "proximity" never overrides the user's pick,
-   * it just nudges the rest position onto a week boundary so the
-   * scroll behaviour is identical between touch drag and wheel. */
-  scroll-snap-type: y proximity;
+  /* No CSS scroll-snap. Browser proximity snap kept fighting the
+   * trackpad / touch inertial scroll, making the calendar feel like
+   * it tugged against the user's gesture. The settled-scroll JS
+   * waits until the inertia fully ends, then updates options.date
+   * to the centred week — no visual snap. */
 }
 
 .ec-month-scroller-row {
   position: relative;
   border-bottom: 1px solid var(--ec-border-color);
   min-height: 6rem;
-  scroll-snap-align: start;
 }
 
 .ec-month-scroller-cells {
