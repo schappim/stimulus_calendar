@@ -565,7 +565,7 @@ the GitHub repo without expanding every section.
 - [x] Phase 0a — Documentation, skills, gem skeleton, dummy Rails app
 - [x] Phase 1 — Core libraries
 - [x] Phase 2 — State & options
-- [ ] Phase 3 — Calendar controller + global options
+- [x] Phase 3 — Calendar controller + global options
 - [ ] Phase 4 — Toolbar
 - [ ] Phase 5 — DayGrid view
 - [ ] Phase 6 — TimeGrid view
