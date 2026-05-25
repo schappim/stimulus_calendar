@@ -556,6 +556,62 @@ Every commit in this phase lands matching tests in `gem/demo/test/`.
 
 ---
 
+## Phase 17 — 0.1.1 patch sweep (post-release polish)
+
+Triggered by re-screenshotting the release: the rendered calendar exposed
+three real bugs and a thin CSS stub. Each fix landed as its own commit and
+is covered by the existing test suite (or the new e2e test).
+
+- [x] `fix(options)` — declare `broadcast`/`broadcastChannel`/`broadcastFilter`
+      in `baseDefaults()` so user-supplied values survive the per-view
+      option-store merge. Before: `data-calendar-broadcast-value` was
+      silently dropped and `resolveAdapter` never spun up a bus. Commit
+      `b90d02b`.
+- [x] `feat(theme)` — fill in the 14 missing keys in `defaultTheme()`
+      (`sidebar`, `slot`, `allDay`, `daySide`, `eventTag`, `noEvents`,
+      `rowHead`, `slots`, `expander`, `popup`, `otherMonth`, `nowIndicator`,
+      …). Without them, view elements rendered with `class="undefined"`
+      and the default stylesheet couldn't target them. Commit `b90d02b`.
+- [x] `fix(intl)` — format internal Dates with `timeZone: 'UTC'`. Slot
+      labels and event-time text were rendered in the runtime's local TZ
+      but positioned by `getUTCHours()`, so on a +10 host a 9 AM event
+      landed under the slot labelled "7 PM". Updated `intl()` /
+      `intlRange()` in `src/lib/derived.js` + the five direct
+      `Intl.DateTimeFormat` call sites in views. Commit `dc863f1`.
+- [x] `feat(styles)` — port the default stylesheet. Replaces the 19-line
+      stub with a full ~700-line port covering toolbar (with chevron
+      pseudo-glyphs), DayGrid month/week/day, TimeGrid sidebar +
+      all-day + now-indicator, List, ResourceTimeline, and the day
+      popover. Commit `42e0589`.
+- [x] `demo` — strip the per-page inline `<style>` blocks from the 7
+      existing demos (they were re-defining `.ec-day::before { content:
+      attr(data-date) }` etc., masking the real day-number element) and
+      add 4 new demos: `09-resource-timeline.html`, `10-drag.html`,
+      `11-broadcast.html` (true side-by-side BroadcastChannel sync —
+      mutating window A propagates to B, no fake update), and
+      `12-overview.html` (hero shot). Commit `cf382fa`.
+- [x] `docs(images)` — regenerate the 7 release screenshots and add the
+      4 missing-but-referenced ones (`cal-overview.png`,
+      `cal-resource-timeline-week.png`, `cal-drag.png`,
+      `cal-broadcast.png`). `docs/images/` now has all 11 PNGs the
+      README references. Commit `7df9c94`.
+- [x] `test(broadcast)` — new `test/controllers/broadcast_e2e.test.js`
+      (5 tests). Mounts two CalendarController instances on the same
+      happy-dom document with the `broadcast-channel` adapter, real
+      `BroadcastChannel` (no mocks). Asserts add/update/remove
+      propagation + echo suppression + channel isolation. This is the
+      smoke test that would have caught the silent-drop bug above.
+      Commit `07bdb6c`.
+- [x] `chore(gem/demo)` — refresh `Gemfile.lock` (`stimulus_calendar_rails`
+      `0.0.0 → 0.1.0`). Commit `b04a310`.
+
+Test posture after Phase 17:
+- 251 JS tests passing (was 246, +5 broadcast e2e)
+- 17 Rails tests passing (no change)
+- 11 / 11 README-referenced screenshots present in `docs/images/`
+
+---
+
 ## Progress counter
 
 When a phase is fully done, tick it here too — gives an at-a-glance view in
@@ -579,3 +635,4 @@ the GitHub repo without expanding every section.
 - [x] Phase 14 — Rails companion gem `stimulus_calendar_rails`
 - [x] Phase 15 — Cross-cutting docs & polish
 - [x] Phase 16 — Release
+- [x] Phase 17 — 0.1.1 patch sweep (post-release polish)
