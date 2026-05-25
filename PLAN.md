@@ -103,8 +103,8 @@ with full Vitest coverage. No Stimulus controllers yet. **Rails tests N/A**
       Intl helpers module.
 - [x] `lib/duration.js` — `parseDuration` (string `"HH:MM"`, object `{days,…}`,
       seconds), `durationDays`, `durationToSeconds`, `addDurationToDate`
-- [ ] `lib/range.js` — `createDateRange`, `datesInRange`, `rangesOverlap`,
-      `intersectRanges`
+- [x] `lib/range.js` — `createDateRange`, `datesInRange`, `rangesOverlap`,
+      `intersectRanges` (+ `outsideRange` / `dateInRange` from upstream)
 - [ ] `lib/options.js` — `undefinedOr`, per-option setter helper
 - [ ] `lib/payload.js` — Symbol-keyed `setPayload` / `getPayload` /
       `hasPayload` on DOM nodes
