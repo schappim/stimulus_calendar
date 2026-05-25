@@ -106,10 +106,17 @@ export function createMonthScroller(container, state, { onDateChange }) {
   //     the per-chip handler in renderEvents(); we just skip the cell
   //     handler here so the chip's click isn't double-counted as a day
   //     select.
+  // We use a single-click → SELECT, double-click → dateClick model in
+  // the month scroller. The Interaction plugin also listens for clicks
+  // on [data-date] at the calendar root and would fire dateClick on
+  // every single click — which the demo turns into "prompt for event
+  // title". stopPropagation here keeps the interaction plugin out of
+  // the month scroller so single clicks only select.
   body.addEventListener('click', (ev) => {
     if (ev.target.closest('[data-event-id], [data-more-link]')) return;
     const cell = ev.target.closest('.ec-month-scroller-cell');
     if (!cell) return;
+    ev.stopPropagation();
     const dateStr = cell.getAttribute('data-date');
     if (!dateStr) return;
     body.querySelectorAll('.ec-month-scroller-cell.ec-selected')
@@ -121,6 +128,7 @@ export function createMonthScroller(container, state, { onDateChange }) {
     if (ev.target.closest('[data-event-id], [data-more-link]')) return;
     const cell = ev.target.closest('.ec-month-scroller-cell');
     if (!cell) return;
+    ev.stopPropagation();
     const dateStr = cell.getAttribute('data-date');
     if (!dateStr) return;
     state.get('fire')?.('dateClick', {
