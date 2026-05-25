@@ -236,8 +236,22 @@ export function createMonthScroller(container, state, { onDateChange }) {
   // row happens to be near the top.
   let scrollIsExternal = true;
 
+  // Banner visibility — show the "Month YEAR" banners only while the
+  // scroller is actively moving. Mirrors macOS Calendar where the
+  // month label fades in during scroll and fades out at rest.
+  let scrollingClassTimer = null;
+  function flagScrolling() {
+    scroller.classList.add('ec-scrolling');
+    clearTimeout(scrollingClassTimer);
+    scrollingClassTimer = setTimeout(
+      () => scroller.classList.remove('ec-scrolling'),
+      400,
+    );
+  }
+
   function onScroll() {
     if (!suppressOnDateChange) scrollIsExternal = false;
+    flagScrolling();
     // Extend bottom?
     if (body.scrollHeight - (body.scrollTop + body.clientHeight) < EXTEND_THRESHOLD_PX) {
       extendForward();
@@ -372,6 +386,7 @@ export function createMonthScroller(container, state, { onDateChange }) {
       rangeSub?.();
       clearTimeout(renderTimer);
       clearTimeout(settleTimer);
+      clearTimeout(scrollingClassTimer);
       body.removeEventListener('scroll', onScroll);
       container.replaceChildren();
     },

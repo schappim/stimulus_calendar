@@ -1137,7 +1137,10 @@ body.ec-dragging * {
 /* The "Month Year" banner — overlays the row so the day cells are
  * unaffected; pushes vertical space so the row is visually distinct
  * when a new month begins. Sits above day cells (z-index) and never
- * intercepts pointer events so taps land on the day underneath. */
+ * intercepts pointer events so taps land on the day underneath.
+ * Visible only while the scroller is actively scrolling (matches
+ * macOS / iOS Calendar's behaviour where the month label fades in
+ * while you scroll and fades out at rest). */
 .ec-month-scroller-month-banner {
   position: absolute;
   top: 0.5rem;
@@ -1149,6 +1152,12 @@ body.ec-dragging * {
   color: #111827;
   pointer-events: none;
   line-height: 1.1;
+  opacity: 0;
+  transition: opacity 180ms ease-out;
+}
+
+.ec-month-scroller.ec-scrolling .ec-month-scroller-month-banner {
+  opacity: 1;
 }
 
 .ec-month-scroller-month-name {
