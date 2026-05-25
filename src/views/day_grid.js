@@ -159,7 +159,14 @@ export function renderDayGridView(container, state) {
           // User event handlers + matching DOM CustomEvent dispatch via
           // state.fire — listeners can hook either side.
           const fire = state.get('fire');
-          chip.addEventListener('click',     (jsEvent) => fire?.('eventClick',      { event, jsEvent, view: state.get('view') }));
+          if (state.get('selectedEventId') === event.id) chip.classList.add('ec-event-selected');
+          chip.addEventListener('click', (jsEvent) => {
+            document.querySelectorAll('.ec-event.ec-event-selected')
+              .forEach((c) => c.classList.remove('ec-event-selected'));
+            chip.classList.add('ec-event-selected');
+            state.set('selectedEventId', event.id);
+            fire?.('eventClick', { event, jsEvent, view: state.get('view') });
+          });
           chip.addEventListener('dblclick',  (jsEvent) => fire?.('eventDoubleClick',{ event, jsEvent, view: state.get('view'), el: chip }));
           chip.addEventListener('mouseenter',(jsEvent) => fire?.('eventMouseEnter', { event, jsEvent, view: state.get('view') }));
           chip.addEventListener('mouseleave',(jsEvent) => fire?.('eventMouseLeave', { event, jsEvent, view: state.get('view') }));

@@ -108,7 +108,14 @@ export function renderTimeGridView(container, state) {
         chip.style.overflow = 'hidden';
         chip.append(createElement('div', theme.eventTitle, event.title || ''));
         const fire = state.get('fire');
-        chip.addEventListener('click',     (jsEvent) => fire?.('eventClick',      { event, jsEvent, view: state.get('view') }));
+        if (state.get('selectedEventId') === event.id) chip.classList.add('ec-event-selected');
+        chip.addEventListener('click', (jsEvent) => {
+          document.querySelectorAll('.ec-event.ec-event-selected')
+            .forEach((c) => c.classList.remove('ec-event-selected'));
+          chip.classList.add('ec-event-selected');
+          state.set('selectedEventId', event.id);
+          fire?.('eventClick', { event, jsEvent, view: state.get('view') });
+        });
         chip.addEventListener('dblclick',  (jsEvent) => fire?.('eventDoubleClick',{ event, jsEvent, view: state.get('view'), el: chip }));
         cells[firstIdx].append(chip);
       }
@@ -236,7 +243,16 @@ export function renderTimeGridView(container, state) {
           }
         }
         const fire = state.get('fire');
-        chip.addEventListener('click',     (jsEvent) => fire?.('eventClick',      { event, jsEvent, view: state.get('view') }));
+        // Cross-view event selection: paint .ec-event-selected on any
+        // chip whose data-event-id matches the persisted selection.
+        if (state.get('selectedEventId') === event.id) chip.classList.add('ec-event-selected');
+        chip.addEventListener('click', (jsEvent) => {
+          document.querySelectorAll('.ec-event.ec-event-selected')
+            .forEach((c) => c.classList.remove('ec-event-selected'));
+          chip.classList.add('ec-event-selected');
+          state.set('selectedEventId', event.id);
+          fire?.('eventClick', { event, jsEvent, view: state.get('view') });
+        });
         chip.addEventListener('dblclick',  (jsEvent) => fire?.('eventDoubleClick',{ event, jsEvent, view: state.get('view'), el: chip }));
         chip.addEventListener('mouseenter',(jsEvent) => fire?.('eventMouseEnter', { event, jsEvent, view: state.get('view') }));
         chip.addEventListener('mouseleave',(jsEvent) => fire?.('eventMouseLeave', { event, jsEvent, view: state.get('view') }));

@@ -55,7 +55,14 @@ export function renderListView(container, state) {
         row.append(createElement('time', theme.eventTime, time));
         row.append(createElement('span', theme.eventTitle, event.title || ''));
         const fire = state.get('fire');
-        row.addEventListener('click',     (jsEvent) => fire?.('eventClick',      { event, jsEvent, view: state.get('view') }));
+        if (state.get('selectedEventId') === event.id) row.classList.add('ec-event-selected');
+        row.addEventListener('click', (jsEvent) => {
+          document.querySelectorAll('.ec-event.ec-event-selected')
+            .forEach((c) => c.classList.remove('ec-event-selected'));
+          row.classList.add('ec-event-selected');
+          state.set('selectedEventId', event.id);
+          fire?.('eventClick', { event, jsEvent, view: state.get('view') });
+        });
         row.addEventListener('dblclick',  (jsEvent) => fire?.('eventDoubleClick',{ event, jsEvent, view: state.get('view'), el: row }));
         row.addEventListener('mouseenter',(jsEvent) => fire?.('eventMouseEnter', { event, jsEvent, view: state.get('view') }));
         row.addEventListener('mouseleave',(jsEvent) => fire?.('eventMouseLeave', { event, jsEvent, view: state.get('view') }));
