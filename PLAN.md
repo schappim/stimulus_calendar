@@ -156,8 +156,12 @@ with full Vitest coverage. No Stimulus controllers yet. **Rails tests N/A**
 - [x] `lib/plugins.js` — `createPluginState(plugins, userOptions)` glues
       options_store + state and invokes `plugin.initState(state)` for each;
       `isPlugin` / `normalisePlugins` validation helpers.
-- [ ] Effects model — when state changes, recompute derived state, dispatch
-      `change:<name>` events to subscribers
+- [x] Effects model — `lib/effects.js`: `installEffects(state, effects[])`
+      runs each effect once + on each dep change, with teardown chaining.
+      Effect factories: `switchViewEffect`, `datesSetEffect`,
+      `viewDidMountEffect`, `eventAllUpdatedEffect`, `nowAndTodayEffect`,
+      `timeZoneChangeEffect`, `createLoadingInvoker`. `loadEvents` /
+      `loadResources` (fetch) deferred to Phase 10.
 
 ---
 
