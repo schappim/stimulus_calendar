@@ -604,11 +604,26 @@ is covered by the existing test suite (or the new e2e test).
       Commit `07bdb6c`.
 - [x] `chore(gem/demo)` — refresh `Gemfile.lock` (`stimulus_calendar_rails`
       `0.0.0 → 0.1.0`). Commit `b04a310`.
+- [x] `fix(view)` — ResourceTimeline row-head: keep the resource label
+      clear of the calendar's left edge. The renderer's inline
+      `padding-left = depth * 16px` was clobbering the CSS base padding
+      at depth 0; now applied via `--ec-row-head-indent` custom property
+      so CSS keeps the `1rem` left padding intact.
+- [x] `fix(demo)` — `.live-badge::before` was flex-shrunk into an oval
+      inside the `inline-flex` badge. Added `flex: 0 0 auto` and a soft
+      pulse animation so the indicator stays a perfect circle.
+- [x] `feat(docs)` — animated GIF for live-sync section.
+      `scripts/screenshot-gif.mjs` drives the broadcast demo through a
+      storyboard via `window.demo.*` mutation helpers, captures Playwright
+      frames, encodes with ffmpeg (palettegen + paletteuse for clean
+      colour). `docs/images/cal-broadcast.gif` is referenced from the
+      README's "Live multi-user sync" section in place of the static PNG.
 
 Test posture after Phase 17:
 - 251 JS tests passing (was 246, +5 broadcast e2e)
 - 17 Rails tests passing (no change)
 - 11 / 11 README-referenced screenshots present in `docs/images/`
+  (10 PNGs + 1 animated GIF for the live-sync section)
 
 ---
 
