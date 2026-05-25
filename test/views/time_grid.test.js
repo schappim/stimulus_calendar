@@ -75,6 +75,23 @@ describe('view: timeGridWeek', () => {
     expect(label.textContent).toBe('All day');
   });
 
+  it('nowIndicator draws a horizontal line on the today column when enabled', async () => {
+    const el = await mount(`<div data-controller="calendar"
+      data-calendar-plugins-value='["TimeGrid"]'
+      data-calendar-view-value="timeGridDay"></div>`);
+    el.calendarApi.setOption('nowIndicator', true);
+    const line = el.querySelector('[data-now-indicator]');
+    expect(line).toBeTruthy();
+  });
+
+  it('slotEventOverlap accepted as option (full overlap layout in Phase 11)', async () => {
+    const el = await mount(`<div data-controller="calendar"
+      data-calendar-plugins-value='["TimeGrid"]'
+      data-calendar-view-value="timeGridDay"></div>`);
+    el.calendarApi.setOption('slotEventOverlap', false);
+    expect(el.calendarApi.getOption('slotEventOverlap')).toBe(false);
+  });
+
   it('all-day events render inside the all-day row, not the slot grid', async () => {
     const el = await mount(`<div data-controller="calendar"
       data-calendar-plugins-value='["TimeGrid"]'

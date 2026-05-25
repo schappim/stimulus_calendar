@@ -254,10 +254,10 @@ Each view-introducing commit ships a `docs/images/cal-<view>.png` screenshot.
 - [x] Option: `slotMinTime`
 - [x] Option: `slotMaxTime`
 - [x] Option: `flexibleSlotTimeLimits`
-- [ ] Option: `slotEventOverlap`
+- [x] Option: `slotEventOverlap`
 - [x] Option: `columnWidth`
-- [ ] Now indicator (horizontal red line) → `cal-now-indicator.png`
-- [ ] Option: `nowIndicator`
+- [x] Now indicator (horizontal red line) → `cal-now-indicator.png`
+- [x] Option: `nowIndicator`
 
 ---
 
@@ -568,7 +568,7 @@ the GitHub repo without expanding every section.
 - [x] Phase 3 — Calendar controller + global options
 - [x] Phase 4 — Toolbar
 - [x] Phase 5 — DayGrid view
-- [ ] Phase 6 — TimeGrid view
+- [x] Phase 6 — TimeGrid view
 - [ ] Phase 7 — List view
 - [ ] Phase 8 — Resources + ResourceTimeGrid
 - [ ] Phase 9 — ResourceTimeline
