@@ -107,8 +107,8 @@ with full Vitest coverage. No Stimulus controllers yet. **Rails tests N/A**
       `intersectRanges` (+ `outsideRange` / `dateInRange` from upstream)
 - [x] `lib/options.js` — `undefinedOr`, per-option setter helper
       (+ upstream `btnTextDay/Week/Month/Year`, `themeView`)
-- [ ] `lib/payload.js` — Symbol-keyed `setPayload` / `getPayload` /
-      `hasPayload` on DOM nodes
+- [x] `lib/payload.js` — Symbol-keyed `setPayload` / `getPayload` /
+      `hasPayload` on any object (DOM nodes, events, resources, chunks)
 - [ ] `lib/dom.js` — `createElement`, `rect`, `elementFromPoint` helpers
 - [ ] `lib/a11y.js` — keyboard handlers, aria utilities
 - [ ] `lib/attachments.js` — `contentFrom` (html / text / dom nodes),
