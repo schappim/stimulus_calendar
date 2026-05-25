@@ -145,8 +145,10 @@ with full Vitest coverage. No Stimulus controllers yet. **Rails tests N/A**
 
 ## Phase 2 — State & options store
 
-- [ ] `lib/state.js` — `MainState` class (mutable; controllers subscribe via
-      `on(event, fn)`). Replaces Svelte runes with a plain pub/sub model.
+- [x] `lib/state.js` — `MainState` class (mutable; controllers subscribe via
+      `on(event, fn)` / `onAny(fn)`). Replaces Svelte runes with a plain
+      pub/sub model. `set` short-circuits when value didn't change; `assign`
+      dispatches one change at a time; `destroy` clears subscribers + data.
 - [ ] `lib/options_store.js` — option defaults table, per-view override merge,
       `setOption` / `getOption`, parsers registry
 - [ ] `lib/plugins.js` — plugin registration: `createOptions`, `createParsers`,
