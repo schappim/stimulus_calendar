@@ -101,4 +101,16 @@ describe('toolbar', () => {
     const date = el.calendarApi.getOption('date');
     expect(date.getFullYear()).toBeGreaterThan(2024);
   });
+
+  it('customButton — registered button renders with its label and fires click', async () => {
+    // Render via attributes so options.customButtons is in place before
+    // the toolbar's initial render.
+    const el = await mount(`<div data-controller="calendar"
+      data-calendar-custom-buttons-value='{"myBtn":{"text":"Hi"}}'
+      data-calendar-header-toolbar-value='{"start":"myBtn","center":"title","end":""}'>
+    </div>`);
+    const btn = el.querySelector('[data-toolbar-button="myBtn"]');
+    expect(btn).toBeTruthy();
+    expect(btn.textContent).toBe('Hi');
+  });
 });
