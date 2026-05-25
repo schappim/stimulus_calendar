@@ -58,10 +58,11 @@ export const InteractionPlugin = {
     mainState.get('auxComponents').push({
       name: 'interaction',
       mount(rootEl, state) {
-        const offClick  = attachDateClickHandler(rootEl, state);
-        const offDrag   = attachEventDragHandler(rootEl, state);
-        const offResize = attachEventResizeHandler(rootEl, state);
-        return () => { offClick(); offDrag(); offResize(); };
+        const offClick    = attachDateClickHandler(rootEl, state);
+        const offDrag     = attachEventDragHandler(rootEl, state);
+        const offResize   = attachEventResizeHandler(rootEl, state);
+        const offCreate   = attachTimeGridCreateHandler(rootEl, state);
+        return () => { offClick(); offDrag(); offResize(); offCreate(); };
       },
     });
   },
@@ -506,6 +507,135 @@ function attachEventResizeHandler(rootEl, state) {
 function totalSecondsOfDuration(duration) {
   if (!duration) return 0;
   return (duration.days ?? 0) * 86400 + (duration.seconds ?? 0);
+}
+
+// Drag-to-create on TimeGrid: pointerdown on an empty time slot,
+// drag down (or up), pointerup → create an event spanning that
+// time range. Mirrors macOS Calendar. Skips drags that start on
+// an event chip, resizer, or button; only fires when options.editable
+// is on (no point creating events you can't move).
+function attachTimeGridCreateHandler(rootEl, state) {
+  let drag = null; // { startX, startY, col, dateStr, startMinFromTop, preview, moved }
+
+  function onPointerDown(jsEvent) {
+    const options = state.get('options');
+    if (!options.editable) return;
+    if (jsEvent.button !== undefined && jsEvent.button !== 0) return;
+    // Skip starts that land on something interactive.
+    if (jsEvent.target.closest?.('[data-event-id], .ec-resizer, .ec-button, button, input, select, textarea, a, [data-more-link], [data-popover-action]')) return;
+    const col = jsEvent.target.closest?.('.ec-time-col');
+    if (!col || !rootEl.contains(col)) return;
+    const dateStr = col.getAttribute('data-date');
+    if (!dateStr) return;
+    const slotMins = totalSecondsOfDuration(options.slotDuration) / 60 || 30;
+    const snapMins = totalSecondsOfDuration(options.snapDuration) / 60 || slotMins;
+    const pxPerMin = (options.slotHeight ?? 22) / slotMins;
+    const slotMinMin = totalSecondsOfDuration(options.slotMinTime) / 60 || 0;
+    const rect = col.getBoundingClientRect();
+    const yIn = jsEvent.clientY - rect.top;
+    const minsFromTop = Math.max(0, Math.round((yIn / pxPerMin) / snapMins) * snapMins);
+    drag = {
+      startX: jsEvent.clientX,
+      startY: jsEvent.clientY,
+      col, dateStr,
+      slotMins, snapMins, pxPerMin, slotMinMin,
+      startMinFromTop: minsFromTop,
+      preview: null,
+      moved: false,
+    };
+    if (jsEvent.cancelable) jsEvent.preventDefault();
+    document.addEventListener('pointermove', onPointerMove, { passive: false });
+    document.addEventListener('pointerup', onPointerUp);
+    document.addEventListener('pointercancel', onPointerUp);
+  }
+
+  function onPointerMove(jsEvent) {
+    if (!drag) return;
+    const dy = jsEvent.clientY - drag.startY;
+    if (!drag.moved && Math.abs(dy) < 4) return;
+    drag.moved = true;
+
+    const rect = drag.col.getBoundingClientRect();
+    const yIn = jsEvent.clientY - rect.top;
+    const minsFromTop = Math.max(0, Math.round((yIn / drag.pxPerMin) / drag.snapMins) * drag.snapMins);
+    const topMin = Math.min(drag.startMinFromTop, minsFromTop);
+    const bottomMin = Math.max(drag.startMinFromTop, minsFromTop);
+    const minSpan = drag.snapMins;
+    const span = Math.max(minSpan, bottomMin - topMin);
+
+    // Build / update the preview chip.
+    if (!drag.preview) {
+      const options = state.get('options');
+      const theme = options.theme;
+      const preview = document.createElement('div');
+      preview.className = `${theme.event ?? 'ec-event'} ec-event-preview`;
+      preview.style.position = 'absolute';
+      preview.style.left = '0';
+      preview.style.right = '0';
+      preview.style.opacity = '0.7';
+      preview.style.pointerEvents = 'none';
+      preview.style.background = options.eventBackgroundColor ?? '#2563eb';
+      preview.style.color = '#ffffff';
+      preview.style.borderRadius = '3px';
+      preview.style.padding = '2px 0.375rem';
+      preview.style.fontSize = '0.72rem';
+      const overlay = drag.col.querySelector('.ec-event-overlay') ?? drag.col;
+      overlay.appendChild(preview);
+      drag.preview = preview;
+    }
+    drag.preview.style.top = `${topMin * drag.pxPerMin}px`;
+    drag.preview.style.height = `${span * drag.pxPerMin}px`;
+    drag.preview.textContent = `${fmtMins(topMin + drag.slotMinMin)} – ${fmtMins(topMin + drag.slotMinMin + span)}`;
+
+    if (jsEvent.cancelable) jsEvent.preventDefault();
+  }
+
+  function onPointerUp(jsEvent) {
+    if (!drag) return;
+    const d = drag; drag = null;
+    document.removeEventListener('pointermove', onPointerMove);
+    document.removeEventListener('pointerup', onPointerUp);
+    document.removeEventListener('pointercancel', onPointerUp);
+    if (d.preview) d.preview.remove();
+    if (!d.moved) return; // tap → leave for dateClick
+
+    const rect = d.col.getBoundingClientRect();
+    const yIn = jsEvent.clientY - rect.top;
+    const minsFromTop = Math.max(0, Math.round((yIn / d.pxPerMin) / d.snapMins) * d.snapMins);
+    const topMin = Math.min(d.startMinFromTop, minsFromTop);
+    const bottomMin = Math.max(d.startMinFromTop, minsFromTop);
+    const span = Math.max(d.snapMins, bottomMin - topMin);
+    const start = new Date(d.dateStr + 'T00:00:00Z');
+    start.setUTCMinutes(start.getUTCMinutes() + topMin + d.slotMinMin);
+    const end = new Date(start.getTime() + span * 60_000);
+    // Hand off to host via dateClick (with range) — the demo / app
+    // decides what to do (prompt, modal, immediate addEvent).
+    const fire = state.get('fire');
+    fire?.('dateClick', {
+      date: start,
+      dateStr: d.dateStr,
+      allDay: false,
+      end,
+      jsEvent,
+      view: state.get('view'),
+    });
+  }
+
+  rootEl.addEventListener('pointerdown', onPointerDown);
+  return () => {
+    rootEl.removeEventListener('pointerdown', onPointerDown);
+    document.removeEventListener('pointermove', onPointerMove);
+    document.removeEventListener('pointerup', onPointerUp);
+    document.removeEventListener('pointercancel', onPointerUp);
+  };
+}
+
+function fmtMins(totalMins) {
+  const h = Math.floor(totalMins / 60) % 24;
+  const m = Math.floor(totalMins) % 60;
+  const h12 = (h % 12) || 12;
+  const period = h >= 12 ? 'pm' : 'am';
+  return `${h12}:${String(m).padStart(2, '0')} ${period}`;
 }
 
 function attachDateClickHandler(rootEl, state) {
