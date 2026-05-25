@@ -15,6 +15,9 @@ import { createEvents } from '../lib/events.js';
 import { createDuration } from '../lib/duration.js';
 import { isArray, isFunction, isPlainObject } from '../lib/utils.js';
 import { renderToolbar } from '../components/toolbar.js';
+import {
+  openEventPopover, closeEventPopover, isEventPopoverOpen, openEventPopoverId,
+} from '../components/event_popover.js';
 import { resolvePluginNames } from '../plugins/index.js';
 import { BroadcastBus, resolveAdapter } from '../lib/broadcast/index.js';
 
@@ -115,6 +118,7 @@ export default class CalendarController extends Controller {
     this._installBroadcastBus();
     this._mountRootDOM();
     this._exposeApi();
+    this._installEventPopoverDefault();
 
     this.dispatch('ready', { detail: { api: this.element.calendarApi } });
   }
@@ -395,8 +399,41 @@ export default class CalendarController extends Controller {
       // Pointer geometry — find the calendar cell whose [data-date]
       // covers (x, y) and return a Date pointing at that day or slot.
       dateFromPoint: (x, y) => this._dateFromPoint(x, y),
+
+      // Event popover — usually opened automatically by double-clicking
+      // an event chip. Host apps can also open/close it programmatically.
+      openEventPopover: (eventId, anchorEl) => {
+        const event = api.getEventById(String(eventId));
+        if (!event) return null;
+        const el = anchorEl
+          || this._root?.querySelector(`[data-event-id="${CSS.escape(String(eventId))}"]`);
+        if (!el) return null;
+        return openEventPopover({ event, anchorEl: el, state: this._state });
+      },
+      closeEventPopover,
+      isEventPopoverOpen,
+      openEventPopoverId,
     };
     this.element.calendarApi = api;
+  }
+
+  // Default behaviour: when a chip is double-clicked, open the built-in
+  // event popover. Host apps suppress this by either (a) calling
+  // event.preventDefault() inside an options.eventDoubleClick callback,
+  // (b) listening for 'calendar:eventDoubleClick' on the host and calling
+  // event.preventDefault(), or (c) setting options.suppressEventPopover.
+  _installEventPopoverDefault() {
+    const handler = (ev) => {
+      if (ev.defaultPrevented) return;
+      const opts = this._state.get('options');
+      if (opts?.suppressEventPopover) return;
+      const { event, el } = ev.detail ?? {};
+      if (!event || !el) return;
+      openEventPopover({ event, anchorEl: el, state: this._state });
+    };
+    this.element.addEventListener('calendar:eventDoubleClick', handler);
+    this._teardowns.push(() => this.element.removeEventListener('calendar:eventDoubleClick', handler));
+    this._teardowns.push(() => closeEventPopover());
   }
 
   _navigate(direction) {
