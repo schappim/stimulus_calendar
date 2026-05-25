@@ -318,7 +318,11 @@
   grid-template-rows: auto auto 1fr;
   border: 1px solid var(--ec-border-color);
   border-radius: 0.25rem;
-  overflow: hidden;
+  /* overflow stays visible so the counter-translated time-axis sidebar
+   * can extend past the grid's left edge when the user swipes RIGHT
+   * (negative counter-translate). The enclosing .ec-pager still has
+   * overflow: hidden, so nothing escapes the calendar's own bounds. */
+  overflow: visible;
   background: var(--ec-bg-color);
 }
 
