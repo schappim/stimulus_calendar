@@ -177,7 +177,7 @@ matching ERB usage example in `gem/demo` if the option is server-renderable.
       view → filteredEvents), default parsers wired into options_store so
       duration is always normalised before reaching `addDuration`.
 - [x] Option: `date`
-- [ ] Option: `duration`
+- [x] Option: `duration`
 - [ ] Option: `dateIncrement`
 - [ ] Option: `firstDay`
 - [ ] Option: `hiddenDays`

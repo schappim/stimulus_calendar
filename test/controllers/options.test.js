@@ -39,4 +39,12 @@ describe('CalendarController options', () => {
     expect(date.getUTCDate()).toBe(25);
     expect(date.getUTCHours()).toBe(0);
   });
+
+  it('duration — data-calendar-duration-value parses through createDuration', async () => {
+    const el = await mount(
+      `<div data-controller="calendar" data-calendar-duration-value='{"days":3}'></div>`);
+    expect(el.calendarApi.getOption('duration')).toEqual({
+      years: 0, months: 0, days: 3, seconds: 0, inWeeks: false,
+    });
+  });
 });
