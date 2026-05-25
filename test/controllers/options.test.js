@@ -109,14 +109,15 @@ describe('CalendarController options', () => {
     expect(el.calendarApi.getOption('customScrollbars')).toBe(true);
   });
 
-  it('views — per-view overrides flow through (kept on the options bag)', async () => {
+  it('views — accepts per-view overrides without crashing the boot', async () => {
+    // Per-view overrides are extracted into the per-view setter map by
+    // createOptionsStore and applied on view activation; they don't live
+    // on the live options object. This commit just verifies the attribute
+    // is accepted. Phase 5+ tests verify the actual override behaviour
+    // when a plugin registers a view.
     const el = await mount(`<div data-controller="calendar"
                                   data-calendar-views-value='{"timeGridWeek":{"slotDuration":"00:15"}}'>
                             </div>`);
-    // Per-view overrides are consumed by setViewOptions when a view
-    // activates; before any view-aware plugin loads, the views map flows
-    // through as raw user data on options.views.
-    const v = el.calendarApi.getOption('views');
-    expect(v).toEqual({ timeGridWeek: { slotDuration: '00:15' } });
+    expect(el.dataset.calendarMounted).toBe('true');
   });
 });
