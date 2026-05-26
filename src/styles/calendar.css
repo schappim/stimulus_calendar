@@ -420,6 +420,16 @@
   clip-path: inset(0 -100vw);
   border-right: 1px solid var(--ec-border-color);
   background: var(--ec-bg-color);
+  /* z-index goes on the RAIL, not on the inner .ec-sidebar. The rail's
+   * clip-path already creates a stacking context, which traps the
+   * sidebar's z-index inside the rail's local scope — it can't compete
+   * with the rail's sibling .ec-cols-scroll. Without this the cols-scroll
+   * (later in DOM order, also z-auto in the body's flex layout) paints
+   * above the rail, and during a swipe the chips that have translated
+   * left into the gutter's viewport strip cover the counter-translated
+   * hour labels. Putting the z-index here lifts the whole rail subtree
+   * above the cols-scroll. */
+  z-index: 2;
 }
 
 .ec-time-grid .ec-sidebar-rail > .ec-sidebar {
