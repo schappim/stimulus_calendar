@@ -100,18 +100,19 @@
   <h1>Weather forecast</h1>
   <p class="sub">
     Drop-in 8-condition forecast layered on top of the standard calendar — each visible day
-    gets a stable icon, high/low, and label. This first page wires it up to the month view;
-    the rest of the views land in follow-up commits.
+    gets a stable icon, high/low, and label. Switch views in the toolbar to see how the
+    forecast adapts to month / week / day / list layouts.
   </p>
 
   <div id="forecast-strip" class="forecast-strip"></div>
 
   <div id="cal" class="has-forecast"
        data-controller="calendar"
-       data-calendar-plugins-value='["DayGrid"]'
+       data-calendar-plugins-value='["DayGrid","TimeGrid","List"]'
        data-calendar-view-value="dayGridMonth"
        data-calendar-date-value="2026-05-15"
-       data-calendar-header-toolbar-value='{"start":"today","center":"title","end":"prev,next"}'>
+       data-calendar-options-value='{"scrollTime":"08:00:00","buttonText":{"today":"Today","dayGridMonth":"Month","dayGridWeek":"Week","dayGridDay":"Day","timeGridWeek":"Week (time)","timeGridDay":"Day (time)","listWeek":"List"}}'
+       data-calendar-header-toolbar-value='{"start":"today prev,next","center":"title","end":"dayGridMonth,dayGridWeek,dayGridDay timeGridWeek,timeGridDay listWeek"}'>
   </div>
 
   <script type="module">
@@ -160,7 +161,7 @@
       }
       const head = document.createElement('div');
       head.className = 'forecast-strip-title';
-      head.textContent = count === 1 ? 'Today' : `${count}-day outlook`;
+      head.textContent = `${count}-day outlook`;
       const tiles = [head];
       const d = new Date(anchor);
       for (let i = 0; i < count; ++i) {
