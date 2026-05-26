@@ -135,7 +135,10 @@ export function renderDayGridView(container, state) {
           ]);
           const bgColor = event.backgroundColor ?? options.eventBackgroundColor ?? options.eventColor;
           const txtColor = event.textColor ?? options.eventTextColor;
-          if (bgColor) chip.style.backgroundColor = bgColor;
+          // Drive the accent through the CSS custom property so per-type
+          // modifier classes (.ec-appt-*) can still override it via
+          // specificity. Direct style.backgroundColor would beat any class.
+          if (bgColor) chip.style.setProperty('--ec-event-color', bgColor);
           if (txtColor) chip.style.color = txtColor;
           // Custom event content takes priority over the default dot/time/title.
           if (options.eventContent) {
@@ -256,7 +259,7 @@ function openDayPopover(state, day, events) {
     const chip = createElement('div', theme.event, '', [
       ['data-event-id', event.id],
     ]);
-    if (event.backgroundColor) chip.style.backgroundColor = event.backgroundColor;
+    if (event.backgroundColor) chip.style.setProperty('--ec-event-color', event.backgroundColor);
     chip.append(createElement('span', 'ec-event-dot'));
     const time = event.allDay
       ? ''

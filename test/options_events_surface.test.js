@@ -28,7 +28,10 @@ describe('events surface', () => {
     el.calendarApi.setOption('eventColor', '#10b981');
     el.calendarApi.addEvent({ id:'1', start:'2026-05-15T09:00', end:'2026-05-15T10:00' });
     const chip = el.querySelector('[data-event-id="1"]');
-    expect(chip.style.backgroundColor.toLowerCase()).toMatch(/#10b981|rgb\(16, 185, 129\)/);
+    // Day-grid chips route the colour through --ec-event-color so per-type
+    // modifier classes (.ec-appt-*) can still override via specificity;
+    // direct chip.style.backgroundColor would beat any class.
+    expect(chip.style.getPropertyValue('--ec-event-color').toLowerCase()).toMatch(/#10b981|rgb\(16, 185, 129\)/);
   });
 
   it('eventClassNames — global classes added to every event', async () => {
