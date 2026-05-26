@@ -135,7 +135,11 @@ export function renderResourceTimeGridView(container, state) {
           if (eventColor) chip.style.setProperty('--ec-event-color', eventColor);
           chip.append(createElement('div', theme.eventTitle, event.title || ''));
           const timeEl = createElement('div', theme.eventTime ?? 'ec-event-time');
-          timeEl.innerHTML = `<svg class="ec-clock-icon" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.5"/><path d="M6 3.5 V6 L7.7 7" stroke-linecap="round"/></svg>`;
+          // Presentation attributes (width/height/fill/stroke) keep the
+          // icon rendering correctly when the chip is cloned into the drag
+          // ghost and re-parented to <body>, breaking the descendant
+          // cascade — see time_grid.js CLOCK_ICON_SVG for context.
+          timeEl.innerHTML = `<svg class="ec-clock-icon" viewBox="0 0 12 12" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><circle cx="6" cy="6" r="4.5"/><path d="M6 3.5 V6 L7.7 7" stroke-linecap="round"/></svg>`;
           timeEl.append(document.createTextNode(formatEventTimeRange(event.start, event.end, options)));
           chip.append(timeEl);
           const fire = state.get('fire');

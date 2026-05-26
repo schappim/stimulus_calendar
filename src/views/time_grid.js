@@ -412,4 +412,12 @@ export function formatEventTimeRange(start, end, options) {
   return `${left.trim()} – ${right.trim()}`;
 }
 
-const CLOCK_ICON_SVG = `<svg class="ec-clock-icon" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.5"/><path d="M6 3.5 V6 L7.7 7" stroke-linecap="round"/></svg>`;
+// Width/height/fill/stroke are SVG presentation attributes — they apply
+// even when the .ec-time-grid .ec-event .ec-event-time .ec-clock-icon CSS
+// cascade doesn't match (notably when the chip is cloned into the drag
+// ghost and re-parented to <body>). CSS still wins when it matches, so
+// the live chip's styling is unaffected; without these attributes the
+// detached ghost falls back to the SVG default 300×150 size and the
+// <circle>'s default black fill — a giant black disc dead-centre on
+// the dragged event. See interaction.js:attachEventDragHandler.
+const CLOCK_ICON_SVG = `<svg class="ec-clock-icon" viewBox="0 0 12 12" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><circle cx="6" cy="6" r="4.5"/><path d="M6 3.5 V6 L7.7 7" stroke-linecap="round"/></svg>`;
