@@ -10,7 +10,7 @@ import {
   currentRange, activeRange, viewDates, viewTitle,
   filteredEvents, offset, view as makeView, intlRange,
 } from '../lib/derived.js';
-import { createDate, addDuration, subtractDuration, cloneDate, setMidnight, toISOString } from '../lib/date.js';
+import { createDate, addDuration, subtractDuration, cloneDate, setMidnight, toISOString, getOffset } from '../lib/date.js';
 import { createEvents } from '../lib/events.js';
 import { createDuration } from '../lib/duration.js';
 import { isArray, isFunction, isPlainObject } from '../lib/utils.js';
@@ -691,15 +691,35 @@ function capitalise(s) {
 }
 
 // Convert a (possibly already-parsed) event into a structured-clone-safe
-// wire shape for the broadcast bus: Dates → ISO strings. The receiver's
-// createEvents([...]) reparses via _fromISOString, which preserves the
-// UTC instant regardless of the receiver's locale offset. Sending raw
-// Date objects would otherwise be re-interpreted as local wall-clock by
-// _fromLocalDate and skew by the timezone difference.
+// wire shape for the broadcast bus.
+//
+// Each Date is serialized as 'YYYY-MM-DDTHH:MM:SS±HH:MM' using the offset
+// attached to it via setOffset() — NOT Date#toISOString(), which would
+// emit a 'Z' suffix. The Z is intra-calendar-convention'd as 'no offset /
+// floating' (parseOffset ignores it), so a Z-suffixed payload would land
+// at the SENDER's wall-clock in the receiver instead of shifting to the
+// receiver's local wall-clock for the same UTC instant.
+//
+// With the explicit ±HH:MM suffix, the receiver's createEvents([...]) →
+// _fromISOString applies (receiverOffset - inputOffset) → the resulting
+// internal Date carries the correct wall-clock for the receiver while
+// preserving the actual UTC instant. Floating dates (no offset attached)
+// are serialized with no suffix so they remain floating on the receiver.
 function _toBroadcastPayload(event) {
   if (!event) return event;
   const out = { ...event };
-  if (out.start instanceof Date) out.start = out.start.toISOString();
-  if (out.end instanceof Date) out.end = out.end.toISOString();
+  if (out.start instanceof Date) out.start = _serializeDate(out.start);
+  if (out.end   instanceof Date) out.end   = _serializeDate(out.end);
   return out;
+}
+
+function _serializeDate(date) {
+  const iso = toISOString(date, 19); // 'YYYY-MM-DDTHH:MM:SS' — wall-clock, no Z.
+  const off = getOffset(date);
+  if (off === undefined) return iso;
+  const sign = off >= 0 ? '+' : '-';
+  const abs = Math.abs(off);
+  const hh = String(Math.floor(abs / 60)).padStart(2, '0');
+  const mm = String(abs % 60).padStart(2, '0');
+  return `${iso}${sign}${hh}:${mm}`;
 }

@@ -125,6 +125,51 @@ describe('CalendarController broadcast end-to-end', () => {
     expect(after.end.toISOString()).toBe('2026-05-27T13:00:00.000Z');
   });
 
+  it('cross-timezone broadcast preserves the UTC instant', async () => {
+    // Two calendars on the same channel but in different IANA timezones.
+    // The sender publishes its wall-clock + its own offset; the receiver
+    // shifts to its own offset preserving the actual UTC moment.
+    document.body.innerHTML = `
+      <div id="syd" data-controller="calendar"
+           data-calendar-time-zone-value="+10:00"
+           data-calendar-date-value="2026-05-25"
+           data-calendar-broadcast-value="broadcast-channel"
+           data-calendar-broadcast-channel-value="cross-tz"></div>
+      <div id="ny"  data-controller="calendar"
+           data-calendar-time-zone-value="-04:00"
+           data-calendar-date-value="2026-05-25"
+           data-calendar-broadcast-value="broadcast-channel"
+           data-calendar-broadcast-channel-value="cross-tz"></div>
+    `;
+    app = Application.start();
+    app.register('calendar', CalendarController);
+    const syd = document.getElementById('syd');
+    const ny  = document.getElementById('ny');
+    await settle();
+
+    // Sydney adds an event at 09:00 +10:00 (i.e. 23:00Z the prior day).
+    syd.calendarApi.addEvent({
+      id: 'tz-1',
+      title: 'Standup',
+      start: '2026-05-25T09:00:00+10:00',
+      end:   '2026-05-25T09:30:00+10:00',
+    });
+    await settle();
+
+    // The same UTC instant 23:00Z prior day rendered in NY (-04:00 EDT)
+    // is 19:00 wall-clock on May 24. Internal Date is UTC-encoded
+    // wall-clock, so getUTCHours() should be 19, getUTCDate() should be 24.
+    const recv = ny.calendarApi.getEventById('tz-1');
+    expect(recv).toBeTruthy();
+    expect(recv.start.getUTCHours()).toBe(19);
+    expect(recv.start.getUTCDate()).toBe(24);
+    expect(recv.end.getUTCHours()).toBe(19);
+    expect(recv.end.getUTCMinutes()).toBe(30);
+
+    // Title still propagates.
+    expect(recv.title).toBe('Standup');
+  });
+
   it('isolated channels do not cross-talk', async () => {
     document.body.innerHTML = `
       <div id="a" data-controller="calendar"
