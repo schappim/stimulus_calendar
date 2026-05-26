@@ -89,9 +89,19 @@ export function createMonthScroller(container, state, { onDateChange }) {
       const desired = target.rowEl.offsetTop - 12;
       const prevBehavior = body.style.scrollBehavior;
       body.style.scrollBehavior = 'auto';
+      // The `scroll` event dispatched by this assignment fires AFTER
+      // this rAF completes, on the same frame as the just-attached
+      // listener. Without the flag, onScroll sees scrollTop near the
+      // top of the body and fires extendBackward — which prepends
+      // months and adjusts scrollTop, landing the user weeks past
+      // today's month instead of on it. Mirror the pattern used by
+      // extendBackward / rangeSub so the synthetic scroll is treated
+      // as programmatic.
+      suppressOnDateChange = true;
       body.scrollTop = Math.max(0, desired);
       void body.offsetTop;
       body.style.scrollBehavior = prevBehavior || '';
+      requestAnimationFrame(() => { suppressOnDateChange = false; });
     }
     body.addEventListener('scroll', onScroll, { passive: true });
   });
@@ -252,13 +262,21 @@ export function createMonthScroller(container, state, { onDateChange }) {
   function onScroll() {
     if (!suppressOnDateChange) scrollIsExternal = false;
     flagScrolling();
-    // Extend bottom?
-    if (body.scrollHeight - (body.scrollTop + body.clientHeight) < EXTEND_THRESHOLD_PX) {
-      extendForward();
-    }
-    // Extend top?
-    if (body.scrollTop < EXTEND_THRESHOLD_PX) {
-      extendBackward();
+    // Skip auto-extend on programmatic scrolls. The initial centring,
+    // rangeSub jump, and extendBackward's own scrollTop fix-up all run
+    // under suppressOnDateChange; without this gate the synthetic
+    // `scroll` events those assignments dispatch would re-enter here,
+    // see a low scrollTop, and trigger another extension — landing the
+    // user months away from the intended anchor.
+    if (!suppressOnDateChange) {
+      // Extend bottom?
+      if (body.scrollHeight - (body.scrollTop + body.clientHeight) < EXTEND_THRESHOLD_PX) {
+        extendForward();
+      }
+      // Extend top?
+      if (body.scrollTop < EXTEND_THRESHOLD_PX) {
+        extendBackward();
+      }
     }
     clearTimeout(settleTimer);
     settleTimer = setTimeout(onScrollSettled, SCROLL_SETTLE_MS);
