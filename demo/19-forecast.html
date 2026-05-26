@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>stimulus_calendar — weather forecast</title>
+  <link rel="stylesheet" href="../src/styles/calendar.css">
+  <style>
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+      margin: 1.5rem;
+      background: #f8fafc;
+      color: #1f2937;
+    }
+    h1 { margin: 0 0 0.25rem; }
+    .sub { color: #6b7280; margin: 0 0 1.25rem; max-width: 1080px; }
+    .ec.has-forecast { width: 1080px; }
+
+    /* ---- forecast strip ---- */
+    .forecast-strip {
+      width: 1080px;
+      box-sizing: border-box;
+      margin: 0 0 0.75rem;
+      padding: 0.75rem 0.875rem;
+      background: linear-gradient(180deg, #ecfeff 0%, #eef2ff 100%);
+      border: 1px solid #c7d2fe;
+      border-radius: 14px;
+      box-shadow: 0 1px 0 rgba(15, 23, 42, 0.04);
+      display: flex;
+      gap: 0.5rem;
+      align-items: stretch;
+      overflow-x: auto;
+    }
+    .forecast-strip-title {
+      flex: 0 0 auto;
+      align-self: center;
+      padding: 0 0.75rem 0 0.25rem;
+      margin-right: 0.5rem;
+      border-right: 1px solid #c7d2fe;
+      font-size: 0.7rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #4338ca;
+      font-weight: 700;
+    }
+    .forecast-day {
+      flex: 1 1 0;
+      min-width: 6rem;
+      padding: 0.45rem 0.5rem;
+      background: white;
+      border-radius: 10px;
+      border: 1px solid rgba(67, 56, 202, 0.08);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.1rem;
+    }
+    .forecast-day-name {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #6b7280;
+      font-weight: 600;
+    }
+    .forecast-day-date { font-size: 0.95rem; font-weight: 700; color: #0f172a; }
+    .forecast-day .ec-weather-icon { width: 34px; height: 34px; margin: 0.1rem 0; }
+    .forecast-day-temps { font-size: 0.85rem; font-weight: 600; color: #0f172a; }
+    .forecast-day-temps .lo { color: #94a3b8; margin-left: 0.45rem; font-weight: 500; }
+    .forecast-day-cond { font-size: 0.65rem; color: #4b5563; text-align: center; }
+
+    /* ---- in-cell weather badge (DayGrid) ----
+     * dayCellContent replaces the contents of .ec-day-number, so we
+     * stretch it to span the full top row of the cell and lay the
+     * weather badge on the left + day number on the right. */
+    .has-forecast .ec-day-grid .ec-day-number {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      align-self: stretch;
+      gap: 0.4rem;
+      margin: -0.125rem -0.125rem 0.25rem;
+      padding: 0.125rem 0.25rem;
+    }
+    .ec-day-num-text { font-size: 0.875rem; font-weight: 500; color: var(--ec-text-color); }
+    .day-weather-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #475569;
+    }
+    .day-weather-badge .ec-weather-icon { width: 18px; height: 18px; }
+    .day-weather-badge .hi { color: #0f172a; }
+    .day-weather-badge .lo { color: #94a3b8; }
+    .has-forecast .ec-day-grid .ec-day.ec-other-month .day-weather-badge { opacity: 0.45; }
+    .has-forecast .ec-day-grid .ec-day.ec-other-month .ec-day-num-text { color: #94a3b8; }
+  </style>
+</head>
+<body>
+  <h1>Weather forecast</h1>
+  <p class="sub">
+    Drop-in 8-condition forecast layered on top of the standard calendar — each visible day
+    gets a stable icon, high/low, and label. This first page wires it up to the month view;
+    the rest of the views land in follow-up commits.
+  </p>
+
+  <div id="forecast-strip" class="forecast-strip"></div>
+
+  <div id="cal" class="has-forecast"
+       data-controller="calendar"
+       data-calendar-plugins-value='["DayGrid"]'
+       data-calendar-view-value="dayGridMonth"
+       data-calendar-date-value="2026-05-15"
+       data-calendar-header-toolbar-value='{"start":"today","center":"title","end":"prev,next"}'>
+  </div>
+
+  <script type="module">
+    import { Application } from '/node_modules/@hotwired/stimulus/dist/stimulus.js';
+    import CalendarController from '/src/controllers/calendar_controller.js';
+    import { getForecast } from './forecast_data.js';
+
+    const app = Application.start();
+    app.register('calendar', CalendarController);
+
+    await new Promise((r) => setTimeout(r, 50));
+    const el = document.getElementById('cal');
+
+    // Inject the weather badge into every day cell. dayCellContent is re-
+    // evaluated on every render, so prev/next/today navigation just works.
+    el.calendarApi.setOption('dayCellContent', ({ date }) => {
+      const f = getForecast(date);
+      return {
+        html:
+          `<span class="ec-day-num-text">${date.getUTCDate()}</span>` +
+          `<span class="day-weather-badge" title="${f.label}">` +
+            `${f.icon}` +
+            `<span class="hi">${f.highC}°</span>` +
+            `<span class="lo">${f.lowC}°</span>` +
+          `</span>`,
+      };
+    });
+
+    // ----- forecast strip above the calendar -----
+    // Driven by calendar:datesSet so it stays in sync with prev/next nav.
+    // For ranges > 7 days (month view) we show the upcoming week starting
+    // from today (clamped into the visible range); otherwise we show every
+    // visible day so the strip mirrors what the calendar itself is showing.
+    const strip = document.getElementById('forecast-strip');
+    const nameFmt = new Intl.DateTimeFormat(undefined, { timeZone: 'UTC', weekday: 'short' });
+    const dateFmt = new Intl.DateTimeFormat(undefined, { timeZone: 'UTC', day: 'numeric', month: 'short' });
+    function renderStrip(start, end) {
+      const totalDays = Math.round((end - start) / 86400000);
+      let anchor = new Date(start);
+      let count = totalDays;
+      if (count > 7) {
+        const now = new Date();
+        const todayUTC = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+        anchor = todayUTC >= start && todayUTC < end ? todayUTC : new Date(start);
+        count = 7;
+      }
+      const head = document.createElement('div');
+      head.className = 'forecast-strip-title';
+      head.textContent = count === 1 ? 'Today' : `${count}-day outlook`;
+      const tiles = [head];
+      const d = new Date(anchor);
+      for (let i = 0; i < count; ++i) {
+        const f = getForecast(d);
+        const tile = document.createElement('div');
+        tile.className = 'forecast-day';
+        tile.innerHTML =
+          `<div class="forecast-day-name">${nameFmt.format(d)}</div>` +
+          `<div class="forecast-day-date">${dateFmt.format(d)}</div>` +
+          `${f.icon}` +
+          `<div class="forecast-day-temps"><span class="hi">${f.highC}°</span><span class="lo">${f.lowC}°</span></div>` +
+          `<div class="forecast-day-cond">${f.label}</div>`;
+        tiles.push(tile);
+        d.setUTCDate(d.getUTCDate() + 1);
+      }
+      strip.replaceChildren(...tiles);
+    }
+    el.addEventListener('calendar:datesSet', (e) => renderStrip(e.detail.start, e.detail.end));
+
+    // Sample events so the calendar isn't empty.
+    el.calendarApi.addEvent({ id:'a', title:'Conference',   start:'2026-05-04', end:'2026-05-07', allDay:true,  backgroundColor:'#0ea5e9' });
+    el.calendarApi.addEvent({ id:'b', title:'Sales review', start:'2026-05-11T10:00', end:'2026-05-11T11:00' });
+    el.calendarApi.addEvent({ id:'c', title:'Design crit',  start:'2026-05-13T14:00', end:'2026-05-13T15:30' });
+    el.calendarApi.addEvent({ id:'d', title:'1:1 Alex',     start:'2026-05-19T11:00', end:'2026-05-19T11:30' });
+    el.calendarApi.addEvent({ id:'e', title:'Offsite',      start:'2026-05-20', end:'2026-05-23', allDay:true, backgroundColor:'#10b981' });
+    el.calendarApi.addEvent({ id:'f', title:'Release',      start:'2026-05-28T17:00', end:'2026-05-28T18:00', backgroundColor:'#dc2626' });
+    el.calendarApi.addEvent({ id:'g', title:'Demo day',     start:'2026-05-15T15:00', end:'2026-05-15T16:00', backgroundColor:'#9333ea' });
+  </script>
+</body>
+</html>
