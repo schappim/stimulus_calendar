@@ -35,13 +35,6 @@ export function renderResourceTimeGridView(container, state) {
     const root = createElement('div', `${theme.grid} ec-resource ec-time-grid`, '', [
       ['data-grid', 'resource-time-grid'],
     ]);
-    // Drive every child grid (header, body's .ec-days) off the SAME column
-    // count — (days × resources) — so the resource-header cells line up
-    // with their day columns below. The header's CSS grid-template-columns
-    // falls back to 7 when --ec-cols is unset; without this, a 1-day × 5-
-    // resource board renders the header as 7 equal slots filled with 5
-    // cells, while the body renders 5 equal day columns — misaligned.
-    root.style.setProperty('--ec-cols', String(days.length * visibleResources.length));
 
     // Header: resource columns per day (or days then resources if
     // datesAboveResources is true).
@@ -124,6 +117,7 @@ export function renderResourceTimeGridView(container, state) {
         // lands at lane 0.
         const laneEvents = dayEvents.filter((e) => e.display !== 'background');
         const laneMap = assignOverlapLanes(laneEvents);
+        const LANE_OFFSET_PX = 16;
         const minutesPerSlot = totalSeconds(options.slotDuration) / 60;
         const slotMinMin = totalSeconds(slotTimeLimits.min) / 60;
         const pxPerMin = options.slotHeight / minutesPerSlot;
@@ -169,26 +163,15 @@ export function renderResourceTimeGridView(container, state) {
           const chip = createElement('div', theme.event, '', [
             ['data-event-id', event.id],
           ]);
-          const laneInfo = laneMap.get(event) ?? { lane: 0, cluster: { laneCount: 1 } };
-          const lane = laneInfo.lane;
-          const laneCount = Math.max(laneInfo.cluster?.laneCount ?? 1, 1);
+          const lane = laneMap.get(event) ?? 0;
           chip.style.position = 'absolute';
           chip.style.top = `${startMin * pxPerMin}px`;
           const chipHeightPx = Math.max((endMin - startMin) * pxPerMin, 12);
           chip.style.height = `${chipHeightPx}px`;
           if (chipHeightPx < 36) chip.classList.add('ec-event-compact');
-          // Lane-fraction layout (see time_grid.js for rationale).
-          if (laneCount === 1) {
-            chip.style.left = '0';
-            chip.style.right = '0';
-            chip.style.width = '';
-          } else {
-            const widthPct = 100 / laneCount;
-            chip.style.left = `calc(${lane * widthPct}% + ${lane * 3}px)`;
-            chip.style.width = `calc(${widthPct}% - 6px)`;
-            chip.style.right = 'auto';
-            chip.style.zIndex = String(lane + 1);
-          }
+          chip.style.left = lane === 0 ? '0' : `${lane * LANE_OFFSET_PX}px`;
+          chip.style.right = '0';
+          if (lane > 0) chip.style.zIndex = String(lane + 1);
           const eventColor = event.backgroundColor ?? resource.eventBackgroundColor;
           if (eventColor) chip.style.setProperty('--ec-event-color', eventColor);
           chip.append(createElement('div', theme.eventTitle, event.title || ''));
