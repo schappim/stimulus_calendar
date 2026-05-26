@@ -7,6 +7,7 @@ import { createElement } from '../lib/dom.js';
 import { cloneDate, addDay, setMidnight, datesEqual, toISOString, addDuration } from '../lib/date.js';
 import { createSlots, createSlotTimeLimits } from '../lib/slots.js';
 import { viewDates as viewDatesHelper } from '../lib/derived.js';
+import { assignOverlapLanes } from '../lib/events.js';
 
 export function renderTimeGridView(container, state) {
   // Persist user-scrolled vertical offset across re-renders so that
@@ -199,19 +200,34 @@ export function renderTimeGridView(container, state) {
       // Event overlay (absolute-positioned).
       const overlay = createElement('div', 'ec-event-overlay');
       const dayEvents = eventsOnDay(filtered, day).filter((e) => !e.allDay);
+      // Pre-compute each event's day-clipped [visStart, visEnd) window and
+      // assign overlap lanes so simultaneously-running events render as a
+      // staircase — the back chip stays clickable on its exposed left
+      // strip instead of being entirely covered by the front chip.
+      const dayMidShared = setMidnight(cloneDate(day));
+      const nextDayMidShared = cloneDate(dayMidShared); addDay(nextDayMidShared);
+      const eventBounds = new Map();
+      for (const e of dayEvents) {
+        const startsBefore = e.start < dayMidShared;
+        const endsAfter = e.end > nextDayMidShared;
+        eventBounds.set(e, {
+          visStart: startsBefore ? dayMidShared : e.start,
+          visEnd:   endsAfter    ? nextDayMidShared : e.end,
+          startsBefore, endsAfter,
+        });
+      }
+      const laneWrappers = dayEvents.map((e) => ({
+        start: eventBounds.get(e).visStart,
+        end:   eventBounds.get(e).visEnd,
+        event: e,
+      }));
+      const laneMap = assignOverlapLanes(laneWrappers);
+      const laneByEvent = new Map();
+      for (const w of laneWrappers) laneByEvent.set(w.event, laneMap.get(w));
+      const LANE_OFFSET_PX = 16;
       for (const event of dayEvents) {
-        // Clamp the event window to THIS day so the chip's top/height
-        // reflect the portion of the event that lives on this column —
-        // not the raw event.start which might be hours past midnight on
-        // a previous day. Without clamping, a Mon 11pm → Tue 11am event
-        // showed as a 12px sliver near 11pm on BOTH columns instead of
-        // 11pm-midnight on Monday and midnight-11am on Tuesday.
-        const dayMid = setMidnight(cloneDate(day));
-        const nextDayMid = cloneDate(dayMid); addDay(nextDayMid);
-        const startsBefore = event.start < dayMid;
-        const endsAfter = event.end > nextDayMid;
-        const visStart = startsBefore ? dayMid : event.start;
-        const visEnd = endsAfter ? nextDayMid : event.end;
+        const bounds = eventBounds.get(event);
+        const { visStart, visEnd, startsBefore, endsAfter } = bounds;
 
         const classes = [theme.event];
         if (startsBefore) classes.push('ec-event-continues-from');
@@ -223,16 +239,22 @@ export function renderTimeGridView(container, state) {
         ]);
         const minutesPerSlot = (totalSeconds(options.slotDuration) / 60);
         const slotMinMin = totalSeconds(slotTimeLimits.min) / 60;
-        const startMin = ((visStart.getTime() - dayMid.getTime()) / 60_000) - slotMinMin;
-        const endMin = ((visEnd.getTime() - dayMid.getTime()) / 60_000) - slotMinMin;
+        const startMin = ((visStart.getTime() - dayMidShared.getTime()) / 60_000) - slotMinMin;
+        const endMin = ((visEnd.getTime() - dayMidShared.getTime()) / 60_000) - slotMinMin;
         const pxPerMin = options.slotHeight / minutesPerSlot;
+        const lane = laneByEvent.get(event) ?? 0;
         chip.style.position = 'absolute';
         chip.style.top = `${startMin * pxPerMin}px`;
         chip.style.height = `${Math.max((endMin - startMin) * pxPerMin, 12)}px`;
-        chip.style.left = '0';
+        chip.style.left = lane === 0 ? '0' : `${lane * LANE_OFFSET_PX}px`;
         chip.style.right = '0';
-        if (event.backgroundColor) chip.style.backgroundColor = event.backgroundColor;
+        if (lane > 0) chip.style.zIndex = String(lane + 1);
+        if (event.backgroundColor) chip.style.setProperty('--ec-event-color', event.backgroundColor);
         chip.append(createElement('div', theme.eventTitle, event.title || ''));
+        const timeEl = createElement('div', theme.eventTime ?? 'ec-event-time');
+        timeEl.innerHTML = CLOCK_ICON_SVG;
+        timeEl.append(document.createTextNode(formatEventTimeRange(visStart, visEnd, options)));
+        chip.append(timeEl);
         // Resize handle (bottom edge). Surfaces only when the user has
         // opted in via options.editable (and eventDurationEditable hasn't
         // been turned off). The Interaction plugin's pointerdown handler
@@ -358,3 +380,36 @@ function computePeriodicity(slotLabelInterval, slotDuration) {
     totalSeconds(slotLabelInterval) / totalSeconds(slotDuration),
   ));
 }
+
+// Apple-iCal-style compact range: "3 – 5:30PM" (shared period collapses),
+// or a single time when start == end. Falls back to the configured
+// eventTimeFormat for the per-part rendering so users can still override
+// hour/minute/period style via options.
+export function formatEventTimeRange(start, end, options) {
+  const fmt = options?.eventTimeFormat || { hour: 'numeric', minute: '2-digit' };
+  const intl = new Intl.DateTimeFormat(options?.locale, fmt);
+  if (!end || start.getTime() === end.getTime()) return intl.format(start);
+  const startParts = intl.formatToParts(start);
+  const endParts = intl.formatToParts(end);
+  const startPeriod = startParts.find((p) => p.type === 'dayPeriod')?.value;
+  const endPeriod   = endParts.find((p) => p.type === 'dayPeriod')?.value;
+  const startNoMin = start.getMinutes() === 0;
+  const endNoMin   = end.getMinutes() === 0;
+  const renderSide = (parts, dropPeriod, dropMinutes) => parts
+    .filter((p) => !(dropPeriod && p.type === 'dayPeriod'))
+    .filter((p) => !(dropPeriod && p.type === 'literal' && p.value.trim() === '' && p === parts[parts.length - 1]))
+    .filter((p, i, arr) => {
+      if (!dropMinutes) return true;
+      // Drop the ":mm" tail when minutes == 0 — keep the bare hour.
+      if (p.type === 'minute') return false;
+      if (p.type === 'literal' && p.value === ':') return false;
+      return true;
+    })
+    .map((p) => p.value).join('');
+  const samePeriod = startPeriod && endPeriod && startPeriod === endPeriod;
+  const left  = renderSide(startParts, samePeriod, startNoMin);
+  const right = renderSide(endParts,   false,      endNoMin);
+  return `${left.trim()} – ${right.trim()}`;
+}
+
+const CLOCK_ICON_SVG = `<svg class="ec-clock-icon" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.5"/><path d="M6 3.5 V6 L7.7 7" stroke-linecap="round"/></svg>`;

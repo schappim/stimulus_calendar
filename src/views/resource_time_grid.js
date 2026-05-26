@@ -7,6 +7,8 @@ import { createElement } from '../lib/dom.js';
 import { cloneDate, addDay, setMidnight, datesEqual } from '../lib/date.js';
 import { createSlots, createSlotTimeLimits } from '../lib/slots.js';
 import { viewDates as viewDatesHelper } from '../lib/derived.js';
+import { assignOverlapLanes } from '../lib/events.js';
+import { formatEventTimeRange } from './time_grid.js';
 
 export function renderResourceTimeGridView(container, state) {
   const render = () => {
@@ -108,6 +110,11 @@ export function renderResourceTimeGridView(container, state) {
           e.start < nextDay && e.end > day &&
           (e.resourceIds.length === 0 || e.resourceIds.includes(resource.id))
         );
+        // Stagger overlapping events into staircase lanes so the chip
+        // behind keeps a clickable left strip when a later event paints
+        // on top.
+        const laneMap = assignOverlapLanes(dayEvents);
+        const LANE_OFFSET_PX = 16;
         for (const event of dayEvents) {
           const chip = createElement('div', theme.event, '', [
             ['data-event-id', event.id],
@@ -117,15 +124,20 @@ export function renderResourceTimeGridView(container, state) {
           const startMin = minsSinceMidnight(event.start) - slotMinMin;
           const endMin = minsSinceMidnight(event.end) - slotMinMin;
           const pxPerMin = options.slotHeight / minutesPerSlot;
+          const lane = laneMap.get(event) ?? 0;
           chip.style.position = 'absolute';
           chip.style.top = `${startMin * pxPerMin}px`;
           chip.style.height = `${Math.max((endMin - startMin) * pxPerMin, 12)}px`;
-          chip.style.left = '0';
+          chip.style.left = lane === 0 ? '0' : `${lane * LANE_OFFSET_PX}px`;
           chip.style.right = '0';
-          if (event.backgroundColor || resource.eventBackgroundColor) {
-            chip.style.backgroundColor = event.backgroundColor ?? resource.eventBackgroundColor;
-          }
+          if (lane > 0) chip.style.zIndex = String(lane + 1);
+          const eventColor = event.backgroundColor ?? resource.eventBackgroundColor;
+          if (eventColor) chip.style.setProperty('--ec-event-color', eventColor);
           chip.append(createElement('div', theme.eventTitle, event.title || ''));
+          const timeEl = createElement('div', theme.eventTime ?? 'ec-event-time');
+          timeEl.innerHTML = `<svg class="ec-clock-icon" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.5"/><path d="M6 3.5 V6 L7.7 7" stroke-linecap="round"/></svg>`;
+          timeEl.append(document.createTextNode(formatEventTimeRange(event.start, event.end, options)));
+          chip.append(timeEl);
           const fire = state.get('fire');
           chip.addEventListener('click',     (jsEvent) => fire?.('eventClick',      { event, jsEvent, view: state.get('view'), resource }));
           chip.addEventListener('dblclick',  (jsEvent) => fire?.('eventDoubleClick',{ event, jsEvent, view: state.get('view'), resource, el: chip }));

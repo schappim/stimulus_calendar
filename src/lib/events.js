@@ -92,6 +92,32 @@ export function runReposition(refs, data) {
   for (const ref of refs) ref?.reposition();
 }
 
+// Pack a set of time-bounded items into vertical lanes so overlapping
+// items get a distinct lane index. Items in the same lane never overlap
+// in time; the lane numbers are reused once an item ends.
+//
+// `items` is an array of `{ start, end, ... }`. Returns a Map<item, lane>
+// where lane >= 0. Used by the time-grid views to offset overlapping
+// event chips into a staircase so each chip's left edge stays clickable
+// even when a later event is painted on top.
+export function assignOverlapLanes(items) {
+  const sorted = [...items].sort((a, b) => {
+    const sa = a.start.getTime(), sb = b.start.getTime();
+    if (sa !== sb) return sa - sb;
+    return b.end.getTime() - a.end.getTime();
+  });
+  const laneEnds = [];
+  const result = new Map();
+  for (const item of sorted) {
+    const startMs = item.start.getTime();
+    let lane = laneEnds.findIndex((end) => end <= startMs);
+    if (lane === -1) { lane = laneEnds.length; laneEnds.push(item.end.getTime()); }
+    else { laneEnds[lane] = item.end.getTime(); }
+    result.set(item, lane);
+  }
+  return result;
+}
+
 // Does event intersect a [start, end) window, optionally scoped to a
 // resource?
 export function eventIntersects(event, start, end, resource = undefined) {
