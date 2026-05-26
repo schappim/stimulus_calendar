@@ -276,7 +276,13 @@
  * rules below intentionally do NOT re-declare --ec-event-accent.
  * ----------------------------------------------------------------------- */
 
-.ec-event                      { --ec-event-accent: var(--ec-event-color, var(--ec-event-bg-color)); }
+.ec-event {
+  --ec-event-accent: var(--ec-event-color, var(--ec-event-bg-color));
+  /* Title text takes a darker shade of the accent for legible-yet-tinted
+   * type. Overrides the fixed --ec-event-title-color (#1c1917) set on .ec
+   * for this chip and its descendants. */
+  --ec-event-title-color: color-mix(in srgb, var(--ec-event-accent) 70%, black);
+}
 .ec-event.ec-appt-job          { --ec-event-accent: #d97706; }
 .ec-event.ec-appt-quote-visit  { --ec-event-accent: #4f46e5; }
 .ec-event.ec-appt-site-visit   { --ec-event-accent: #7c3aed; }
