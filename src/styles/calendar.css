@@ -1381,13 +1381,32 @@ body.ec-resizing-active * {
   box-shadow: inset 0 0 0 2px var(--ec-active-bg-color);
 }
 
-/* Event chip selected by a single click — fill with the accent colour
- * that normally only paints the left border, and flip text to white so
- * it stays readable on the saturated background. */
+/* Event chip selected by a single click — fill with the accent colour,
+ * stroke with the same accent, and flip every text/dot/tag to white so
+ * the saturated background reads cleanly across every view. */
 .ec-event.ec-event-selected {
-  background: var(--ec-event-color);
+  --ec-event-title-color: #ffffff;
+  background: var(--ec-event-accent);
+  border-color: var(--ec-event-accent);
   color: #ffffff;
-  box-shadow: 0 0 0 2px var(--ec-event-color);
+}
+
+.ec-event.ec-event-selected .ec-event-title,
+.ec-event.ec-event-selected .ec-event-time {
+  color: #ffffff;
+}
+
+.ec-event.ec-event-selected .ec-event-dot,
+.ec-event.ec-event-selected .ec-event-tag {
+  background: #ffffff;
+}
+
+/* The time-grid chip's inset accent strip would otherwise blend into
+ * the now-accent background — flip it white so the chip's left edge
+ * still reads as a distinct highlight. */
+.ec-time-grid .ec-event.ec-event-selected::before {
+  background: #ffffff;
+  opacity: 0.9;
 }
 
 .ec-month-scroller-cell.ec-today .ec-day-number {
