@@ -566,7 +566,7 @@
 .ec-time-grid .ec-event::before {
   content: "";
   position: absolute;
-  left: 5px;
+  left: 3.5px;
   top: 5px;
   bottom: 5px;
   width: 3px;
