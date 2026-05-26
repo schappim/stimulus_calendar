@@ -268,16 +268,18 @@ export default class CalendarController extends Controller {
   }
 
   _installEffectsPipeline() {
-    // nowAndTodayEffect installs a setInterval that's only needed once the
-    // TimeGrid / nowIndicator views actually consume `state.now`. It gets
-    // wired in by those views (Phase 6+) rather than here, so the bare
-    // controller stays fast and side-effect-free.
+    // nowAndTodayEffect ticks state.now / state.today once a second and
+    // re-anchors when the offset changes. The TimeGrid now-indicator
+    // subscribes to state.now to move its top live (otherwise the line
+    // is frozen at whichever clock value the last render captured, even
+    // as wall-clock minutes advance).
     const uninstall = installEffects(this._state, [
       switchViewEffect(this._setViewOptions),
       datesSetEffect(),
       viewDidMountEffect(),
       eventAllUpdatedEffect(),
       timeZoneChangeEffect((k, v) => this.setOption(k, v)),
+      nowAndTodayEffect(),
     ]);
     this._teardowns.push(uninstall);
   }
