@@ -1122,6 +1122,30 @@
 
 .ec-event.ec-resizing-y { opacity: 0.85; }
 
+/* Suppress every "long-press / touch-hold" affordance the browser ships
+ * by default — they all compete with the calendar's own long-press
+ * drag and resize gestures:
+ *   - iOS Safari's contextual menu (Copy / Look up / Share)
+ *   - iOS Safari's selection magnifier loupe — which on `user-select:
+ *     none` elements renders as a large translucent dark circle
+ *   - HTML5 "drag lift" — the cloned-tile ghost iOS overlays during a
+ *     touch-and-hold
+ *   - Android Chrome's tap highlight + selection menu
+ *   - Desktop right-click context menu on event chips (the popover is
+ *     our intentional surface; OS menus would shadow it)
+ *
+ * The Interaction plugin also catches `contextmenu` + `dragstart` on
+ * chips at the JS layer — these CSS properties cover browsers that
+ * skip the JS event, the rules are no-ops on browsers that don't
+ * recognize the prefixed properties. */
+.ec-event,
+.ec-event * {
+  -webkit-touch-callout: none;
+  -webkit-user-drag: none;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
 /* When the user is dragging or resizing, prevent the browser from
  * fighting the pointer with scroll/select gestures. */
 body.ec-dragging,

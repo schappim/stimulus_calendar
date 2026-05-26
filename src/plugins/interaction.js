@@ -846,9 +846,27 @@ function attachEventDragHandler(rootEl, state) {
     badge.textContent = n > 0 ? `+${n} ${noun}` : `−${abs} ${noun}`;
   }
 
+  // Swallow the OS-level long-press menus / native HTML5 drag previews
+  // that compete with our own long-press-to-edit gesture. We catch both
+  // events on the rootEl so host apps can still right-click / drag
+  // OUTSIDE the calendar normally; only chips inside the calendar root
+  // are intercepted. Capture phase + non-passive so browsers that fire
+  // these before bubbling still see the preventDefault. iOS Safari
+  // additionally honors the -webkit-touch-callout / -webkit-user-drag
+  // CSS rules (see calendar.css) for the visual side of the same
+  // suppression.
+  const onContextMenuCapture = (jsEvent) => {
+    if (jsEvent.target.closest?.('[data-event-id]')) jsEvent.preventDefault();
+  };
+  const onDragStartCapture = (jsEvent) => {
+    if (jsEvent.target.closest?.('[data-event-id]')) jsEvent.preventDefault();
+  };
+
   rootEl.addEventListener('pointerdown', onPointerDown);
   rootEl.addEventListener('touchstart', onTouchStartCapture, { passive: false, capture: true });
   rootEl.addEventListener('click', onClickCapture, true);
+  rootEl.addEventListener('contextmenu', onContextMenuCapture, true);
+  rootEl.addEventListener('dragstart', onDragStartCapture, true);
   document.addEventListener('pointermove', onPointerMove, { passive: false });
   document.addEventListener('pointerup',   onPointerUp);
   document.addEventListener('pointercancel', onPointerUp);
@@ -857,6 +875,8 @@ function attachEventDragHandler(rootEl, state) {
     rootEl.removeEventListener('pointerdown', onPointerDown);
     rootEl.removeEventListener('touchstart', onTouchStartCapture, true);
     rootEl.removeEventListener('click', onClickCapture, true);
+    rootEl.removeEventListener('contextmenu', onContextMenuCapture, true);
+    rootEl.removeEventListener('dragstart', onDragStartCapture, true);
     document.removeEventListener('pointermove', onPointerMove);
     document.removeEventListener('pointerup',   onPointerUp);
     document.removeEventListener('pointercancel', onPointerUp);
