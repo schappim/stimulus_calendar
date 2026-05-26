@@ -15,7 +15,7 @@
       display: flex; gap: 0.25rem; margin-bottom: 0.75rem;
       align-items: center;
     }
-    .window-chrome span { width: 10px; height: 10px; border-radius: 50%; }
+    .window-chrome span.dot { width: 10px; height: 10px; border-radius: 50%; }
     .window-chrome span.red { background: #ef4444; }
     .window-chrome span.yel { background: #f59e0b; }
     .window-chrome span.grn { background: #10b981; }
@@ -38,48 +38,61 @@
       0%, 100% { box-shadow: 0 0 0 3px #d1fae5; }
       50%      { box-shadow: 0 0 0 5px rgba(16, 185, 129, 0.15); }
     }
+    .log {
+      margin-top: 0.75rem; padding: 0.5rem 0.75rem; background: #f8fafc;
+      border: 1px solid #e2e8f0; border-radius: 6px;
+      font: 0.75rem/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+      max-height: 96px; overflow-y: auto; color: #334155;
+    }
+    .log .out { color: #1d4ed8; }
+    .log .in  { color: #047857; }
+    .log .none { color: #94a3b8; font-style: italic; }
   </style>
 </head>
 <body>
   <h1>Live multi-user sync</h1>
-  <p>Two browser windows subscribed to the same broadcast channel. A drag in one window appears
-     in the other within ~50&nbsp;ms.</p>
+  <p>Two calendars subscribed to the same <code>BroadcastChannel</code>.
+     Drag any event in either window — the other window receives the update
+     via the broadcast bus and re-renders in place. Open this page in a
+     second browser tab on the same origin and the sync works there too.</p>
 
   <div class="windows">
     <div class="window">
       <div class="window-chrome">
-        <span class="red"></span><span class="yel"></span><span class="grn"></span>
-        <b>Alex — Chrome</b>
+        <span class="dot red"></span><span class="dot yel"></span><span class="dot grn"></span>
+        <b>Alex</b>
         <span class="live-badge">live</span>
       </div>
       <div id="cal-a"
            data-controller="calendar"
-           data-calendar-plugins-value='["TimeGrid"]'
+           data-calendar-plugins-value='["TimeGrid","Interaction"]'
            data-calendar-view-value="timeGridWeek"
            data-calendar-date-value="2026-05-25"
-           data-calendar-options-value='{"scrollTime":"08:00:00"}'
+           data-calendar-options-value='{"scrollTime":"08:00:00","editable":true,"eventDurationEditable":true,"snapDuration":"00:15:00"}'
            data-calendar-broadcast-value="broadcast-channel"
            data-calendar-broadcast-channel-value="demo-events"
            data-calendar-header-toolbar-value='{"start":"today","center":"title","end":"prev,next"}'>
       </div>
+      <div class="log" id="log-a"><span class="none">no traffic yet — drag an event to publish</span></div>
     </div>
 
     <div class="window">
       <div class="window-chrome">
-        <span class="red"></span><span class="yel"></span><span class="grn"></span>
-        <b>Sam — Firefox</b>
+        <span class="dot red"></span><span class="dot yel"></span><span class="dot grn"></span>
+        <b>Sam</b>
         <span class="live-badge">live</span>
       </div>
       <div id="cal-b"
            data-controller="calendar"
-           data-calendar-plugins-value='["TimeGrid"]'
+           data-calendar-plugins-value='["TimeGrid","Interaction"]'
            data-calendar-view-value="timeGridWeek"
            data-calendar-date-value="2026-05-25"
-           data-calendar-options-value='{"scrollTime":"08:00:00"}'
+           data-calendar-options-value='{"scrollTime":"08:00:00","editable":true,"eventDurationEditable":true,"snapDuration":"00:15:00"}'
            data-calendar-broadcast-value="broadcast-channel"
            data-calendar-broadcast-channel-value="demo-events"
            data-calendar-header-toolbar-value='{"start":"today","center":"title","end":"prev,next"}'>
       </div>
+      <div class="log" id="log-b"><span class="none">no traffic yet — drag an event to publish</span></div>
     </div>
   </div>
 
@@ -91,41 +104,41 @@
     await new Promise((r) => setTimeout(r, 100));
     const a = document.getElementById('cal-a');
     const b = document.getElementById('cal-b');
-    // Seed both windows with the same starting state.
-    for (const el of [a, b]) {
-      el.calendarApi.addEvent({ id:'1', title:'Standup',     start:'2026-05-25T09:00', end:'2026-05-25T09:30' });
-      el.calendarApi.addEvent({ id:'2', title:'Design crit', start:'2026-05-26T14:00', end:'2026-05-26T15:30' });
-      el.calendarApi.addEvent({ id:'3', title:'1:1 Alex',    start:'2026-05-27T11:00', end:'2026-05-27T11:30' });
-    }
-    // Expose mutation helpers so the GIF-capture script can drive the demo
-    // frame-by-frame. The default behaviour — when no script drives it — is
-    // a loop that moves Design crit between two slots so the page itself
-    // shows the live sync without external help.
-    window.demo = {
-      a, b,
-      moveDesignCritLate() {
-        a.calendarApi.updateEvent({ id:'2', title:'Design crit', start:'2026-05-28T10:00', end:'2026-05-28T11:30' });
-      },
-      moveDesignCritOriginal() {
-        a.calendarApi.updateEvent({ id:'2', title:'Design crit', start:'2026-05-26T14:00', end:'2026-05-26T15:30' });
-      },
+
+    // Seed both windows with the same starting state. Each addEvent fires
+    // its own broadcast, but the bus's filter is irrelevant here because
+    // both calendars carry the same seed — they'd settle on identical
+    // state regardless of message ordering.
+    const seed = [
+      { id:'1', title:'Standup',     start:'2026-05-25T09:00', end:'2026-05-25T09:30' },
+      { id:'2', title:'Design crit', start:'2026-05-26T14:00', end:'2026-05-26T15:30', backgroundColor:'#dc2626' },
+      { id:'3', title:'1:1 Alex',    start:'2026-05-27T11:00', end:'2026-05-27T11:30' },
+      { id:'4', title:'Lunch & learn', start:'2026-05-28T12:00', end:'2026-05-28T13:00', backgroundColor:'#16a34a' },
+      { id:'5', title:'Release',     start:'2026-05-29T17:00', end:'2026-05-29T18:00', backgroundColor:'#9333ea' },
+    ];
+    for (const el of [a, b]) for (const ev of seed) el.calendarApi.addEvent(ev);
+
+    // Tail the broadcast traffic per-window so the demo visibly proves the
+    // sync rather than relying on the user to spot the chip move.
+    const tail = (logEl, kind, msg) => {
+      const placeholder = logEl.querySelector('.none');
+      if (placeholder) placeholder.remove();
+      const line = document.createElement('div');
+      line.className = kind;
+      const stamp = new Date().toLocaleTimeString([], { hour12: false });
+      const op = msg.op ?? '?';
+      const id = msg.event?.id ?? '';
+      const start = msg.event?.start ?? '';
+      line.textContent = `${stamp}  ${kind === 'out' ? '→' : '←'} ${op} #${id} ${start}`;
+      logEl.prepend(line);
+      while (logEl.childElementCount > 12) logEl.lastElementChild.remove();
     };
-    if (!window.__SCREENSHOT__) {
-      // Auto-loop for live viewers.
-      const loop = async () => {
-        while (document.body.isConnected) {
-          await new Promise((r) => setTimeout(r, 1400));
-          window.demo.moveDesignCritLate();
-          await new Promise((r) => setTimeout(r, 1400));
-          window.demo.moveDesignCritOriginal();
-        }
-      };
-      loop();
-    } else {
-      // GIF script: leave the calendar at the initial state and let the
-      // capturer step through frames via window.demo.*
-      await new Promise((r) => setTimeout(r, 80));
-    }
+    const wire = (el, logEl) => {
+      el.addEventListener('calendar:broadcast:out', (e) => tail(logEl, 'out', e.detail.message));
+      el.addEventListener('calendar:broadcast:in',  (e) => tail(logEl, 'in',  e.detail.message));
+    };
+    wire(a, document.getElementById('log-a'));
+    wire(b, document.getElementById('log-b'));
   </script>
 </body>
 </html>
