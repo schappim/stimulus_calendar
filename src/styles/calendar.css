@@ -391,17 +391,28 @@
  * transform that keeps the hour gutter pinned while the day columns
  * slide). Splitting the body into a clip-path-clipped rail (Y only) +
  * a separate cols-scroll (Y only, X hidden) keeps each axis under our
- * control without breaking either. */
+ * control without breaking either.
+ *
+ * Layout is flex (not grid). A nested flex parent above (each level of
+ * the demo's mobile shell does `flex: 1 1 0`) leaves the body's height
+ * "indefinite from flex" — grid's `1fr` rows resolve to `auto` in that
+ * mode, so the body would grow to fit its 24-hour content (~2688px)
+ * instead of capping at the available viewport height, and the inner
+ * scroll container would have nothing to scroll. With flex on the body
+ * + `min-height: 0` + `align-items: stretch` (default), the inner items
+ * inherit the body's flex-derived height and the cols-scroll's
+ * overflow:auto kicks in normally. */
 .ec-time-grid [data-row="body"] {
-  display: grid;
-  grid-template-columns: var(--ec-sidebar-width) 1fr;
-  grid-template-rows: minmax(0, 1fr);
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  min-height: 0;
   max-height: 540px;
 }
 
 .ec-time-grid .ec-sidebar-rail {
   position: relative;
-  height: 100%;
+  flex: 0 0 var(--ec-sidebar-width);
   /* clip-path clips top/bottom but leaves left/right unbounded so the
    * swipe counter-translate isn't cropped. overflow:hidden would clip
    * X too. The -100vw insets keep the X-clip well off-screen for any
@@ -422,10 +433,13 @@
 }
 
 .ec-time-grid .ec-cols-scroll {
-  height: 100%;
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 
 .ec-time-grid .ec-sidebar {
