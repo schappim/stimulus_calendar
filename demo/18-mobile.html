@@ -1,0 +1,1059 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <!-- viewport-fit=cover lets us read env(safe-area-inset-*) on notched iOS;
+       maximum-scale=1 blocks the iOS Safari pinch-zoom *and* double-tap-zoom
+       so the calendar's own swipe / tap-to-edit gestures own every gesture. -->
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#ffffff">
+  <title>stimulus_calendar — mobile-optimised</title>
+  <link rel="stylesheet" href="../src/styles/calendar.css">
+  <style>
+    :root {
+      color-scheme: light;
+      --safe-top:    env(safe-area-inset-top,    0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+      --safe-left:   env(safe-area-inset-left,   0px);
+      --safe-right:  env(safe-area-inset-right,  0px);
+      --accent: #2563eb;
+      --accent-soft: #eff6ff;
+      --ink: #0f172a;
+      --muted: #64748b;
+      --line: #e2e8f0;
+      --bg: #f1f5f9;
+    }
+
+    /* App shell: pin to the viewport, no body scroll — the calendar's
+       inner time-grid body is what scrolls. `100dvh` follows the dynamic
+       viewport so iOS Safari's collapsing URL bar doesn't leave a stripe
+       of empty space at the bottom. */
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text",
+                   "Segoe UI", system-ui, sans-serif;
+      -webkit-text-size-adjust: 100%;
+      /* Stops the whole page rubber-banding when the calendar reaches
+         its scroll edges; the inner time-grid still scrolls normally. */
+      overscroll-behavior: none;
+    }
+
+    .shell {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      height: 100dvh;
+      max-width: 460px;
+      margin: 0 auto;
+      background: #fff;
+      position: relative;
+      /* Faux phone frame for the desktop preview only — vanishes on real
+         phones because there's no room. */
+      box-shadow: 0 0 0 1px var(--line);
+    }
+    @media (min-width: 481px) {
+      body { padding: 24px 0; }
+      .shell {
+        height: calc(100dvh - 48px);
+        border-radius: 28px;
+        overflow: hidden;
+        box-shadow:
+          0 0 0 8px #0f172a,
+          0 0 0 9px #1e293b,
+          0 20px 50px -10px rgba(15, 23, 42, 0.35);
+      }
+    }
+
+    /* -- Top bar --------------------------------------------------- */
+    .topbar {
+      flex: 0 0 auto;
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      gap: 4px;
+      padding-top: calc(8px + var(--safe-top));
+      padding-bottom: 8px;
+      padding-left: calc(8px + var(--safe-left));
+      padding-right: calc(8px + var(--safe-right));
+      background: #fff;
+      border-bottom: 1px solid var(--line);
+      position: relative;
+      z-index: 5;
+    }
+    .topbar .nav-btn {
+      min-width: 44px;
+      min-height: 44px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 0;
+      background: transparent;
+      color: var(--accent);
+      font: inherit;
+      font-size: 17px;
+      font-weight: 500;
+      cursor: pointer;
+      border-radius: 8px;
+      padding: 0 8px;
+    }
+    .topbar .nav-btn:active { background: var(--accent-soft); }
+    .topbar .title {
+      font-size: 17px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: var(--ink);
+      text-align: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .topbar .title .month {
+      color: var(--accent);
+    }
+    .topbar .title .chev {
+      display: inline-block;
+      margin-left: 2px;
+      transform: translateY(-1px);
+      color: var(--accent);
+      font-size: 13px;
+    }
+
+    /* -- Calendar area -------------------------------------------- */
+    .cal-wrap {
+      flex: 1 1 0;
+      min-height: 0;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    #cal {
+      flex: 1 1 0;
+      min-height: 0;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* The controller emits its own toolbar; we render our own at the
+       top of the page, so hide the built-in one. */
+    #cal .ec-toolbar { display: none; }
+
+    /* The .ec root + its inner panes need to stretch to fill the
+       remaining viewport so the time-grid body, not the page, scrolls. */
+    #cal > .ec {
+      flex: 1 1 0;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
+    #cal [data-calendar-slot="view"] {
+      flex: 1 1 0;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
+    #cal .ec-pager {
+      flex: 1 1 0;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
+    /* The pager track sits between .ec-pager and .ec-pager-page-current.
+       Stock CSS leaves it `display: block`, which breaks the flex chain
+       above and collapses every descendant with `flex: 1` to 0 height. */
+    #cal .ec-pager-track {
+      flex: 1 1 0;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
+    #cal .ec-pager-page-current {
+      flex: 1 1 0;
+      min-height: 0;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+    #cal .ec-grid.ec-time-grid {
+      flex: 1 1 0;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      border: 0;
+      border-radius: 0;
+    }
+    /* The day-grid + list views also need to stretch. */
+    #cal .ec-grid.ec-day-grid,
+    #cal .ec-grid.ec-list {
+      flex: 1 1 0;
+      min-height: 0;
+      border: 0;
+      border-radius: 0;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+    }
+    #cal .ec-month-scroller {
+      flex: 1 1 0;
+      min-height: 0;
+      height: auto;
+      border: 0;
+      border-radius: 0;
+    }
+
+    /* TimeGrid body is normally capped at 540px — drop the cap on mobile
+       so it fills the whole vertical space. The actual scroll container
+       is .ec-cols-scroll (a child of the body); putting overflow:auto on
+       the body here would re-clip the sidebar's swipe counter-translate
+       because the CSS spec forces overflow-y:auto to also clip X. Native
+       momentum + contained overscroll go on the scroller itself. */
+    #cal .ec-time-grid [data-row="body"] {
+      max-height: none !important;
+      flex: 1 1 0;
+    }
+    #cal .ec-time-grid .ec-cols-scroll {
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+    }
+
+    /* -- Touch-friendly typography + chips ------------------------ */
+    .ec {
+      --ec-sidebar-width: 56px;
+      font-size: 15px;
+    }
+    /* Bigger event chips with extra padding so a thumb has something
+       to land on. Time/title get a size bump to match. */
+    .ec-time-grid .ec-event {
+      padding: 6px 8px 6px 10px;
+      border-radius: 6px;
+      border-left-width: 4px;
+    }
+    .ec-time-grid .ec-event .ec-event-title { font-size: 13px; font-weight: 600; }
+    .ec-time-grid .ec-event .ec-event-time  { font-size: 11px; }
+
+    /* Fatter resize handle target — the default 10px is awkward for a
+       fingertip; bump it to 22px and protrude further past the chip. */
+    #cal .ec-event .ec-resizer {
+      height: 22px;
+      bottom: -10px;
+    }
+    #cal .ec-event .ec-resizer.ec-resizer-start { top: -10px; bottom: auto; }
+
+    /* "Edit mode" — entered by long-pressing an event on touch. The
+       chip gets an accent ring + two visible circular handles at
+       diagonally opposite corners (top-right = start, bottom-left =
+       end), matching iOS Calendar. The circles are pure visuals; the
+       actual hit targets are the underlying full-width .ec-resizer
+       strips along the top and bottom edges. */
+    #cal .ec-event.ec-event-editing {
+      box-shadow: 0 0 0 2px var(--accent), 0 6px 16px -4px rgba(15, 23, 42, 0.25);
+      z-index: 4;
+    }
+    #cal .ec-event.ec-event-editing::before,
+    #cal .ec-event.ec-event-editing::after {
+      content: "";
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #fff;
+      border: 2px solid var(--accent);
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.25);
+      pointer-events: none;
+      z-index: 5;
+    }
+    /* start handle ⇒ top-right corner */
+    #cal .ec-event.ec-event-editing::before { top: -9px; right: -9px; }
+    /* end handle ⇒ bottom-left corner */
+    #cal .ec-event.ec-event-editing::after  { bottom: -9px; left: -9px; }
+
+    /* Touch-only gate: resize handles are inert until the user enters
+       edit mode via long-press. Desktop (mouse / hover-capable) keeps
+       the default behaviour — drag the bottom edge any time to resize. */
+    @media (hover: none) and (pointer: coarse) {
+      #cal .ec-event .ec-resizer { pointer-events: none; }
+      #cal .ec-event.ec-event-editing .ec-resizer { pointer-events: auto; }
+    }
+
+    /* iOS Safari ships several long-press / touch-hold visual
+       affordances by default — none of which we want competing with
+       the calendar's own gestures:
+         • the contextual-action menu (Copy / Look up / …),
+         • the text-selection magnifier loupe — which renders as a
+           large translucent dark circle when the underlying content
+           has `user-select: none` (no text to magnify),
+         • the HTML-5 "drag lift" preview that grows during a press.
+       These properties suppress all of them. They are no-ops on
+       Chromium / Firefox / desktop Safari. */
+    .ec, .ec *,
+    body.ec-dragging, body.ec-dragging * {
+      -webkit-touch-callout: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .ec-event, .ec-event * { -webkit-user-drag: none; }
+
+    /* Time-axis label sizing — readable on a phone. */
+    .ec-time-grid .ec-sidebar .ec-slot-hour   { font-size: 14px; font-weight: 600; }
+    .ec-time-grid .ec-sidebar .ec-slot-period { font-size: 10px; }
+
+    /* Day-grid month: tighter cells but keep day-numbers readable. */
+    .ec-day-grid .ec-day { min-height: 4.5rem; padding: 4px 4px 2px; }
+    .ec-day-grid .ec-day-number { font-size: 0.85rem; }
+    .ec-day-grid .ec-event { font-size: 0.68rem; padding: 1px 4px; }
+
+    /* Continuous month scroller: bigger cells, bigger today pill. */
+    .ec-month-scroller-row { min-height: 5.25rem; }
+    .ec-month-scroller-cell { padding: 4px 4px 2px; }
+    .ec-month-scroller-cell .ec-day-number { font-size: 0.9rem; }
+    .ec-month-scroller-month-banner { font-size: 1.4rem; }
+
+    /* List view: comfortable rows. */
+    .ec-list .ec-event { padding: 14px 16px; font-size: 15px; grid-template-columns: 12px 90px 1fr; }
+    .ec-list .ec-day-head { padding: 10px 16px; font-size: 14px; }
+
+    /* Tap states for chip selection feel snappier than hover ones. */
+    @media (hover: none) {
+      .ec-button:hover:not(:disabled) {
+        background: var(--ec-button-bg-color);
+        color: var(--ec-button-text-color);
+        border-color: var(--ec-strong-border-color);
+      }
+    }
+
+    /* -- Floating action button ---------------------------------- */
+    .fab {
+      position: absolute;
+      right: calc(16px + var(--safe-right));
+      bottom: 16px;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      border: 0;
+      background: var(--accent);
+      color: #fff;
+      font-size: 30px;
+      line-height: 1;
+      cursor: pointer;
+      box-shadow: 0 6px 16px -2px rgba(37, 99, 235, 0.5),
+                  0 2px 6px rgba(15, 23, 42, 0.1);
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      /* Avoid being intercepted by the pager's pointerdown — the pager
+         already skips buttons via the `button` selector in its target check,
+         but `touch-action: manipulation` removes the 300 ms tap delay. */
+      touch-action: manipulation;
+    }
+    .fab:active { transform: scale(0.95); }
+
+    /* -- Bottom segmented control -------------------------------- */
+    .bottom-bar {
+      flex: 0 0 auto;
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 2px;
+      padding: 6px 6px calc(6px + var(--safe-bottom));
+      padding-left: calc(6px + var(--safe-left));
+      padding-right: calc(6px + var(--safe-right));
+      background: #f8fafc;
+      border-top: 1px solid var(--line);
+    }
+    .bottom-bar button {
+      min-height: 44px;
+      border: 0;
+      background: transparent;
+      font: inherit;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--muted);
+      cursor: pointer;
+      border-radius: 10px;
+      padding: 0 4px;
+      touch-action: manipulation;
+    }
+    .bottom-bar button.active {
+      background: var(--accent);
+      color: #fff;
+      font-weight: 600;
+    }
+    .bottom-bar button:active:not(.active) {
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+
+    /* -- Bottom-sheet for create / edit -------------------------- */
+    .sheet-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.35);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 220ms ease-out;
+      z-index: 99;
+    }
+    .sheet-backdrop.open { opacity: 1; pointer-events: auto; }
+    .sheet {
+      position: fixed;
+      left: 0; right: 0; bottom: 0;
+      margin: 0 auto;
+      max-width: 460px;
+      box-sizing: border-box;
+      background: #fff;
+      border-radius: 18px 18px 0 0;
+      box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.18);
+      padding: 14px 18px calc(18px + var(--safe-bottom));
+      transform: translateY(100%);
+      transition: transform 240ms cubic-bezier(.22, 1, .36, 1);
+      z-index: 100;
+    }
+    .sheet.open { transform: translateY(0); }
+    /* Drag handle pill, purely decorative — communicates "this is a sheet". */
+    .sheet::before {
+      content: "";
+      display: block;
+      width: 36px;
+      height: 4px;
+      border-radius: 2px;
+      background: #cbd5e1;
+      margin: 0 auto 12px;
+    }
+    .sheet h2 {
+      margin: 0 0 12px;
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+    .sheet label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin: 10px 0 4px;
+    }
+    .sheet input, .sheet select {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      font: inherit;
+      /* 16px = iOS Safari won't auto-zoom on focus. */
+      font-size: 16px;
+      background: #fff;
+      color: var(--ink);
+    }
+    .sheet input:focus, .sheet select:focus {
+      outline: 2px solid var(--accent-soft);
+      border-color: var(--accent);
+    }
+    .sheet .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .sheet .actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 18px;
+    }
+    .sheet .actions button {
+      flex: 1;
+      min-height: 48px;
+      border: 0;
+      border-radius: 12px;
+      font: inherit;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+    .sheet .actions .cancel { background: #f1f5f9; color: var(--muted); }
+    .sheet .actions .save   { background: var(--accent); color: #fff; }
+
+    /* The event popover sits above the page (z:60) but the bottom-sheet
+       backdrop is z:99 — re-layer the popover so it stays under an open
+       sheet (a tap on the popover's Edit promotes to a sheet). */
+    .ec-event-popover { z-index: 50; }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <button class="nav-btn" id="todayBtn" aria-label="Jump to today">Today</button>
+      <div class="title" id="title">Today</div>
+      <button class="nav-btn" id="addBtnTop" aria-label="Add event"
+              style="font-size:24px;line-height:1;font-weight:400">+</button>
+    </header>
+
+    <div class="cal-wrap">
+      <!-- The calendar.
+           - `headerToolbar: {}` ⇒ render no built-in toolbar (the page
+              has its own sticky top bar).
+           - `editable` + `eventDurationEditable` ⇒ drag + bottom-edge
+              resize work with a fingertip.
+           - `snapDuration: 00:15:00` ⇒ drops/resizes snap to 15-min
+              grid (slotDuration is 30, slot height is 56px for big
+              hit targets, snap is finer).
+           - `slotHeight: 56` ⇒ 56px per half-hour slot, comfortable
+              tap targets and clearly differentiated chips.
+           - `nowIndicator: true` ⇒ red line + dot for "now" — answers
+              the most common "where am I in the day" question.
+           - `continuousMonthScroll: true` ⇒ iOS Calendar-style
+              continuous month flow instead of paged month grid.
+           - `dayMaxEvents: 3` ⇒ month cells collapse extra events
+              into a "+N more" link (popover opens on tap).
+           - `eventDragMinDistance: 10` ⇒ touch-forgiving drag threshold.
+           - `views.timeGrid3Day` ⇒ custom 3-day TimeGrid view,
+              registered via `type: "timeGridWeek"` + `duration: 3 days`.
+      -->
+      <div id="cal"
+           data-controller="calendar"
+           data-calendar-plugins-value='["DayGrid","TimeGrid","List","Interaction"]'
+           data-calendar-view-value="timeGridDay"
+           data-calendar-options-value='{
+             "editable": true,
+             "eventDurationEditable": true,
+             "eventResizableFromStart": true,
+             "scrollTime": "08:00:00",
+             "nowIndicator": true,
+             "snapDuration": "00:15:00",
+             "slotHeight": 56,
+             "slotDuration": "00:30:00",
+             "headerToolbar": {},
+             "dayMaxEvents": 3,
+             "continuousMonthScroll": true,
+             "eventDragMinDistance": 10,
+             "views": {
+               "timeGrid3Day": {
+                 "type": "timeGridWeek",
+                 "duration": { "days": 3 }
+               }
+             }
+           }'>
+      </div>
+
+      <button class="fab" id="fab" aria-label="Add event">+</button>
+    </div>
+
+    <nav class="bottom-bar" aria-label="View switcher">
+      <button data-view="timeGridDay"   class="active">Day</button>
+      <button data-view="timeGrid3Day">3-Day</button>
+      <button data-view="timeGridWeek">Week</button>
+      <button data-view="dayGridMonth">Month</button>
+      <button data-view="listWeek">Agenda</button>
+    </nav>
+  </div>
+
+  <!-- Bottom-sheet for create + edit. Uses native datetime-local inputs
+       so iOS/Android present their native pickers. -->
+  <div class="sheet-backdrop" id="sheet-backdrop"></div>
+  <section class="sheet" id="sheet" aria-modal="true" role="dialog" aria-labelledby="sheet-title">
+    <h2 id="sheet-title">New event</h2>
+    <label for="ev-title">Title</label>
+    <input type="text" id="ev-title" autocomplete="off" placeholder="Event title">
+
+    <div class="row">
+      <div>
+        <label for="ev-start">Starts</label>
+        <input type="datetime-local" id="ev-start">
+      </div>
+      <div>
+        <label for="ev-end">Ends</label>
+        <input type="datetime-local" id="ev-end">
+      </div>
+    </div>
+
+    <label for="ev-color">Colour</label>
+    <select id="ev-color">
+      <option value="#2563eb">Blue</option>
+      <option value="#16a34a">Green</option>
+      <option value="#dc2626">Red</option>
+      <option value="#9333ea">Purple</option>
+      <option value="#f59e0b">Amber</option>
+      <option value="#0ea5e9">Sky</option>
+    </select>
+
+    <div class="actions">
+      <button class="cancel" id="sheet-cancel" type="button">Cancel</button>
+      <button class="save"   id="sheet-save"   type="button">Save</button>
+    </div>
+  </section>
+
+  <script type="module">
+    import { Application } from '/node_modules/@hotwired/stimulus/dist/stimulus.js';
+    import CalendarController from '/src/controllers/calendar_controller.js';
+
+    const app = Application.start();
+    app.register('calendar', CalendarController);
+    // The Stimulus connect cycle is async — wait one tick so element.calendarApi
+    // exists by the time we reach for it.
+    await new Promise((r) => setTimeout(r, 60));
+
+    const el  = document.getElementById('cal');
+    const api = el.calendarApi;
+    const ctrl = app.getControllerForElementAndIdentifier(el, 'calendar');
+
+    // ----- helpers ----------------------------------------------------
+    const pad = (n) => String(n).padStart(2, '0');
+    // Wall-clock ISO string suitable for the calendar's no-TZ parser
+    // (a trailing Z would be interpreted as UTC and skew by the local
+    // offset; omitting Z keeps the displayed time stable across TZs).
+    const wallClock = (d) =>
+      `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`
+    + `T${pad(d.getHours())}:${pad(d.getMinutes())}:00`;
+    const dayOnly = (d) =>
+      `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+    // datetime-local input wants `YYYY-MM-DDTHH:mm` (no seconds, no Z).
+    const isoLocal = (d) =>
+      `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`
+    + `T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    // Convert a calendar-internal "UTC-mode wall-clock" Date (the
+    // representation used by event.start / event.end / api.dateFromPoint)
+    // into a real-local Date with the same wall-clock components. The
+    // sheet's pickers + the wallClock() emitter both speak local time,
+    // so call this at the boundary whenever you pull a date out of the
+    // calendar.
+    const calToLocal = (d) =>
+      new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(),
+               d.getUTCHours(), d.getUTCMinutes(), d.getUTCSeconds());
+
+    // Belt-and-braces: even with -webkit-user-drag: none, some iOS
+    // builds still let a chip start a native HTML-5 drag (which is
+    // what triggers the giant "lift" preview the system overlays
+    // during a touch-and-hold). Swallow dragstart at the calendar
+    // root before the browser can render the lift preview.
+    document.addEventListener('dragstart', (ev) => {
+      if (ev.target.closest && ev.target.closest('#cal')) ev.preventDefault();
+    }, true);
+
+    // ----- seed events relative to today ----------------------------
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const day = (offset, hh = 0, mm = 0) => {
+      const d = new Date(today);
+      d.setDate(d.getDate() + offset);
+      d.setHours(hh, mm, 0, 0);
+      return wallClock(d);
+    };
+    const dayDate = (offset) => {
+      const d = new Date(today);
+      d.setDate(d.getDate() + offset);
+      return dayOnly(d);
+    };
+
+    [
+      { id:'s1', title:'Standup',          start: day(0,  9),     end: day(0,  9, 30) },
+      { id:'s2', title:'1:1 Alex',          start: day(0, 10),     end: day(0, 11),    backgroundColor:'#9333ea' },
+      { id:'s3', title:'Lunch w/ Sam',      start: day(0, 12),     end: day(0, 13),    backgroundColor:'#16a34a' },
+      { id:'s4', title:'Design crit',       start: day(0, 14),     end: day(0, 15, 30), backgroundColor:'#dc2626' },
+      { id:'s5', title:'Gym',               start: day(0, 17, 30), end: day(0, 18, 30), backgroundColor:'#f59e0b' },
+      { id:'s6', title:'Standup',           start: day(1,  9),     end: day(1,  9, 30) },
+      { id:'s7', title:'Sprint plan',       start: day(1, 11),     end: day(1, 12) },
+      { id:'s8', title:'Coffee w/ Jordan',  start: day(1, 15),     end: day(1, 15, 30), backgroundColor:'#0ea5e9' },
+      { id:'s9', title:'Release',           start: day(2, 17),     end: day(2, 18),    backgroundColor:'#dc2626' },
+      { id:'sA', title:'All-hands',         start: day(4, 14),     end: day(4, 15),    backgroundColor:'#dc2626' },
+      { id:'sB', title:'Offsite',           start: dayDate(6),     end: dayDate(9),    allDay:true, backgroundColor:'#9333ea' },
+    ].forEach((e) => api.addEvent(e));
+
+    // ----- dynamic title (mirrors the active view + date) ----------
+    const titleEl = document.getElementById('title');
+    const renderTitle = () => {
+      const viewName = api.getOption('view');
+      const date = api.getOption('date');
+      if (viewName === 'timeGridDay') {
+        const day  = new Intl.DateTimeFormat(undefined, { weekday: 'long'  }).format(date);
+        const mon  = new Intl.DateTimeFormat(undefined, { month: 'long', day: 'numeric' }).format(date);
+        titleEl.innerHTML = `${day} <span class="month">${mon}</span>`;
+      } else {
+        titleEl.textContent = ctrl._state.get('viewTitle');
+      }
+    };
+    ctrl._state.on('change:viewTitle', renderTitle);
+    ctrl._state.on('change:options',   renderTitle);
+    renderTitle();
+
+    // ----- view switcher (bottom segmented control) ----------------
+    // Preserve the visible time-of-day across Day / 3-Day / Week
+    // switches: read the current TimeGrid body's scrollTop before the
+    // switch, set `scrollTime` to the matching time-of-day so the new
+    // view's first render lands at the same scroll position. (The view
+    // renderer's own savedScrollTop cache is per-mount, so it can't
+    // bridge two different view mounts.)
+    // captureScrollSeconds returns the time-of-day, in seconds, that
+    // corresponds to the TimeGrid body's current scrollTop. Returns
+    // null if no TimeGrid body is mounted (e.g., we're in Month / List).
+    function captureScrollSeconds() {
+      // The TimeGrid scroll container moved from [data-row="body"] to
+      // .ec-cols-scroll so the sidebar (now in .ec-sidebar-rail) can
+      // counter-translate during swipes without being clipped by an
+      // overflow:auto ancestor.
+      const scroller = document.querySelector('#cal .ec-time-grid .ec-cols-scroll')
+        || document.querySelector('#cal .ec-time-grid [data-row="body"]');
+      if (!scroller) return null;
+      const sd = api.getOption('slotDuration');
+      const slotMins = ((sd?.days ?? 0) * 1440) + ((sd?.seconds ?? 1800) / 60) || 30;
+      const smt = api.getOption('slotMinTime');
+      const slotMinSecs = ((smt?.days ?? 0) * 86400) + (smt?.seconds ?? 0);
+      const pxPerMin = (api.getOption('slotHeight') ?? 22) / slotMins;
+      const minutesIntoBody = Math.max(0, Math.round(scroller.scrollTop / pxPerMin));
+      return slotMinSecs + minutesIntoBody * 60;
+    }
+    document.querySelectorAll('.bottom-bar button[data-view]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.bottom-bar button[data-view]')
+          .forEach((b) => b.classList.toggle('active', b === btn));
+        const target = btn.dataset.view;
+        // Capture-on-LEAVE: snapshot the time-of-day before tearing
+        // down whichever TimeGrid view is currently mounted. The
+        // saved scrollTime then persists on options regardless of
+        // what's next (Month, Agenda, or another TimeGrid), so the
+        // round-trip Day → Month → Day restores the same row.
+        //
+        // setOption at runtime SKIPS the option parsers, so the
+        // scrollTime value MUST be a parsed Duration object
+        // ({days, seconds}) — passing the raw "HH:MM:SS" string
+        // would land it on options as a string, the renderer's
+        // totalSeconds() would resolve to NaN, and the body would
+        // start at scrollTop=0.
+        const currentView = api.getOption('view');
+        if (currentView && currentView.startsWith('timeGrid')) {
+          const secs = captureScrollSeconds();
+          if (secs != null) api.setOption('scrollTime', { days: 0, seconds: secs });
+        }
+        api.setOption('view', target);
+      });
+    });
+
+    // ----- Today button --------------------------------------------
+    document.getElementById('todayBtn').addEventListener('click', () => api.today());
+
+    // ----- Scroll the TimeGrid body to (current hour − 1 hour) so the
+    // user lands on "now" instead of 08:00 when they open the demo
+    // at any time of day. ------------------------------------------
+    const nowHr = new Date().getHours();
+    if (nowHr >= 1) {
+      api.setOption('scrollTime', `${pad(Math.max(0, nowHr - 1))}:00:00`);
+    }
+
+    // ----- Tap an event ⇒ open the built-in popover. The default
+    // popover trigger is double-click (suited to desktop). On mobile,
+    // single-tap-to-inspect matches platform conventions. We suppress
+    // the popover in two cases:
+    //   1. a long-press just fired (the chip entered edit mode), so
+    //      releasing the finger shouldn't also pop a popover, AND
+    //   2. a drag-move OR a resize gesture just finished — the
+    //      browser still synthesises `click` on pointerup after a
+    //      pointermove sequence, so we'd otherwise show a popover
+    //      every time the user finishes resizing the bottom edge.
+    let suppressNextPopover = false;
+    let suppressPopoverTimer = null;
+    function suppressPopoverOnce() {
+      suppressNextPopover = true;
+      clearTimeout(suppressPopoverTimer);
+      suppressPopoverTimer = setTimeout(() => {
+        suppressNextPopover = false;
+      }, 400);
+    }
+    // Resize commit / abort and drag-move commit / abort — both end
+    // with a pointerup that the browser may follow with a click.
+    el.addEventListener('calendar:eventResizeStop', suppressPopoverOnce);
+    el.addEventListener('calendar:eventResize',     suppressPopoverOnce);
+    el.addEventListener('calendar:eventDragStop',   suppressPopoverOnce);
+    el.addEventListener('calendar:eventDrop',       suppressPopoverOnce);
+
+    el.addEventListener('calendar:eventClick', (ev) => {
+      if (suppressNextPopover) { suppressNextPopover = false; return; }
+      const { event, el: chip } = ev.detail;
+      api.openEventPopover(event.id, chip);
+    });
+
+    // ----- Long-press handlers ------------------------------------
+    // Two distinct gestures share the long-press affordance on touch:
+    //   - long-press an empty slot ⇒ open the create sheet
+    //   - long-press an existing chip ⇒ enter "edit mode" (visible
+    //     circular handles on the right edge that resize start/end)
+    // Both cancel on pointer movement > LP_MOVE_TOLERANCE or on
+    // pointerup before LP_MS, so a regular tap (popover) and a drag
+    // (move / swipe) still flow through unchanged.
+    const LP_MS = 450;
+    const LP_MOVE_TOLERANCE = 12;
+    let lp = null;
+    function cancelLP() { if (lp) { clearTimeout(lp.timer); lp = null; } }
+
+    function exitEditMode() {
+      document.querySelectorAll('.ec-event.ec-event-editing')
+        .forEach((c) => c.classList.remove('ec-event-editing'));
+    }
+
+    // One CAPTURE-phase pointerdown listener handles everything that
+    // has to run before the calendar's built-in handlers (on rootEl,
+    // bubble phase) see the event:
+    //
+    //   1. Snapshot lastDownX/Y + body scrollTop for the dateClick
+    //      gate that distinguishes scroll/swipe from intentional drag.
+    //   2. Set up the long-press state machine.
+    //   3. Block the calendar's attachEventDragHandler from running
+    //      on a chip touch when the chip is NOT in edit mode — the
+    //      user must long-press first to "lift" the chip into a
+    //      movable state. Without this, every touch on a chip
+    //      becomes a potential drag-move, so trying to scroll the
+    //      time-grid or swipe between days picks up whichever chip
+    //      the finger landed on and drags it. Capture phase is the
+    //      ONLY way to intercept this without modifying calendar
+    //      core: rootEl (where the drag handler lives) is a
+    //      descendant of `el`, so a bubble-phase listener on el
+    //      fires AFTER the drag handler has already engaged.
+    el.addEventListener('pointerdown', (ev) => {
+      // (1) Always — touch and mouse.
+      lastDownX = ev.clientX; lastDownY = ev.clientY;
+      const body = getTimeGridBody();
+      downBodyScrollTop = body ? body.scrollTop : null;
+
+      if (ev.pointerType !== 'touch') return;
+
+      // (2 + 3) Touch only.
+      // Tap on a resize handle starts the existing resize gesture
+      // immediately — don't shadow it with a long-press timer.
+      if (ev.target.closest('.ec-resizer')) return;
+
+      const chip = ev.target.closest('[data-event-id]');
+      const onCell = !!ev.target.closest('[data-date]');
+      const isInteractive = ev.target.closest(
+        '.ec-button, button, input, select, textarea, a, [data-more-link], [data-popover-action]'
+      );
+
+      // Tap anywhere that's not in an editing chip ⇒ exit edit mode.
+      if (!chip || !chip.classList.contains('ec-event-editing')) {
+        exitEditMode();
+      }
+
+      // (3) Block drag-move on a non-edit-mode chip. Chip click
+      // events are a separate event flow (synthesised after
+      // pointerup), so the tap-to-open-popover path still works.
+      if (chip && !chip.classList.contains('ec-event-editing')) {
+        ev.stopPropagation();
+      }
+
+      if (isInteractive) return;
+      if (!chip && !onCell) return;
+
+      const startX = ev.clientX, startY = ev.clientY;
+      lp = {
+        chip, startX, startY,
+        timer: setTimeout(() => {
+          lp = null;
+          // Belt-and-braces: if iOS claimed the touch for vertical
+          // scroll without dispatching a cancel (so my pointermove
+          // tolerance never fired), bail at timer-fire time.
+          if (gestureWasScrollOrSwipe()) return;
+          if (chip) {
+            // CHIP long-press ⇒ enter edit mode (visible handles).
+            suppressNextPopover = true;
+            chip.classList.add('ec-event-editing');
+            if (navigator.vibrate) navigator.vibrate(15);
+          } else {
+            // EMPTY-SLOT long-press ⇒ open the create sheet.
+            const date = api.dateFromPoint(startX, startY);
+            if (!date) return;
+            if (navigator.vibrate) navigator.vibrate(15);
+            const inTimeCol = !!document
+              .elementFromPoint(startX, startY)?.closest('.ec-time-col');
+            const startLocal = calToLocal(date);
+            const endLocal = new Date(startLocal.getTime()
+              + (inTimeCol ? 60 * 60 * 1000 : 24 * 60 * 60 * 1000));
+            openSheet({
+              start: startLocal, end: endLocal,
+              color: palette[counter % palette.length],
+            });
+          }
+        }, LP_MS),
+      };
+    }, true);  // capture — must run before rootEl's drag handler
+
+    el.addEventListener('pointermove', (ev) => {
+      if (!lp) return;
+      if (Math.hypot(ev.clientX - lp.startX, ev.clientY - lp.startY)
+          > LP_MOVE_TOLERANCE) cancelLP();
+    }, { passive: true });
+    el.addEventListener('pointerup',     cancelLP);
+    el.addEventListener('pointercancel', cancelLP);
+
+    // ----- Bottom sheet: create + edit -----------------------------
+    const sheet      = document.getElementById('sheet');
+    const backdrop   = document.getElementById('sheet-backdrop');
+    const sheetTitle = document.getElementById('sheet-title');
+    const inTitle    = document.getElementById('ev-title');
+    const inStart    = document.getElementById('ev-start');
+    const inEnd      = document.getElementById('ev-end');
+    const inColor    = document.getElementById('ev-color');
+
+    // editingId is null for a create flow, or the event id we're editing.
+    let editingId = null;
+
+    // Stamp set when openSheet runs — the backdrop's click-to-close
+    // handler ignores clicks that arrive within this window so the
+    // synthetic `click` from the touch sequence that opened the
+    // sheet (long-press → touchEnd → click on the now-interactive
+    // backdrop) doesn't immediately dismiss it.
+    let lastOpenAt = 0;
+    function openSheet({ id = null, title = '', start, end, color } = {}) {
+      editingId = id;
+      lastOpenAt = Date.now();
+      sheetTitle.textContent = id ? 'Edit event' : 'New event';
+      inTitle.value = title;
+      inStart.value = isoLocal(start ?? new Date());
+      inEnd.value   = isoLocal(end   ?? new Date(Date.now() + 60 * 60 * 1000));
+      if (color) inColor.value = color;
+      sheet.classList.add('open');
+      backdrop.classList.add('open');
+      // Defer focus until the sheet animation has settled, otherwise iOS
+      // sometimes scrolls the page while the sheet is still translating in.
+      setTimeout(() => inTitle.focus(), 250);
+    }
+    function closeSheet() {
+      sheet.classList.remove('open');
+      backdrop.classList.remove('open');
+      editingId = null;
+    }
+    backdrop.addEventListener('click', () => {
+      if (Date.now() - lastOpenAt < 400) return;
+      closeSheet();
+    });
+    document.getElementById('sheet-cancel').addEventListener('click', closeSheet);
+
+    const palette = ['#2563eb', '#16a34a', '#dc2626', '#9333ea', '#f59e0b', '#0ea5e9'];
+    let counter = 100;
+
+    document.getElementById('sheet-save').addEventListener('click', () => {
+      const title = inTitle.value.trim() || 'New event';
+      const start = new Date(inStart.value);
+      const end   = new Date(inEnd.value);
+      if (isNaN(start) || isNaN(end) || end <= start) {
+        inEnd.focus();
+        return;
+      }
+      const payload = {
+        title,
+        start: wallClock(start),
+        end:   wallClock(end),
+        backgroundColor: inColor.value,
+      };
+      if (editingId) {
+        api.updateEvent({ id: editingId, ...payload });
+      } else {
+        api.addEvent({ id: String(++counter), ...payload });
+      }
+      closeSheet();
+    });
+
+    // ----- FAB / top "+" ⇒ open a blank sheet, snapped to "next hour"
+    function openCreateSheet() {
+      const now = new Date();
+      const start = new Date(now);
+      start.setMinutes(0, 0, 0);
+      start.setHours(start.getHours() + 1);
+      const end = new Date(start.getTime() + 60 * 60 * 1000);
+      openSheet({
+        start,
+        end,
+        color: palette[counter % palette.length],
+      });
+    }
+    document.getElementById('fab').addEventListener('click', openCreateSheet);
+    document.getElementById('addBtnTop').addEventListener('click', openCreateSheet);
+
+    // ----- dateClick: the sheet NEVER opens on a single tap / click.
+    // The user's create gestures are, deliberately, only:
+    //   - long-press an empty slot ⇒ opens sheet (handler below)
+    //   - tap the FAB or the top "+" ⇒ opens sheet
+    //
+    // The calendar's Interaction plugin fires `dateClick` from TWO
+    // sources that we must distinguish:
+    //   (a) attachDateClickHandler — a plain `click` event on a cell,
+    //       fired for every tap regardless of intent. `info.end` is
+    //       undefined. We bail.
+    //   (b) attachTimeGridCreateHandler — flips `drag.moved = true`
+    //       on ANY pointermove (the source has a no-op `dist < 4`
+    //       check at src/plugins/interaction.js:723–725) and fires
+    //       `dateClick` with `end:` set on pointerup. But on touch,
+    //       "drag.moved" gets set by every gesture the user makes:
+    //         • vertical scrolling the time-grid body
+    //         • horizontal swiping the pager between days
+    //         • finger jitter on what's really a tap
+    //       None of those are an intentional range-create. So we
+    //       suppress `end:` payloads from any gesture that scrolled
+    //       the body, swiped the pager, or didn't travel ≥ 12 px.
+    //
+    // Drag-create as a feature isn't usable on touch anyway —
+    // every vertical drag would scroll the body before it ever
+    // became a range select. Desktop users have the FAB / "+".
+    let lastDownX = 0, lastDownY = 0;
+    let downBodyScrollTop = null;
+    function getTimeGridBody() {
+      // Reads the live TimeGrid scroller. Was [data-row="body"] before
+      // the sidebar was lifted into .ec-sidebar-rail; the scroll now
+      // happens on .ec-cols-scroll. Falls back to the body element for
+      // any older code paths.
+      return document.querySelector('#cal .ec-time-grid .ec-cols-scroll')
+        || document.querySelector('#cal .ec-time-grid [data-row="body"]');
+    }
+    function gestureWasScrollOrSwipe() {
+      const body = getTimeGridBody();
+      if (body && downBodyScrollTop != null
+          && Math.abs(body.scrollTop - downBodyScrollTop) > 4) return true;
+      if (document.querySelector('.ec-pager.ec-pager-dragging')) return true;
+      return false;
+    }
+    api.setOption('dateClick', ({ date, allDay, end, jsEvent }) => {
+      // (a) plain tap/click — always bail.
+      if (!end) return;
+      // (b) gesture-disguised tap — bail.
+      if (gestureWasScrollOrSwipe()) return;
+      if (jsEvent) {
+        const dist = Math.hypot(
+          jsEvent.clientX - lastDownX,
+          jsEvent.clientY - lastDownY,
+        );
+        if (dist < 12) return;
+      }
+      const startLocal = calToLocal(date);
+      const endLocal   = calToLocal(end);
+      openSheet({
+        start: startLocal, end: endLocal,
+        color: palette[counter % palette.length],
+      });
+    });
+
+    // ----- Popover Edit ⇒ open the sheet, prefilled, in edit mode.
+    // event.start / event.end are UTC-mode wall-clock Dates — translate
+    // to real-local before the sheet so its datetime-local pickers show
+    // the right time.
+    el.addEventListener('calendar:eventPopoverEdit', (ev) => {
+      const e = ev.detail.event;
+      api.closeEventPopover();
+      openSheet({
+        id: e.id,
+        title: e.title,
+        start: calToLocal(e.start),
+        end:   calToLocal(e.end),
+        color: e.backgroundColor || palette[0],
+      });
+    });
+
+    // ----- Popover Delete ⇒ confirm + remove.
+    el.addEventListener('calendar:eventPopoverDelete', (ev) => {
+      if (window.confirm('Delete this event?')) {
+        api.removeEventById(ev.detail.event.id);
+      }
+      api.closeEventPopover();
+    });
+  </script>
+</body>
+</html>

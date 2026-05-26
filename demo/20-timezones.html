@@ -276,13 +276,17 @@
       const localMinutes = ((ANCHOR_UTC_MINUTES + offMins) % 1440 + 1440) % 1440;
 
       // The TimeGrid view only applies options.scrollTime on first mount.
-      // After the chip is in the DOM, set the body scrollTop directly so
-      // the chip is comfortably near the top of the card.
+      // After the chip is in the DOM, set the scroller's scrollTop directly
+      // so the chip is comfortably near the top of the card. The scroll
+      // container moved from [data-row="body"] to .ec-cols-scroll when
+      // the sidebar was lifted into a rail — fall back to the body for
+      // older builds.
       requestAnimationFrame(() => {
-        const body = calEl.querySelector('.ec-time-grid [data-row="body"]');
-        if (body) {
+        const scroller = calEl.querySelector('.ec-time-grid .ec-cols-scroll')
+          || calEl.querySelector('.ec-time-grid [data-row="body"]');
+        if (scroller) {
           const pxPerMin = 24 / 30; // default slotHeight / slotDuration
-          body.scrollTop = Math.max(0, (localMinutes - 60) * pxPerMin);
+          scroller.scrollTop = Math.max(0, (localMinutes - 60) * pxPerMin);
         }
       });
 
