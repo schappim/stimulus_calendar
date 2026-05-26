@@ -19,9 +19,15 @@ export function renderTimeGridView(container, state) {
     const theme = options.theme;
     const activeRange = state.get('activeRange');
     if (!activeRange) return;
-    // Capture the previous body's scrollTop before we tear down its DOM.
+    // Capture the previous scroll position before we tear down its DOM.
+    // The scroll container moved from [data-row="body"] to .ec-cols-scroll
+    // when the sidebar was lifted out of the overflow:auto container so
+    // its swipe counter-translate isn't clipped; fall back to the body
+    // for any stale DOM (e.g. snapshot pages built by older code paths).
+    const prevColsScroll = container.querySelector('.ec-cols-scroll');
     const prevBody = container.querySelector('[data-row="body"]');
-    if (prevBody) savedScrollTop = prevBody.scrollTop;
+    if (prevColsScroll) savedScrollTop = prevColsScroll.scrollTop;
+    else if (prevBody) savedScrollTop = prevBody.scrollTop;
 
     const days = viewDatesHelper(activeRange, options.hiddenDays ?? []);
 
@@ -132,6 +138,18 @@ export function renderTimeGridView(container, state) {
     }
 
     // Body: sidebar + per-day columns.
+    //
+    // The sidebar lives in a separate "rail" that uses clip-path to clip
+    // its vertical overflow without clipping horizontal overflow — which
+    // overflow:auto/hidden cannot do (per the CSS spec, you can't have
+    // visible-X with non-visible-Y; setting one forces the other to
+    // auto). Without this split, the sidebar's swipe counter-translate
+    // (transform: translate3d(-pagerPx, 0, 0)) gets cropped by the body's
+    // overflow box and the hour labels vanish for the duration of the
+    // swipe + after committing to an adjacent day. The day columns get
+    // their own scroll container (.ec-cols-scroll); JS syncs the
+    // sidebar's vertical position to it via --ec-cols-scroll-y so the
+    // hour labels track event chips during scroll.
     const body = createElement('div', 'ec-time-body', '', [
       ['data-row', 'body'],
     ]);
@@ -181,9 +199,14 @@ export function renderTimeGridView(container, state) {
       }
       sidebar.append(cell);
     }
-    body.append(sidebar);
+    const sidebarRail = createElement('div', 'ec-sidebar-rail');
+    sidebarRail.append(sidebar);
+    body.append(sidebarRail);
 
-    // Day columns.
+    // Day columns — wrapped in their own vertical scroller. Moving the
+    // overflow off [data-row="body"] is what lets the sidebar's swipe
+    // counter-translate render at full width without being clipped.
+    const colsScroll = createElement('div', 'ec-cols-scroll');
     const colsWrap = createElement('div', theme.grid + ' ec-days');
     colsWrap.style.setProperty('--ec-cols', String(days.length));
     if (options.columnWidth) colsWrap.style.setProperty('--ec-col-w', `${options.columnWidth}px`);
@@ -327,24 +350,38 @@ export function renderTimeGridView(container, state) {
 
       colsWrap.append(col);
     }
-    body.append(colsWrap);
+    colsScroll.append(colsWrap);
+    body.append(colsScroll);
 
     root.append(body);
     container.replaceChildren(root);
 
+    // Sync the sidebar's Y offset with the cols' scrollTop. The sidebar
+    // is position:absolute inside .ec-sidebar-rail (which clips Y via
+    // clip-path); shifting it up by scrollTop reveals the slot rows
+    // matching the cols' current scroll position. The CSS rule on
+    // .ec-sidebar reads --ec-cols-scroll-y and composes it with
+    // --ec-pager-px so the swipe counter-translate (X) and scroll
+    // mirror (Y) live in the same transform.
+    const syncSidebarScroll = () => {
+      sidebar.style.setProperty('--ec-cols-scroll-y', `${colsScroll.scrollTop}px`);
+    };
+    colsScroll.addEventListener('scroll', syncSidebarScroll, { passive: true });
+
     // Preserve user scroll across re-renders; only apply scrollTime on
     // the first mount (when savedScrollTop is null).
     if (savedScrollTop != null) {
-      body.scrollTop = savedScrollTop;
+      colsScroll.scrollTop = savedScrollTop;
     } else if (options.scrollTime) {
       const scrollMin = totalSeconds(options.scrollTime) / 60;
       const slotMinMin = totalSeconds(slotTimeLimits.min) / 60;
       const minutesPerSlot = totalSeconds(options.slotDuration) / 60;
       const pxPerMin = options.slotHeight / minutesPerSlot;
       const top = (scrollMin - slotMinMin) * pxPerMin;
-      body.scrollTop = Math.max(0, top);
-      savedScrollTop = body.scrollTop;
+      colsScroll.scrollTop = Math.max(0, top);
+      savedScrollTop = colsScroll.scrollTop;
     }
+    syncSidebarScroll();
   };
 
   render();

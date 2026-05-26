@@ -383,12 +383,49 @@
 
 .ec-time-grid .ec-all-day-cell:last-child { border-right: none; }
 
-/* body — scrollable area with sidebar + day columns */
+/* body — sidebar (in a clipped rail) + day columns (in their own scroller).
+ *
+ * The sidebar can't sit inside an overflow:auto/hidden container because
+ * the spec forces a non-visible overflow on one axis to clip the other
+ * too, and that would crop the sidebar's swipe counter-translate (the
+ * transform that keeps the hour gutter pinned while the day columns
+ * slide). Splitting the body into a clip-path-clipped rail (Y only) +
+ * a separate cols-scroll (Y only, X hidden) keeps each axis under our
+ * control without breaking either. */
 .ec-time-grid [data-row="body"] {
   display: grid;
   grid-template-columns: var(--ec-sidebar-width) 1fr;
+  grid-template-rows: minmax(0, 1fr);
   max-height: 540px;
+}
+
+.ec-time-grid .ec-sidebar-rail {
+  position: relative;
+  height: 100%;
+  /* clip-path clips top/bottom but leaves left/right unbounded so the
+   * swipe counter-translate isn't cropped. overflow:hidden would clip
+   * X too. The -100vw insets keep the X-clip well off-screen for any
+   * realistic swipe distance. */
+  clip-path: inset(0 -100vw);
+  border-right: 1px solid var(--ec-border-color);
+  background: var(--ec-bg-color);
+}
+
+.ec-time-grid .ec-sidebar-rail > .ec-sidebar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  /* border lives on the rail now so it stays at the rail's edge while
+   * the inner sidebar counter-translates during a swipe. */
+  border-right: none;
+}
+
+.ec-time-grid .ec-cols-scroll {
+  height: 100%;
   overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
 }
 
 .ec-time-grid .ec-sidebar {
@@ -974,9 +1011,12 @@
  * the negative of the track's translate so the net viewport position
  * stays put. Both the transform and the transition come from the same
  * CSS variable as the track so they animate together when the pager
- * commits a swipe. */
+ * commits a swipe.
+ *
+ * The body sidebar additionally tracks --ec-cols-scroll-y (set by
+ * time_grid.js from the cols-scroll scrollTop) so it slides up and
+ * down with the events as the user scrolls the timeline. */
 .ec-pager-page-current .ec-time-grid .ec-corner,
-.ec-pager-page-current .ec-time-grid [data-row="body"] > .ec-sidebar,
 .ec-pager-page-current .ec-time-grid .ec-all-day > .ec-sidebar {
   position: relative;
   z-index: 4;
@@ -985,14 +1025,25 @@
   transition: var(--ec-pager-transition, none);
 }
 
+.ec-pager-page-current .ec-time-grid .ec-sidebar-rail > .ec-sidebar {
+  z-index: 4;
+  background: var(--ec-bg-color);
+  transform: translate3d(
+    calc(-1 * var(--ec-pager-px, 0px)),
+    calc(-1 * var(--ec-cols-scroll-y, 0px)),
+    0
+  );
+  transition: var(--ec-pager-transition, none);
+}
+
 /* Adjacent snapshot pages bring their own (now stale) time-axis cells
  * into view as the user swipes; hide them so the user only ever sees
  * the live, pinned sidebar. */
 .ec-pager-page-prev .ec-time-grid .ec-corner,
-.ec-pager-page-prev .ec-time-grid [data-row="body"] > .ec-sidebar,
+.ec-pager-page-prev .ec-time-grid .ec-sidebar-rail,
 .ec-pager-page-prev .ec-time-grid .ec-all-day > .ec-sidebar,
 .ec-pager-page-next .ec-time-grid .ec-corner,
-.ec-pager-page-next .ec-time-grid [data-row="body"] > .ec-sidebar,
+.ec-pager-page-next .ec-time-grid .ec-sidebar-rail,
 .ec-pager-page-next .ec-time-grid .ec-all-day > .ec-sidebar {
   visibility: hidden;
 }

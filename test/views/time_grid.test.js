@@ -24,7 +24,7 @@ describe('view: timeGridWeek', () => {
       data-calendar-date-value="2026-05-25"></div>`);
     const grid = el.querySelector('[data-grid="time-grid"]');
     expect(grid).toBeTruthy();
-    const sidebar = grid.querySelector('[data-row="body"] > .ec-sidebar');
+    const sidebar = grid.querySelector('[data-row="body"] .ec-sidebar-rail > .ec-sidebar');
     expect(sidebar).toBeTruthy();
     expect(sidebar.children.length).toBeGreaterThan(0);
     const cols = grid.querySelectorAll('.ec-time-col');
