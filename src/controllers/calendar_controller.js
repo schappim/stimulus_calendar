@@ -101,6 +101,14 @@ export default class CalendarController extends Controller {
     this._state = state;
     this._setOption = setOption;
     this._setViewOptions = setViewOptions;
+    // Per-view date memory. Each entry remembers the date that view was
+    // last looking at; on view switch we snapshot the outgoing view and
+    // (if the incoming view has a remembered date) restore it before
+    // the new view mounts. This way Day → Month → navigate-in-Month →
+    // Day puts the user back on the day they were originally on, even
+    // though Month's navigation moved options.date forward. The Month
+    // view independently remembers the month they last browsed.
+    this._viewDates = {};
 
     // state.fire is used by the effects pipeline and view renderers to
     // both fire the user callback (options.<name>) AND dispatch the
@@ -648,11 +656,33 @@ export default class CalendarController extends Controller {
     // mid-scroll lands the week view on the old date instead of the
     // user's last scroll position.
     if (key === 'view' && value !== prevView) {
+      // Snapshot the outgoing view's date so a future return to it
+      // restores the same position — including whatever scroll-driven
+      // updates a component like MonthScroller pushed in via its
+      // destroy hook. We read AFTER the teardown so those late
+      // updates are captured.
       if (this._viewTeardown) { this._viewTeardown(); this._viewTeardown = null; }
+      if (prevView) {
+        const outgoingDate = this._state.get('options').date;
+        if (outgoingDate instanceof Date) {
+          this._viewDates[prevView] = setMidnight(createDate(outgoingDate));
+        }
+      }
       this._setOption(key, value);
       const initComponent = this._setViewOptions(value);
       if (typeof initComponent === 'function') {
         this._state.set('viewComponent', initComponent(this._state));
+      }
+      // Restore the destination view's remembered date if any. The
+      // per-view setters in createOptionsStore have kept every view's
+      // bag synced to whatever the LIVE options.date was, so the bag
+      // alone can't tell us what THIS view was last looking at — we
+      // need our own map. _setOption here doesn't re-enter setOption,
+      // so it skips the date-normalisation above; we normalise once at
+      // capture time instead.
+      const remembered = this._viewDates[value];
+      if (remembered instanceof Date) {
+        this._setOption('date', remembered);
       }
       this._recompute();
       this._mountView();
@@ -661,6 +691,15 @@ export default class CalendarController extends Controller {
       return;
     }
     this._setOption(key, value);
+    // Track per-view date as the user navigates: prev/next, gotoDate,
+    // today, MonthScroller scroll-settle — all land here. Updating only
+    // the CURRENT view's memory means Day → Month → navigate-in-Month →
+    // Day restores Day's original position; Month independently
+    // remembers the month it last browsed.
+    if (key === 'date' && value instanceof Date) {
+      const currentView = this._state.get('options').view;
+      if (currentView) this._viewDates[currentView] = setMidnight(createDate(value));
+    }
     this._recompute();
   }
 
