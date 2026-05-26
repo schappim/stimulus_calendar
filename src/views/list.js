@@ -52,14 +52,11 @@ export function renderListView(container, state) {
         const row = createElement('div', rowClasses.filter(Boolean).join(' '), '', [
           ['data-event-id', event.id],
         ]);
-        if (event.backgroundColor) {
-          row.append(createElement('span', theme.eventTag).tap = ((el) => {
-            el.style.background = event.backgroundColor;
-            return el;
-          })(createElement('span', theme.eventTag)));
-        } else {
-          row.append(createElement('span', theme.eventTag));
-        }
+        // Route the per-event colour through --ec-event-color on the row so
+        // both the row stripe and the tag dot inherit the accent. Per-type
+        // modifier classes (.ec-appt-*) can still override via specificity.
+        if (event.backgroundColor) row.style.setProperty('--ec-event-color', event.backgroundColor);
+        row.append(createElement('span', theme.eventTag));
         const time = event.allDay ? 'all-day' : timeFmt.format(event.start);
         row.append(createElement('time', theme.eventTime, time));
         row.append(createElement('span', theme.eventTitle, event.title || ''));

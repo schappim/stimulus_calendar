@@ -748,20 +748,27 @@
 }
 
 .ec-timeline .ec-event {
+  --ec-event-accent: var(--ec-event-color, var(--ec-event-bg-color));
   position: absolute;
   top: 4px;
   bottom: 4px;
-  background: var(--ec-event-bg-color);
-  color: var(--ec-event-text-color);
+  background: color-mix(in srgb, var(--ec-event-accent) 10%, white);
+  border: 1px solid color-mix(in srgb, var(--ec-event-accent) 35%, white);
+  border-left: 3px solid var(--ec-event-accent);
+  color: var(--ec-event-title-color);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI",
+               Roboto, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  letter-spacing: -0.01em;
   font-size: 0.75rem;
+  font-weight: 600;
   padding: 2px 0.5rem;
-  border-radius: 3px;
+  border-radius: 6px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   display: flex;
   align-items: center;
-  box-shadow: 0 0 0 1px var(--ec-event-border-color);
 }
 
 /* -------------------------------------------------------------------------
@@ -791,6 +798,7 @@
 }
 
 .ec-list .ec-event {
+  --ec-event-accent: var(--ec-event-color, var(--ec-event-bg-color));
   display: grid;
   grid-template-columns: 12px 100px 1fr;
   align-items: center;
@@ -798,7 +806,11 @@
   padding: 0.625rem 1rem;
   border-bottom: 1px solid #f1f5f9;
   background: var(--ec-bg-color);
-  color: var(--ec-text-color);
+  color: var(--ec-event-title-color);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI",
+               Roboto, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  letter-spacing: -0.01em;
   font-size: 0.875rem;
 }
 
@@ -808,16 +820,19 @@
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: var(--ec-event-bg-color);
+  background: var(--ec-event-accent);
 }
 
 .ec-list .ec-event-time {
-  color: var(--ec-muted-text-color);
+  color: var(--ec-event-accent);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
   font-size: 0.8125rem;
 }
 
 .ec-list .ec-event-title {
-  font-weight: 500;
+  color: var(--ec-event-title-color);
+  font-weight: 600;
 }
 
 .ec-no-events {

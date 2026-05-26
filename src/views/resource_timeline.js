@@ -115,7 +115,7 @@ export function renderResourceTimelineView(container, state) {
         chip.style.position = 'absolute';
         chip.style.left = `${Math.max(0, startDayIdx) * dayWidth}px`;
         chip.style.width = `${Math.max(endIdx - Math.max(0, startDayIdx), 1) * dayWidth}px`;
-        if (event.backgroundColor) chip.style.backgroundColor = event.backgroundColor;
+        if (event.backgroundColor) chip.style.setProperty('--ec-event-color', event.backgroundColor);
         const fire = state.get('fire');
         chip.addEventListener('click',     (jsEvent) => fire?.('eventClick',      { event, jsEvent, view: state.get('view'), resource }));
         chip.addEventListener('dblclick',  (jsEvent) => fire?.('eventDoubleClick',{ event, jsEvent, view: state.get('view'), resource, el: chip }));
