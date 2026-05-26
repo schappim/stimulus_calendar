@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>stimulus_calendar — IANA timezones</title>
+  <link rel="stylesheet" href="../src/styles/calendar.css">
+  <style>
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+      margin: 0; padding: 2rem 1.5rem 4rem;
+      max-width: 1280px; margin-inline: auto;
+      color: #0f172a; background: #f8fafc;
+    }
+    h1 { margin-bottom: 0.25rem; }
+    .sub { color: #64748b; margin-top: 0; max-width: 60ch; line-height: 1.55; }
+
+    section { margin-top: 2.5rem; }
+    section > h2 {
+      font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.06em;
+      color: #334155; margin: 0 0 0.5rem;
+    }
+    section > p {
+      margin: 0 0 1rem; color: #475569; max-width: 70ch; line-height: 1.55;
+    }
+    code {
+      background: #e2e8f0; padding: 1px 6px; border-radius: 4px;
+      font-size: 0.85em;
+    }
+
+    /* --- live switcher panel --- */
+    .panel {
+      background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
+      padding: 1.25rem; box-shadow: 0 4px 12px -2px rgba(15, 23, 42, 0.06);
+    }
+    .switcher {
+      display: flex; flex-wrap: wrap; gap: 0.75rem 1rem;
+      align-items: center; margin-bottom: 1rem;
+      padding-bottom: 1rem; border-bottom: 1px solid #f1f5f9;
+    }
+    .switcher label {
+      font-size: 0.85rem; color: #475569; font-weight: 500;
+      display: inline-flex; align-items: center; gap: 0.5rem;
+    }
+    .switcher select {
+      font: inherit; padding: 0.4rem 0.6rem;
+      border: 1px solid #cbd5e1; border-radius: 6px; background: #fff;
+      min-width: 16rem;
+    }
+    .resolved-offset {
+      margin-left: auto;
+      font: 0.8rem ui-monospace, SFMono-Regular, Menlo, monospace;
+      color: #0e7490; background: #ecfeff; padding: 4px 10px;
+      border-radius: 999px;
+    }
+
+    /* --- world clock grid --- */
+    .world {
+      display: grid; gap: 1rem;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    }
+    .clock {
+      background: #fff; border: 1px solid #e2e8f0; border-radius: 10px;
+      padding: 0.75rem 0.85rem 1rem;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+    }
+    .clock-chrome {
+      display: flex; align-items: baseline; justify-content: space-between;
+      margin-bottom: 0.5rem;
+    }
+    .clock-name { font-weight: 600; color: #0f172a; font-size: 0.9rem; }
+    .clock-offset {
+      font: 0.72rem ui-monospace, SFMono-Regular, Menlo, monospace;
+      color: #475569; background: #f1f5f9; padding: 2px 7px; border-radius: 999px;
+    }
+    .clock .ec { width: 100%; }
+    .clock .ec-time-grid [data-row="body"] { max-height: 260px; }
+    .clock .ec-toolbar { display: none; }
+    .clock-time {
+      margin-top: 0.5rem; padding: 0.4rem 0.6rem; border-radius: 6px;
+      background: #f8fafc; border: 1px dashed #cbd5e1;
+      font: 0.78rem ui-monospace, SFMono-Regular, Menlo, monospace;
+      color: #475569;
+    }
+    .clock-time b { color: #0f172a; }
+
+    /* --- event reference card --- */
+    .event-card {
+      margin: 1rem 0; padding: 0.85rem 1rem; background: #fff;
+      border: 1px solid #e2e8f0; border-radius: 10px;
+      display: flex; align-items: center; gap: 0.75rem;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    }
+    .event-card .swatch {
+      width: 12px; height: 36px; border-radius: 3px;
+      background: #2563eb;
+    }
+    .event-card .meta {
+      font: 0.78rem ui-monospace, SFMono-Regular, Menlo, monospace;
+      color: #475569;
+    }
+    .event-card .meta b { color: #0f172a; }
+    .crumb {
+      display: inline-block; font-size: 0.75rem;
+      padding: 1px 8px; border-radius: 999px;
+      background: #ecfeff; color: #0e7490; font-weight: 600;
+      margin-left: 0.4rem; vertical-align: middle;
+    }
+  </style>
+</head>
+<body>
+  <h1>IANA timezones <span class="crumb">new</span></h1>
+  <p class="sub">
+    The same fixed UTC instant rendered across multiple named timezones —
+    <code>Australia/Sydney</code>, <code>America/New_York</code>,
+    <code>Europe/London</code>, <code>Asia/Tokyo</code>, <code>UTC</code>.
+    Resolution is DST-aware: Sydney renders at <code>+11:00</code> in January
+    and <code>+10:00</code> in July, and the calendar re-anchors when you
+    navigate across a transition.
+  </p>
+
+  <section>
+    <h2>Live timezone switcher</h2>
+    <p>
+      Pick any IANA name from the dropdown. The calendar calls
+      <code>setOption('timeZone', name)</code>; the existing event chips
+      shift to show the same UTC instant at the new local wall-clock.
+    </p>
+
+    <div class="panel">
+      <div class="switcher">
+        <label>Calendar timezone
+          <select id="tz-picker"></select>
+        </label>
+        <span class="resolved-offset" id="resolved-offset">offset: …</span>
+      </div>
+
+      <div class="event-card">
+        <div class="swatch"></div>
+        <div class="meta">
+          <div><b>Daily Standup</b> — fixed UTC anchor</div>
+          <div>2026-05-25T<b>12:00:00Z</b> → 2026-05-25T<b>13:00:00Z</b></div>
+        </div>
+      </div>
+
+      <div id="cal-live"
+           data-controller="calendar"
+           data-calendar-plugins-value='["TimeGrid"]'
+           data-calendar-view-value="timeGridWeek"
+           data-calendar-date-value="2026-05-25"
+           data-calendar-time-zone-value="Australia/Sydney"
+           data-calendar-header-toolbar-value='{"start":"today","center":"title","end":"prev,next"}'
+           data-calendar-options-value='{"scrollTime":"06:00:00"}'>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>World clock</h2>
+    <p>
+      One canonical event at <b>2026-05-25T12:00:00Z</b> seeded into five
+      independent calendars, each configured to a different IANA zone.
+      The chips land on the local wall-clock the zone reports for that
+      instant. No clock-fudging — every calendar parses the same fixed
+      offset and renders through the same <code>derived.offset</code>
+      pipeline.
+    </p>
+    <div class="world" id="world-clocks">
+      <div class="clock" data-tz="Australia/Sydney">
+        <div class="clock-chrome">
+          <span class="clock-name">Sydney</span>
+          <span class="clock-offset" data-offset-for="Australia/Sydney">…</span>
+        </div>
+        <div data-controller="calendar"
+             data-calendar-plugins-value='["TimeGrid"]'
+             data-calendar-view-value="timeGridDay"
+             data-calendar-date-value="2026-05-25"
+             data-calendar-time-zone-value="Australia/Sydney"
+             data-calendar-options-value='{"headerToolbar":false}'>
+        </div>
+        <div class="clock-time" data-local-time-for="Australia/Sydney">…</div>
+      </div>
+      <div class="clock" data-tz="Asia/Tokyo">
+        <div class="clock-chrome">
+          <span class="clock-name">Tokyo</span>
+          <span class="clock-offset" data-offset-for="Asia/Tokyo">…</span>
+        </div>
+        <div data-controller="calendar"
+             data-calendar-plugins-value='["TimeGrid"]'
+             data-calendar-view-value="timeGridDay"
+             data-calendar-date-value="2026-05-25"
+             data-calendar-time-zone-value="Asia/Tokyo"
+             data-calendar-options-value='{"headerToolbar":false}'>
+        </div>
+        <div class="clock-time" data-local-time-for="Asia/Tokyo">…</div>
+      </div>
+      <div class="clock" data-tz="Europe/London">
+        <div class="clock-chrome">
+          <span class="clock-name">London</span>
+          <span class="clock-offset" data-offset-for="Europe/London">…</span>
+        </div>
+        <div data-controller="calendar"
+             data-calendar-plugins-value='["TimeGrid"]'
+             data-calendar-view-value="timeGridDay"
+             data-calendar-date-value="2026-05-25"
+             data-calendar-time-zone-value="Europe/London"
+             data-calendar-options-value='{"headerToolbar":false}'>
+        </div>
+        <div class="clock-time" data-local-time-for="Europe/London">…</div>
+      </div>
+      <div class="clock" data-tz="America/New_York">
+        <div class="clock-chrome">
+          <span class="clock-name">New York</span>
+          <span class="clock-offset" data-offset-for="America/New_York">…</span>
+        </div>
+        <div data-controller="calendar"
+             data-calendar-plugins-value='["TimeGrid"]'
+             data-calendar-view-value="timeGridDay"
+             data-calendar-date-value="2026-05-25"
+             data-calendar-time-zone-value="America/New_York"
+             data-calendar-options-value='{"headerToolbar":false}'>
+        </div>
+        <div class="clock-time" data-local-time-for="America/New_York">…</div>
+      </div>
+      <div class="clock" data-tz="UTC">
+        <div class="clock-chrome">
+          <span class="clock-name">UTC</span>
+          <span class="clock-offset" data-offset-for="UTC">+00:00</span>
+        </div>
+        <div data-controller="calendar"
+             data-calendar-plugins-value='["TimeGrid"]'
+             data-calendar-view-value="timeGridDay"
+             data-calendar-date-value="2026-05-25"
+             data-calendar-time-zone-value="UTC"
+             data-calendar-options-value='{"headerToolbar":false}'>
+        </div>
+        <div class="clock-time" data-local-time-for="UTC">…</div>
+      </div>
+    </div>
+  </section>
+
+  <script type="module">
+    import { Application } from '/node_modules/@hotwired/stimulus/dist/stimulus.js';
+    import CalendarController from '/src/controllers/calendar_controller.js';
+    import { ianaOffset, commonTimeZones } from '/src/lib/tz.js';
+
+    const app = Application.start();
+    app.register('calendar', CalendarController);
+
+    // Same fixed UTC instant for every calendar. 12:00 UTC on May 25, 2026
+    // — chosen because it lands inside the day window for every featured
+    // zone (Sydney 22:00, Tokyo 21:00, London 13:00, NY 08:00, UTC 12:00)
+    // so no card has to wrap to the previous/next day.
+    const ANCHOR_START = '2026-05-25T12:00:00+00:00';
+    const ANCHOR_END   = '2026-05-25T13:00:00+00:00';
+    const SEED = {
+      id: 'standup',
+      title: 'Daily Standup',
+      start: ANCHOR_START,
+      end:   ANCHOR_END,
+      backgroundColor: '#2563eb',
+    };
+
+    // Wait for Stimulus to wire everything up.
+    await new Promise((r) => setTimeout(r, 100));
+
+    // ----- world clock seeds + per-zone scroll-to-chip -----
+    const anchorDate = new Date(ANCHOR_START);
+    const ANCHOR_UTC_MINUTES = anchorDate.getUTCHours() * 60 + anchorDate.getUTCMinutes();
+
+    document.querySelectorAll('.clock').forEach((card) => {
+      const tz = card.getAttribute('data-tz');
+      const calEl = card.querySelector('[data-controller~="calendar"]');
+      calEl.calendarApi.addEvent(SEED);
+
+      const offMins = tz === 'UTC' ? 0 : (ianaOffset(tz, anchorDate) ?? 0);
+      const localMinutes = ((ANCHOR_UTC_MINUTES + offMins) % 1440 + 1440) % 1440;
+
+      // The TimeGrid view only applies options.scrollTime on first mount.
+      // After the chip is in the DOM, set the body scrollTop directly so
+      // the chip is comfortably near the top of the card.
+      requestAnimationFrame(() => {
+        const body = calEl.querySelector('.ec-time-grid [data-row="body"]');
+        if (body) {
+          const pxPerMin = 24 / 30; // default slotHeight / slotDuration
+          body.scrollTop = Math.max(0, (localMinutes - 60) * pxPerMin);
+        }
+      });
+
+      // Header pill: offset.
+      const pill = card.querySelector('[data-offset-for]');
+      if (pill) pill.textContent = formatOffset(offMins);
+
+      // Footer caption: the local wall-clock the chip resolves to.
+      const cap = card.querySelector('[data-local-time-for]');
+      if (cap) {
+        const lh = String(Math.floor(localMinutes / 60)).padStart(2, '0');
+        const lm = String(localMinutes % 60).padStart(2, '0');
+        cap.innerHTML = `Chip lands at <b>${lh}:${lm}</b> local`;
+      }
+    });
+
+    // ----- live switcher wiring -----
+    const live = document.getElementById('cal-live');
+    live.calendarApi.addEvent(SEED);
+
+    const picker = document.getElementById('tz-picker');
+    const FEATURED = [
+      'Australia/Sydney', 'Australia/Perth', 'Asia/Tokyo', 'Asia/Singapore',
+      'Asia/Kolkata', 'Asia/Dubai',
+      'Europe/London', 'Europe/Paris', 'Europe/Berlin',
+      'UTC',
+      'America/Sao_Paulo', 'America/New_York', 'America/Chicago',
+      'America/Denver', 'America/Los_Angeles', 'Pacific/Honolulu',
+    ];
+    // Featured group up top, then everything else the runtime knows about.
+    const all = commonTimeZones();
+    const featuredSet = new Set(FEATURED);
+    const rest = all.filter((z) => !featuredSet.has(z) && z !== 'UTC');
+
+    const optg1 = document.createElement('optgroup');
+    optg1.label = 'Featured';
+    for (const tz of FEATURED) optg1.append(option(tz));
+
+    const optg2 = document.createElement('optgroup');
+    optg2.label = 'All zones';
+    for (const tz of rest) optg2.append(option(tz));
+
+    picker.append(optg1, optg2);
+    picker.value = 'Australia/Sydney';
+
+    function option(tz) {
+      const o = document.createElement('option');
+      o.value = tz; o.textContent = tz;
+      return o;
+    }
+
+    const resolved = document.getElementById('resolved-offset');
+    const refreshResolved = () => {
+      const tz = live.calendarApi.getOption('timeZone');
+      const off = ianaOffset(tz, anchorDate)
+        ?? (tz === 'UTC' ? 0 : null);
+      resolved.textContent = `${tz} → ${off == null ? '?' : formatOffset(off)}`;
+    };
+    refreshResolved();
+
+    picker.addEventListener('change', () => {
+      live.calendarApi.setOption('timeZone', picker.value);
+      refreshResolved();
+    });
+
+    function formatOffset(minutes) {
+      const sign = minutes >= 0 ? '+' : '-';
+      const abs = Math.abs(minutes);
+      const hh = String(Math.floor(abs / 60)).padStart(2, '0');
+      const mm = String(abs % 60).padStart(2, '0');
+      return `${sign}${hh}:${mm}`;
+    }
+  </script>
+</body>
+</html>

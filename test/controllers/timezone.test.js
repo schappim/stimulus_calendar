@@ -89,6 +89,50 @@ describe('CalendarController — IANA timezone support', () => {
     expect(event.start.getUTCHours()).toBe(23);
   });
 
+  it('renders the same UTC instant at different chip positions per zone', async () => {
+    // Five day-views, all anchored to the same fixed UTC instant
+    // 2026-05-25T12:00:00Z. Each calendar's chip should land at the
+    // local-wall-clock equivalent (12:00 in UTC, 13:00 in London BST,
+    // 22:00 in Sydney AEST, 08:00 in New York EDT, 21:00 in Tokyo JST).
+    const zones = [
+      { tz: 'UTC',               localMin: 12 * 60 },
+      { tz: 'Europe/London',     localMin: 13 * 60 },  // BST in May
+      { tz: 'Australia/Sydney',  localMin: 22 * 60 },  // AEST in May
+      { tz: 'America/New_York',  localMin:  8 * 60 },  // EDT in May
+      { tz: 'Asia/Tokyo',        localMin: 21 * 60 },  // JST (no DST)
+    ];
+    const seed = {
+      id: 'anchor', title: 'Anchor',
+      start: '2026-05-25T12:00:00+00:00',
+      end:   '2026-05-25T13:00:00+00:00',
+    };
+    const html = zones.map((z, i) => `
+      <div id="cal-${i}"
+           data-controller="calendar"
+           data-calendar-plugins-value='["TimeGrid"]'
+           data-calendar-view-value="timeGridDay"
+           data-calendar-date-value="2026-05-25"
+           data-calendar-time-zone-value="${z.tz}"></div>
+    `).join('');
+    document.body.innerHTML = html;
+    app = Application.start();
+    app.register('calendar', CalendarController);
+    await new Promise((r) => queueMicrotask(r));
+    await new Promise((r) => queueMicrotask(r));
+
+    for (let i = 0; i < zones.length; i++) {
+      const el = document.getElementById(`cal-${i}`);
+      el.calendarApi.addEvent(seed);
+      const chip = el.querySelector('[data-event-id="anchor"]');
+      expect(chip, zones[i].tz).toBeTruthy();
+      const top = parseFloat(chip.style.top);
+      // slotHeight default = 24px per 30min → 24/30 = 0.8 px per minute.
+      const expectedTop = zones[i].localMin * (24 / 30);
+      expect(Math.abs(top - expectedTop), `${zones[i].tz} top=${top} expected≈${expectedTop}`)
+        .toBeLessThan(2);
+    }
+  });
+
   it('shifts events when switching to an IANA name', async () => {
     // Fixed-instant event at 12:00 UTC. In Sydney (AEDT +11:00 in Jan)
     // the wall-clock should be 23:00 local.
