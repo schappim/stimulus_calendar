@@ -456,7 +456,11 @@ function computePeriodicity(slotLabelInterval, slotDuration) {
 // hour/minute/period style via options.
 export function formatEventTimeRange(start, end, options) {
   const fmt = options?.eventTimeFormat || { hour: 'numeric', minute: '2-digit' };
-  const intl = new Intl.DateTimeFormat(options?.locale, fmt);
+  // timeZone:'UTC' so chip times match the slot gutter — every internal
+  // Date is a UTC-encoded local wall-clock, so formatting without
+  // timeZone:'UTC' would silently apply the browser's local offset and
+  // print e.g. "10–11 pm" for a noon slot in Sydney.
+  const intl = new Intl.DateTimeFormat(options?.locale, { timeZone: 'UTC', ...fmt });
   if (!end || start.getTime() === end.getTime()) return intl.format(start);
   const startParts = intl.formatToParts(start);
   const endParts = intl.formatToParts(end);
