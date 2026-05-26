@@ -124,17 +124,32 @@ export function createPager(container, state, factory, { onNavigate }) {
     const prevIdx = mod3(liveIdx - 1);
     const nextIdx = mod3(liveIdx + 1);
 
+    // The time-grid view's render() runs a first-mount auto-scroll
+    // (centers "now" when today is in view, else falls to scrollTime).
+    // Each fresh factory invocation gets its own savedScrollTop closure
+    // starting null, so a snapshot rendered for the prev/next page lands
+    // at scrollTime — not at the user's current scroll position. Sync
+    // the snapshot's body scrollTop to the live's right after render so
+    // the swipe animation reveals the destination at the *same*
+    // time-of-day the user is looking at, not the day's top.
+    const liveBody = slots[liveIdx].querySelector?.('[data-row="body"]');
+    const liveScrollTop = liveBody?.scrollTop ?? 0;
+
     if (!snapshotTeardowns[prevIdx]) {
       const date = subtractDuration(cloneDate(options.date), inc);
       const snap = createSnapshotState(state, date);
       slots[prevIdx].replaceChildren();
       snapshotTeardowns[prevIdx] = factory(slots[prevIdx], snap);
+      const b = slots[prevIdx].querySelector?.('[data-row="body"]');
+      if (b) b.scrollTop = liveScrollTop;
     }
     if (!snapshotTeardowns[nextIdx]) {
       const date = addDuration(cloneDate(options.date), inc);
       const snap = createSnapshotState(state, date);
       slots[nextIdx].replaceChildren();
       snapshotTeardowns[nextIdx] = factory(slots[nextIdx], snap);
+      const b = slots[nextIdx].querySelector?.('[data-row="body"]');
+      if (b) b.scrollTop = liveScrollTop;
     }
   }
 
@@ -174,6 +189,15 @@ export function createPager(container, state, factory, { onNavigate }) {
     // The snapshot that's been animated into the viewport is the new live.
     const newLiveIdx = mod3(liveIdx + direction);
 
+    // Capture the user's current vertical position from the snapshot
+    // they've been looking at during the swipe. We need it before the
+    // factory replaces the snapshot's DOM with a fresh live render
+    // (which would otherwise auto-scroll to scrollTime / "now"). The
+    // captured value is re-applied to the new live's body after the
+    // factory call at the bottom of this function.
+    const destBody = slots[newLiveIdx].querySelector?.('[data-row="body"]');
+    const destScrollTop = destBody?.scrollTop ?? null;
+
     // Tear down the old live view in its (now off-screen) slot.
     if (liveTeardown) { liveTeardown(); liveTeardown = null; }
     slots[liveIdx].replaceChildren();
@@ -212,6 +236,14 @@ export function createPager(container, state, factory, { onNavigate }) {
       snapshotTeardowns[liveIdx] = null;
     }
     liveTeardown = factory(slots[liveIdx], state);
+    // Re-apply the user's pre-swipe scroll position to the freshly-
+    // mounted live body. The factory's first render auto-scrolled to
+    // scrollTime (or "now"); this overrides that so the user lands on
+    // the new date at the same time-of-day they were looking at.
+    if (destScrollTop != null) {
+      const newLiveBody = slots[liveIdx].querySelector?.('[data-row="body"]');
+      if (newLiveBody) newLiveBody.scrollTop = destScrollTop;
+    }
     suppressRangeSub = false;
   }
 

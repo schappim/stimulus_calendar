@@ -343,4 +343,42 @@ describe('Pager — swipe / wheel / keyboard navigation', () => {
     const css = readFileSync(cssPath, 'utf8');
     expect(css).toMatch(/\.ec-pager\.ec-pager-dragging\s+\.ec-time-grid\s+\.ec-day-head:last-child[\s\S]*?\.ec-pager\.ec-pager-dragging\s+\.ec-day-grid\s+\.ec-day-head:last-child[\s\S]*?border-right:\s*1px\s+solid\s+var\(--ec-border-color\)/);
   });
+
+  // The time-grid view runs a first-mount auto-scroll: centre "now" if
+  // today is in the visible range, else fall back to options.scrollTime.
+  // Each fresh factory invocation gets its OWN savedScrollTop closure
+  // starting null, so a snapshot rendered for the prev/next page — and
+  // the freshly-mounted live view after rotateAndCommit — both auto-scroll
+  // to scrollTime instead of staying glued to the user's current time-of-
+  // day. The pager bridges both gaps by capturing the live body's
+  // scrollTop and re-applying it to the new snapshot + the new live.
+  it('swiping to the previous day preserves the user\'s vertical scroll position', async () => {
+    const el = mount(`<div data-controller="calendar"
+                            data-calendar-plugins-value='["TimeGrid"]'
+                            data-calendar-view-value="timeGridDay"
+                            data-calendar-date-value="2026-05-15"></div>`);
+    await tick();
+    const pager = el.querySelector('.ec-pager');
+    Object.defineProperty(pager, 'offsetWidth', { configurable: true, value: 600 });
+    const body = el.querySelector('.ec-time-grid [data-row="body"]');
+    expect(body).toBeTruthy();
+    body.scrollTop = 500;
+
+    // Rightward pointer drag past the 25% snap threshold (= 150px of
+    // 600) navigates to the PREVIOUS date.
+    fire(pager, 'pointerdown', { clientX: 100, clientY: 200 });
+    fire(document, 'pointermove', { clientX: 280, clientY: 200 });
+    fire(document, 'pointermove', { clientX: 400, clientY: 200 });
+    fire(document, 'pointerup',   { clientX: 400, clientY: 200 });
+
+    await new Promise((r) => setTimeout(r, 280));
+
+    // Date stepped back one day.
+    expect(el.calendarApi.getOption('date').toISOString().substring(0, 10)).toBe('2026-05-14');
+
+    // The fresh live view's scroll position matches the pre-swipe value.
+    const newBody = el.querySelector('.ec-time-grid [data-row="body"]');
+    expect(newBody).toBeTruthy();
+    expect(newBody.scrollTop).toBe(500);
+  });
 });
