@@ -254,7 +254,11 @@
        actual hit targets are the underlying full-width .ec-resizer
        strips along the top and bottom edges. */
     #cal .ec-event.ec-event-editing {
-      box-shadow: 0 0 0 2px var(--accent), 0 6px 16px -4px rgba(15, 23, 42, 0.25);
+      /* Ring uses the chip's own accent (which is also its background
+         when selected/editing) — not the demo-wide blue --accent — so a
+         green chip gets a green ring, amber gets amber, etc. Keeps the
+         affordance visually anchored to the event being edited. */
+      box-shadow: 0 0 0 2px var(--ec-event-accent), 0 6px 16px -4px rgba(15, 23, 42, 0.25);
       z-index: 4;
     }
     #cal .ec-event.ec-event-editing::before,
@@ -265,7 +269,9 @@
       height: 18px;
       border-radius: 50%;
       background: #fff;
-      border: 2px solid var(--accent);
+      /* Match the editing ring — handle outline takes the chip's accent
+         so it reads as the same visual family as the ring. */
+      border: 2px solid var(--ec-event-accent);
       box-shadow: 0 1px 3px rgba(15, 23, 42, 0.25);
       pointer-events: none;
       z-index: 5;
