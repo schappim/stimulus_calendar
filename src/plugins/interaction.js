@@ -629,6 +629,17 @@ function attachTimeGridCreateHandler(rootEl, state) {
     const options = state.get('options');
     if (!options.editable) return;
     if (jsEvent.button !== undefined && jsEvent.button !== 0) return;
+    // Touch: skip. Drag-to-create is a desktop convention — on a phone
+    // the same finger motion is used for vertical scroll (timeline) and
+    // horizontal swipe (page navigation). PreventDefaulting on pointerdown
+    // here would kill those native gestures, and any movement during the
+    // gesture would otherwise tip drag.moved to true and surface a create
+    // sheet that the user never asked for. Host apps build mobile create
+    // flows around long-press instead (see demo/18-mobile.html). The
+    // pager already uses the mirror-image rule (skips mouse, accepts
+    // touch); this keeps the two gesture sources mutually exclusive on
+    // each platform.
+    if (jsEvent.pointerType === 'touch') return;
     if (jsEvent.target.closest?.('[data-event-id], .ec-resizer, .ec-button, button, input, select, textarea, a, [data-more-link], [data-popover-action]')) return;
     const col = jsEvent.target.closest?.('.ec-time-col');
     if (!col || !rootEl.contains(col)) return;
