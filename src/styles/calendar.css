@@ -514,19 +514,29 @@
 }
 
 .ec-time-grid .ec-event {
-  /* --ec-event-color is set inline per-chip from event.backgroundColor;
-   * if absent it falls back to the theme default. */
-  --ec-event-color: var(--ec-event-bg-color);
+  /* --ec-event-color is the legacy hook still set inline from
+   * event.backgroundColor by the view (see time_grid.js); --ec-event-accent
+   * is the modern token, settable via the per-type modifier classes. The
+   * accent inherits from the inline colour unless a modifier overrides it,
+   * so existing callers that only set event.backgroundColor keep working. */
+  --ec-event-accent: var(--ec-event-color, var(--ec-event-bg-color));
   position: absolute;
   left: 1px;
   right: 1px;
-  background: color-mix(in srgb, var(--ec-event-color) 16%, white);
-  color: color-mix(in srgb, var(--ec-event-color) 75%, black);
-  padding: 3px 6px 3px 8px;
-  border-radius: 4px;
-  border-left: 3px solid var(--ec-event-color);
-  font-size: 0.75rem;
-  line-height: 1.2;
+  /* Opaque -50-equivalent wash + -200-equivalent stroke, derived from the
+   * accent so a dragged chip is fully opaque (not alpha-blended over the
+   * tile beneath it). Approximates the hand-picked Tailwind -50/-200
+   * stops within a few units across the palette. */
+  background: color-mix(in srgb, var(--ec-event-accent) 8%, white);
+  border: 1px solid color-mix(in srgb, var(--ec-event-accent) 38%, white);
+  color: var(--ec-event-title-color);
+  padding: 4px 8px 4px 14px;          /* left padding clears the accent strip */
+  border-radius: 10px;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI",
+               Roboto, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
   overflow: visible;     /* allow .ec-resizer to extend past the bottom edge */
   touch-action: pan-y;
   display: flex;
@@ -534,6 +544,23 @@
   gap: 1px;
   min-height: 0;
 }
+
+/* Accent strip — inset 3px-wide bar pinned to the chip's left edge in the
+ * accent colour. Continuation segments stretch their strip to the affected
+ * edge so a multi-day chip reads as one continuous bar across days. */
+.ec-time-grid .ec-event::before {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: 5px;
+  bottom: 5px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--ec-event-accent);
+  pointer-events: none;
+}
+.ec-time-grid .ec-event.ec-event-continues-from::before { top: 0; border-top-left-radius: 0; border-top-right-radius: 0; }
+.ec-time-grid .ec-event.ec-event-continues-to::before   { bottom: 0; border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
 
 .ec-event.ec-event-editing {
   touch-action: none;
@@ -545,7 +572,10 @@
 }
 
 .ec-time-grid .ec-event .ec-event-title {
-  font-weight: 600;
+  font-weight: 700;
+  font-size: 0.8125rem;                 /* ~13px on default 16px root */
+  color: var(--ec-event-title-color);
+  letter-spacing: -0.015em;
   white-space: normal;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -555,11 +585,13 @@
 }
 
 .ec-time-grid .ec-event .ec-event-time {
-  font-size: 0.7rem;
-  opacity: 0.9;
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ec-event-accent);
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: 4px;
   white-space: nowrap;
   overflow: hidden;
 }
