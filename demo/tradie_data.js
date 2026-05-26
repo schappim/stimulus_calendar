@@ -274,7 +274,7 @@ export function statusCss() {
     .ec-event.job-status-${k} {
       background: ${v.bg} !important;
       color: ${v.fg} !important;
-      border-left: 4px solid ${v.border} !important;
+      border-left: 1px solid ${v.border} !important;
     }
     .job-status-pill.job-status-${k} {
       background: ${v.bg};
