@@ -307,7 +307,6 @@
   padding: 2px 0.5rem;
   background: color-mix(in srgb, var(--ec-event-accent) 10%, white);
   border: 1px solid color-mix(in srgb, var(--ec-event-accent) 35%, white);
-  border-left: 3px solid var(--ec-event-accent);
   color: var(--ec-event-title-color);
   border-radius: 6px;
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI",
@@ -763,7 +762,6 @@
   bottom: 4px;
   background: color-mix(in srgb, var(--ec-event-accent) 10%, white);
   border: 1px solid color-mix(in srgb, var(--ec-event-accent) 35%, white);
-  border-left: 3px solid var(--ec-event-accent);
   color: var(--ec-event-title-color);
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI",
                Roboto, system-ui, sans-serif;
@@ -771,13 +769,29 @@
   letter-spacing: -0.01em;
   font-size: 0.75rem;
   font-weight: 600;
-  padding: 2px 0.5rem;
+  /* Left padding clears the inset accent strip painted by ::before. */
+  padding: 2px 0.5rem 2px 0.75rem;
   border-radius: 6px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   display: flex;
   align-items: center;
+}
+
+/* Inset accent strip — matches the time-grid chip's language so a bar
+ * dragged onto the timeline reads with the same identity cue, instead
+ * of a chunky 3px border-left. */
+.ec-timeline .ec-event::before {
+  content: "";
+  position: absolute;
+  left: 3.5px;
+  top: 4px;
+  bottom: 4px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--ec-event-accent);
+  pointer-events: none;
 }
 
 /* -------------------------------------------------------------------------
