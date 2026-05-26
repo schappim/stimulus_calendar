@@ -162,13 +162,18 @@ export function nowAndTodayEffect() {
 // start/end by the offset diff (and re-brand) and shift options.date.
 // Mirrors the upstream behaviour for floating dates (no original offset →
 // branded only, not shifted).
+//
+// Fall back to options.events when state.events hasn't been populated
+// yet — events provided via the initial bundle live on options.events
+// until the first addEvent/refetch. Without the fallback a live
+// setOption('timeZone', ...) would leave those events unshifted.
 export function timeZoneChangeEffect(setOption) {
   return {
     deps: ['offset'],
     run(state) {
       const offset = state.get('offset');
-      const events = state.get('events') ?? [];
       const options = state.get('options');
+      const events = state.get('events') ?? options?.events ?? [];
 
       for (const event of events) {
         if (event.allDay) continue;

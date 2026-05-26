@@ -180,7 +180,11 @@ export default class CalendarController extends Controller {
       const ar = activeRange(cr, state.get('extensions')?.activeRange);
       state.set('activeRange', ar);
       state.set('viewDates', viewDates(ar, options.hiddenDays ?? []));
-      state.set('offset', offset(options.timeZone ?? 'local'));
+      // Pass options.date so IANA zones resolve to the offset that's
+      // actually in effect for the displayed week/month. As the user
+      // navigates across a DST transition the offset flips, which then
+      // triggers timeZoneChangeEffect to re-anchor the events.
+      state.set('offset', offset(options.timeZone ?? 'local', options.date));
       const intlTitle = intlRange(options.locale, options.titleFormat);
       state.set('intlTitle', intlTitle);
       state.set('viewTitle', viewTitle(intlTitle, cr));
