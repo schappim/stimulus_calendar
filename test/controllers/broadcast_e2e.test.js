@@ -93,6 +93,38 @@ describe('CalendarController broadcast end-to-end', () => {
     expect(matches).toHaveLength(1);
   });
 
+  it('partial updateEvent broadcasts the merged state (title + colour survive)', async () => {
+    // Regression: a drag commit hands updateEvent a partial payload
+    // (`{id, start, end}`). Locally that merges with the existing event,
+    // but the broadcast used to publish the raw partial — so the receiver's
+    // `createEvents([...])` returned a fresh event with title='' and
+    // backgroundColor=undefined and the merge clobbered both.
+    const [a, b] = mountPair('partial-upd-e2e');
+    await settle();
+    a.calendarApi.addEvent({
+      id: 'sync-6',
+      title: 'Design crit',
+      start: '2026-05-26T14:00:00Z',
+      end: '2026-05-26T15:30:00Z',
+      backgroundColor: '#dc2626',
+    });
+    await settle();
+    expect(b.calendarApi.getEventById('sync-6').title).toBe('Design crit');
+    expect(b.calendarApi.getEventById('sync-6').backgroundColor).toBe('#dc2626');
+
+    a.calendarApi.updateEvent({
+      id: 'sync-6',
+      start: '2026-05-27T08:00:00Z',
+      end: '2026-05-27T13:00:00Z',
+    });
+    await settle();
+    const after = b.calendarApi.getEventById('sync-6');
+    expect(after.title).toBe('Design crit');
+    expect(after.backgroundColor).toBe('#dc2626');
+    expect(after.start.toISOString()).toBe('2026-05-27T08:00:00.000Z');
+    expect(after.end.toISOString()).toBe('2026-05-27T13:00:00.000Z');
+  });
+
   it('isolated channels do not cross-talk', async () => {
     document.body.innerHTML = `
       <div id="a" data-controller="calendar"

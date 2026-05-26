@@ -381,15 +381,24 @@ export default class CalendarController extends Controller {
         return parsed;
       },
       updateEvent: (event) => {
+        // Capture the merged result so the broadcast payload carries the
+        // full post-mutation event. Without this, a partial caller payload
+        // (e.g. drag commit `{id,start,end}`) would broadcast missing
+        // title/backgroundColor — the receiver's createEvents([...])
+        // would fill them with defaults (`title:''`, `backgroundColor:
+        // undefined`) and the `{ ...e, ...parsed }` merge over there
+        // would clobber the receiver's local title + colour.
+        let merged = null;
         const events = (this._state.get('events') ?? this._state.get('options').events ?? [])
           .map((e) => {
             if (e.id !== String(event.id)) return e;
             const [parsed] = createEvents([{ ...e, ...event }], this._state.get('offset'));
+            merged = parsed;
             return parsed;
           });
         this._state.set('events', events);
         this._recompute();
-        this._publishBroadcast('update', event);
+        this._publishBroadcast('update', _toBroadcastPayload(merged ?? event));
         return event;
       },
       removeEventById: (id) => {
@@ -675,4 +684,18 @@ CalendarController.OPTION_KEYS = [
 
 function capitalise(s) {
   return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+// Convert a (possibly already-parsed) event into a structured-clone-safe
+// wire shape for the broadcast bus: Dates → ISO strings. The receiver's
+// createEvents([...]) reparses via _fromISOString, which preserves the
+// UTC instant regardless of the receiver's locale offset. Sending raw
+// Date objects would otherwise be re-interpreted as local wall-clock by
+// _fromLocalDate and skew by the timezone difference.
+function _toBroadcastPayload(event) {
+  if (!event) return event;
+  const out = { ...event };
+  if (out.start instanceof Date) out.start = out.start.toISOString();
+  if (out.end instanceof Date) out.end = out.end.toISOString();
+  return out;
 }
