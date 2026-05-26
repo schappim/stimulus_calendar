@@ -14,7 +14,12 @@ export function renderTimeGridView(container, state) {
   // mutations triggered by editing an event (updateEvent during resize /
   // drag) don't snap the body scroll back to options.scrollTime.
   let savedScrollTop = null;
+  // Per-render subscription that keeps the now-indicator's top in sync
+  // with state.now. Torn down before each re-render (and on view
+  // destroy) so a stale closure can't keep mutating a detached node.
+  let nowTickUnsub = null;
   const render = () => {
+    if (nowTickUnsub) { nowTickUnsub(); nowTickUnsub = null; }
     const options = state.get('options');
     const theme = options.theme;
     const activeRange = state.get('activeRange');
@@ -368,7 +373,6 @@ export function renderTimeGridView(container, state) {
       // Now indicator — a horizontal line at the current time, only on the
       // today column. Suppressed unless options.nowIndicator is true.
       if (options.nowIndicator) {
-        const now = new Date();
         // `day` is stored as the LOCAL calendar date encoded as UTC midnight
         // (createDate(new Date()) → _fromLocalDate). Computing "today" as
         // setMidnight(new Date()) would zero out UTC hours instead, which
@@ -385,15 +389,31 @@ export function renderTimeGridView(container, state) {
           const slotMinMinNow = totalSeconds(slotTimeLimits.min) / 60;
           const minutesPerSlotNow = totalSeconds(options.slotDuration) / 60;
           const pxPerMinNow = options.slotHeight / minutesPerSlotNow;
-          const nowMin = now.getHours() * 60 + now.getMinutes() - slotMinMinNow;
           nowLine.style.position = 'absolute';
           nowLine.style.left = '0';
           nowLine.style.right = '0';
-          nowLine.style.top = `${nowMin * pxPerMinNow}px`;
           nowLine.style.height = '2px';
           nowLine.style.background = '#dc2626';
           nowLine.style.zIndex = '5';
+          // Live tick: reposition off state.now (set every second by
+          // nowAndTodayEffect) so the line slides down as wall-clock
+          // minutes advance, without rebuilding the whole view. Falls
+          // back to createDate(new Date()) before the first tick lands.
+          //
+          // state.now is a UTC-encoded local date (createDate stores
+          // local wall-clock in the UTC slots so getUTCHours() returns
+          // the user's wall-clock regardless of the JS engine's TZ).
+          // Read via getUTCHours / getUTCMinutes — using getHours()
+          // would re-apply the local offset and land the indicator at
+          // wall-clock ± offset (e.g. 9:45 am → 7:45 pm in AEST).
+          const reposition = (nowDate) => {
+            const n = nowDate instanceof Date ? nowDate : createDate(new Date());
+            const nowMin = n.getUTCHours() * 60 + n.getUTCMinutes() - slotMinMinNow;
+            nowLine.style.top = `${nowMin * pxPerMinNow}px`;
+          };
+          reposition(state.get('now'));
           col.append(nowLine);
+          nowTickUnsub = state.on('change:now', ({ value }) => reposition(value));
         }
       }
 
@@ -437,13 +457,19 @@ export function renderTimeGridView(container, state) {
 
   render();
   const off = state.onAny(({ key }) => {
-    if (['options', 'currentRange', 'activeRange', 'viewDates', 'filteredEvents'].includes(key)) {
+    // `today` triggers a full re-render at midnight so the indicator can
+    // hop columns (week view) or disappear (week ended). The minute-by-
+    // minute tick lives on state.now and is handled inside render() via
+    // a targeted style.top update — re-rendering the world every second
+    // would be wasteful.
+    if (['options', 'currentRange', 'activeRange', 'viewDates', 'filteredEvents', 'today'].includes(key)) {
       render();
     }
   });
 
   return () => {
     off();
+    if (nowTickUnsub) { nowTickUnsub(); nowTickUnsub = null; }
     container.replaceChildren();
   };
 }
