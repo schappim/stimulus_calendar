@@ -129,6 +129,7 @@ export default class CalendarController extends Controller {
     this._mountRootDOM();
     this._exposeApi();
     this._installEventPopoverDefault();
+    this._installBackgroundDeselect();
 
     this.dispatch('ready', { detail: { api: this.element.calendarApi } });
   }
@@ -480,6 +481,25 @@ export default class CalendarController extends Controller {
   // event.preventDefault() inside an options.eventDoubleClick callback,
   // (b) listening for 'calendar:eventDoubleClick' on the host and calling
   // event.preventDefault(), or (c) setting options.suppressEventPopover.
+  // Clear the persisted selection when the user clicks anywhere inside
+  // the calendar that isn't an event chip — grid background, day cell,
+  // sidebar, header, toolbar, etc. The chip click handlers in each
+  // view (time_grid, day_grid, list, …) don't stopPropagation, so a
+  // click that lands inside a chip still bubbles up here; we detect
+  // that with closest('.ec-event') and bail out so the chip's own
+  // handler is the source of truth for that case.
+  _installBackgroundDeselect() {
+    const handler = (e) => {
+      if (e.target.closest('.ec-event')) return;
+      if (!this._state.get('selectedEventId')) return;
+      document.querySelectorAll('.ec-event.ec-event-selected')
+        .forEach((c) => c.classList.remove('ec-event-selected'));
+      this._state.set('selectedEventId', null);
+    };
+    this.element.addEventListener('click', handler);
+    this._teardowns.push(() => this.element.removeEventListener('click', handler));
+  }
+
   _installEventPopoverDefault() {
     // Defer to a microtask so user listeners attached *after* the controller
     // (e.g. in their own connect() running later in the same turn) still

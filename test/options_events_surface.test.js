@@ -80,6 +80,23 @@ describe('events surface', () => {
     expect(didMount.mock.calls[0][0].el).toBeTruthy();
   });
 
+  it('background click on the calendar (outside any chip) deselects the current event', async () => {
+    const el = await mount(`<div data-controller="calendar"
+      data-calendar-plugins-value='["DayGrid"]'
+      data-calendar-view-value="dayGridMonth"
+      data-calendar-date-value="2026-05-15"></div>`);
+    el.calendarApi.addEvent({ id:'1', start:'2026-05-15T09:00', end:'2026-05-15T10:00' });
+    const chip = el.querySelector('[data-event-id="1"]');
+    chip.click();
+    expect(chip.classList.contains('ec-event-selected')).toBe(true);
+    // Click somewhere inside the calendar but not on a chip.
+    const dayCell = el.querySelector('.ec-day');
+    expect(dayCell).toBeTruthy();
+    dayCell.click();
+    expect(chip.classList.contains('ec-event-selected')).toBe(false);
+    expect(el.querySelectorAll('.ec-event-selected').length).toBe(0);
+  });
+
   it('background events render with theme.bgEvent and not as chips', async () => {
     const el = await mount(`<div data-controller="calendar"
       data-calendar-plugins-value='["DayGrid"]'
