@@ -1401,13 +1401,10 @@ body.ec-resizing-active * {
   background: #ffffff;
 }
 
-/* The time-grid chip's inset accent strip would otherwise blend into
- * the now-accent background — flip it white so the chip's left edge
- * still reads as a distinct highlight. */
-.ec-time-grid .ec-event.ec-event-selected::before {
-  background: #ffffff;
-  opacity: 0.9;
-}
+/* The accent strip stays the original accent colour even when the chip
+ * is selected — it blends visually into the now-accent background, but
+ * that's intentional: the chip's identity stays consistent and the
+ * saturated background already signals selection. */
 
 .ec-month-scroller-cell.ec-today .ec-day-number {
   background: #dc2626;
