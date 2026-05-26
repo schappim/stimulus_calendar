@@ -93,27 +93,63 @@ export function runReposition(refs, data) {
 }
 
 // Pack a set of time-bounded items into vertical lanes so overlapping
-// items get a distinct lane index. Items in the same lane never overlap
-// in time; the lane numbers are reused once an item ends.
+// items get a distinct lane within a shared CLUSTER.
 //
-// `items` is an array of `{ start, end, ... }`. Returns a Map<item, lane>
-// where lane >= 0. Used by the time-grid views to offset overlapping
-// event chips into a staircase so each chip's left edge stays clickable
-// even when a later event is painted on top.
+// `items` is an array of `{ start, end, ... }`. Returns a Map<item,
+// { lane, cluster }> where:
+//
+//   - lane is a 0-based column within the cluster, picked as the
+//     SMALLEST free lane each step (so a sequence of short events
+//     between a tall one all reuse the first free column instead of
+//     spilling rightward);
+//   - cluster is a shared-by-reference `{ laneCount }` object whose
+//     `laneCount` is the column count for the whole transitive
+//     overlap group. Because it's shared, a late-arriving third event
+//     that bumps laneCount from 2 → 3 also widens the layout of the
+//     earlier two events without a re-pass.
+//
+// Algorithm (sweep-line, mirroring mobile_schedule_controller +
+// _schedule_day_pane.html.erb so server-rendered and client-relayed-out
+// lanes produce identical numbers):
+//
+//   1. Sort items by start (ascending), then end (ascending).
+//   2. Walk the list keeping `active` = items whose end > current.start.
+//   3. Evict expired (end ≤ current.start) → if active goes empty,
+//      open a fresh cluster.
+//   4. Smallest-free-lane: collect used = Set(active.map(.lane)),
+//      lane = 0 while used.has(lane) lane++. Assign + push.
+//   5. cluster.laneCount = max(cluster.laneCount, lane + 1).
+//
+// Items with start === end (zero-length) are treated as occupying a
+// 30-minute slot for overlap detection so an "instant" event doesn't
+// render as a 1-px sliver invisible under the next one.
+const MIN_OVERLAP_MS = 30 * 60_000;
 export function assignOverlapLanes(items) {
   const sorted = [...items].sort((a, b) => {
     const sa = a.start.getTime(), sb = b.start.getTime();
     if (sa !== sb) return sa - sb;
-    return b.end.getTime() - a.end.getTime();
+    return a.end.getTime() - b.end.getTime();
   });
-  const laneEnds = [];
   const result = new Map();
+  let active = [];
+  let cluster = null;
   for (const item of sorted) {
     const startMs = item.start.getTime();
-    let lane = laneEnds.findIndex((end) => end <= startMs);
-    if (lane === -1) { lane = laneEnds.length; laneEnds.push(item.end.getTime()); }
-    else { laneEnds[lane] = item.end.getTime(); }
-    result.set(item, lane);
+    const effectiveEnd = Math.max(item.end.getTime(), startMs + MIN_OVERLAP_MS);
+    // Evict items that ended at or before this one's start (half-open
+    // intervals — touching but not overlapping events don't fan apart).
+    active = active.filter((a) => a.endMs > startMs);
+    if (active.length === 0) cluster = { laneCount: 0 };
+    // Smallest free lane.
+    const used = new Set(active.map((a) => a.lane));
+    let lane = 0;
+    while (used.has(lane)) lane += 1;
+    cluster.laneCount = Math.max(cluster.laneCount, lane + 1);
+    result.set(item, { lane, cluster });
+    active.push({ item, lane, endMs: effectiveEnd });
+    // Keep first-to-expire at the front so the next iteration's filter
+    // touches the relevant entries first. Doesn't change correctness.
+    active.sort((a, b) => a.endMs - b.endMs);
   }
   return result;
 }

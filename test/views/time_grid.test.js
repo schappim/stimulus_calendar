@@ -92,6 +92,55 @@ describe('view: timeGridWeek', () => {
     expect(el.calendarApi.getOption('slotEventOverlap')).toBe(false);
   });
 
+  it('fans overlapping chips into side-by-side lane fractions (laneCount=3)', async () => {
+    // A: 09:00–10:30, B: 10:00–11:00, C: 10:15–12:30 — all three share
+    // a transitive cluster, so each chip should render at width
+    // calc(33.33...% - 6px) with lefts calc(0% + 0px), calc(33.33...% + 3px),
+    // calc(66.66...% + 6px).
+    const el = await mount(`<div data-controller="calendar"
+      data-calendar-plugins-value='["TimeGrid"]'
+      data-calendar-view-value="timeGridDay"
+      data-calendar-date-value="2026-05-25"></div>`);
+    el.calendarApi.addEvent({ id: 'la', title: 'A', start: '2026-05-25T09:00', end: '2026-05-25T10:30' });
+    el.calendarApi.addEvent({ id: 'lb', title: 'B', start: '2026-05-25T10:00', end: '2026-05-25T11:00' });
+    el.calendarApi.addEvent({ id: 'lc', title: 'C', start: '2026-05-25T10:15', end: '2026-05-25T12:30' });
+    const a = el.querySelector('[data-event-id="la"]');
+    const b = el.querySelector('[data-event-id="lb"]');
+    const c = el.querySelector('[data-event-id="lc"]');
+    expect(a.style.width).toMatch(/calc\(33\.3\d+% - 6px\)/);
+    expect(b.style.width).toMatch(/calc\(33\.3\d+% - 6px\)/);
+    expect(c.style.width).toMatch(/calc\(33\.3\d+% - 6px\)/);
+    expect(a.style.left).toMatch(/calc\(0% \+ 0px\)/);
+    expect(b.style.left).toMatch(/calc\(33\.3\d+% \+ 3px\)/);
+    expect(c.style.left).toMatch(/calc\(66\.6\d+% \+ 6px\)/);
+  });
+
+  it('single-occupancy events take the fast 100% / left:0 path (no calc)', async () => {
+    const el = await mount(`<div data-controller="calendar"
+      data-calendar-plugins-value='["TimeGrid"]'
+      data-calendar-view-value="timeGridDay"
+      data-calendar-date-value="2026-05-25"></div>`);
+    el.calendarApi.addEvent({ id: 'solo', title: 'Solo', start: '2026-05-25T09:00', end: '2026-05-25T10:00' });
+    const chip = el.querySelector('[data-event-id="solo"]');
+    expect(chip.style.left).toBe('0px');
+    expect(chip.style.right).toBe('0px');
+    expect(chip.style.width).toBe('');
+  });
+
+  it('touching-but-not-overlapping events open separate clusters (back-to-back)', async () => {
+    // A: 09:00–10:00, B: 10:00–11:00 — half-open intervals mean A is
+    // evicted at B's start, so they end up in separate clusters and
+    // each renders full-width.
+    const el = await mount(`<div data-controller="calendar"
+      data-calendar-plugins-value='["TimeGrid"]'
+      data-calendar-view-value="timeGridDay"
+      data-calendar-date-value="2026-05-25"></div>`);
+    el.calendarApi.addEvent({ id: 'ta', title: 'A', start: '2026-05-25T09:00', end: '2026-05-25T10:00' });
+    el.calendarApi.addEvent({ id: 'tb', title: 'B', start: '2026-05-25T10:00', end: '2026-05-25T11:00' });
+    expect(el.querySelector('[data-event-id="ta"]').style.width).toBe('');
+    expect(el.querySelector('[data-event-id="tb"]').style.width).toBe('');
+  });
+
   it('all-day events render inside the all-day row, not the slot grid', async () => {
     const el = await mount(`<div data-controller="calendar"
       data-calendar-plugins-value='["TimeGrid"]'

@@ -239,7 +239,6 @@ export function renderTimeGridView(container, state) {
       const laneMap = assignOverlapLanes(laneWrappers);
       const laneByEvent = new Map();
       for (const w of laneWrappers) laneByEvent.set(w.event, laneMap.get(w));
-      const LANE_OFFSET_PX = 16;
       const minutesPerSlot = (totalSeconds(options.slotDuration) / 60);
       const slotMinMin = totalSeconds(slotTimeLimits.min) / 60;
       const pxPerMin = options.slotHeight / minutesPerSlot;
@@ -295,7 +294,9 @@ export function renderTimeGridView(container, state) {
           ['data-event-start', event.start.toISOString()],
           ['data-event-end',   event.end.toISOString()],
         ]);
-        const lane = laneByEvent.get(event) ?? 0;
+        const laneInfo = laneByEvent.get(event) ?? { lane: 0, cluster: { laneCount: 1 } };
+        const lane = laneInfo.lane;
+        const laneCount = Math.max(laneInfo.cluster?.laneCount ?? 1, 1);
         chip.style.position = 'absolute';
         chip.style.top = `${startMin * pxPerMin}px`;
         const chipHeightPx = Math.max((endMin - startMin) * pxPerMin, 12);
@@ -303,9 +304,23 @@ export function renderTimeGridView(container, state) {
         // Below ~36px the chip can't fit both the title and the time row
         // without clipping; drop the time and keep the title legible.
         if (chipHeightPx < 36) chip.classList.add('ec-event-compact');
-        chip.style.left = lane === 0 ? '0' : `${lane * LANE_OFFSET_PX}px`;
-        chip.style.right = '0';
-        if (lane > 0) chip.style.zIndex = String(lane + 1);
+        // Lane-fraction layout: each cluster of overlapping events
+        // shares a laneCount; chips fan side-by-side at (100/laneCount)%
+        // with 6 px reserved for a gutter and an extra 3 px per lane
+        // staircase nudge so adjacent edges don't kiss. The
+        // single-lane fast path (laneCount === 1) skips the calc()
+        // and goes full width — keeps the common case clean.
+        if (laneCount === 1) {
+          chip.style.left = '0';
+          chip.style.right = '0';
+          chip.style.width = '';
+        } else {
+          const widthPct = 100 / laneCount;
+          chip.style.left = `calc(${lane * widthPct}% + ${lane * 3}px)`;
+          chip.style.width = `calc(${widthPct}% - 6px)`;
+          chip.style.right = 'auto';
+          chip.style.zIndex = String(lane + 1);
+        }
         if (event.backgroundColor) chip.style.setProperty('--ec-event-color', event.backgroundColor);
         chip.append(createElement('div', theme.eventTitle, event.title || ''));
         const timeEl = createElement('div', theme.eventTime ?? 'ec-event-time');
