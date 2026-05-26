@@ -75,6 +75,30 @@ export const InteractionPlugin = {
 const DEFAULT_EVENT_LONG_PRESS_MS = 240;
 const PRESS_MOVE_TOLERANCE = 8;
 
+// Edge-hold cross-day drag (mobile single-day TimeGrid views). Once a
+// chip is in edit mode and the finger drags into the left/right
+// edge band of the pager's viewport, the pager auto-steps to the
+// adjacent day after a hold; staying parked at the edge keeps stepping
+// at a faster cadence. Mirrors mobile_schedule_controller.js so users
+// get the same gesture across the desktop calendar and the mobile
+// schedule UI.
+const DAY_DRAG_EDGE_ZONE_RATIO = 0.18;
+const DAY_DRAG_EDGE_ZONE_MIN_PX = 72;
+const DAY_DRAG_EDGE_ZONE_MAX_PX = 120;
+// Intentionally slow on first entry — a glancing brush of the edge
+// shouldn't snap to the next day. Subsequent steps run at the fast
+// cadence so a committed user can race through several days.
+const DAY_DRAG_EDGE_HOLD_INITIAL_MS = 850;
+const DAY_DRAG_EDGE_HOLD_MS = 375;
+const DAY_DRAG_HAPTIC_MS = 8;
+// One short selection-style haptic on every wall-clock snap-step
+// crossing, so the user feels the 15-min grid even with eyes off the
+// screen. The day-step haptic takes precedence when both fire in the
+// same frame to avoid a double-tap. iOS doesn't honor navigator.vibrate,
+// but on Android Chrome this is the standard way to surface a selection
+// click.
+const SNAP_HAPTIC_MS = 5;
+
 // Attach pointer-driven event drag (move). Hit-tests on pointermove to
 // figure out which calendar cell the pointer is over; on pointerup, if
 // the cell differs from the source, fires options.eventDrop +
@@ -132,12 +156,35 @@ function attachEventDragHandler(rootEl, state) {
     // for the rest of the drag.
     const sourceColRect = sourceTimeCol?.getBoundingClientRect();
     const chipRect = chip.getBoundingClientRect();
+    // Capture where on the source day-column the grab landed, in
+    // minutes-from-col-top. Snapshotting this once at pointerdown keeps
+    // finishDrag working even after a cross-day edge-hold has torn down
+    // the source column's DOM during a day-step.
+    const slotMins = totalSecondsOfDuration(options.slotDuration) / 60 || 30;
+    const slotHeight = options.slotHeight ?? 22;
+    const pxPerMin = slotHeight / slotMins;
+    const snapMins = totalSecondsOfDuration(options.snapDuration) / 60 || slotMins;
+    const slotMinMin = totalSecondsOfDuration(options.slotMinTime) / 60 || 0;
+    const startTimeOfDayMin = sourceColRect
+      ? (jsEvent.clientY - sourceColRect.top) / pxPerMin
+      : null;
+    // Wall-clock minutes-since-midnight for the event the user grabbed.
+    // The snap is applied to (originalStartMin + cursorDeltaMin), so the
+    // moving chip always re-aligns to the 00 / 15 / 30 / 45 grid as the
+    // finger drags — regardless of where the event originally started
+    // (a 09:07 event becomes 09:00, 09:15, 09:30 as you drag, not 09:07,
+    // 09:22, 09:37). UTC accessors because event.start is the
+    // calendar's UTC-encoded wall-clock representation.
+    const originalStartMin = event.start.getUTCHours() * 60 + event.start.getUTCMinutes();
+    const originalEndMin = event.end.getUTCHours() * 60 + event.end.getUTCMinutes()
+      + (event.end.getTime() < event.start.getTime() ? 24 * 60 : 0);
     drag = {
       event,
       sourceChip: chip,
       sourceDateStr: sourceCell?.getAttribute('data-date'),
       sourceTimeCol,
       sourceColRect,
+      startTimeOfDayMin,
       grabOffsetX: jsEvent.clientX - chipRect.left,
       grabOffsetY: jsEvent.clientY - chipRect.top,
       chipWidth: chipRect.width,
@@ -151,6 +198,26 @@ function attachEventDragHandler(rootEl, state) {
       captured: false,
       ghost: null,
       moved: false,
+      // Vertical snap baseline. snapMins is captured once at pointerdown
+      // (rather than re-read every frame) so changing options mid-drag
+      // doesn't move the goalposts. lastSnappedStartMin starts at null
+      // and is set on the first move; the haptic fires whenever it
+      // changes between move frames.
+      pxPerMin,
+      snapMins,
+      slotMinMin,
+      originalStartMin,
+      originalEndMin,
+      lastSnappedStartMin: null,
+      timeTextHidden: false,
+      // Edge-hold cross-day drag bookkeeping.
+      edgeHoldTimer: null,
+      edgeHoldDirection: 0,
+      edgeHoldFirstFired: false,
+      swapping: false,
+      daySteps: 0,
+      dayOffsetBadge: null,
+      pointerCancelWatchdog: null,
     };
     // Capture pointer so subsequent move/up land on the same element.
     // For touch, wait until the chip is actually in edit mode; capturing
@@ -213,7 +280,15 @@ function attachEventDragHandler(rootEl, state) {
     if (!drag.moved) {
       clearTouchLongPress();
       drag.moved = true;
-      if (drag.touch && !drag.captured && drag.sourceChip.setPointerCapture && drag.pointerId !== undefined) {
+      // For touch we deliberately skip setPointerCapture — the
+      // document-level pointer + touch listeners already see every
+      // event, and capturing on the chip backfires once a cross-day
+      // edge-hold step tears the chip out of the DOM: iOS Safari then
+      // fires pointercancel (capture loss) without a follow-up
+      // touchend, leaving the gesture stuck. Touch scroll suppression
+      // is already covered by preventDefault on the move events + the
+      // body.ec-dragging touch-action override.
+      if (!drag.touch && drag.sourceChip.setPointerCapture && drag.pointerId !== undefined) {
         try { drag.sourceChip.setPointerCapture(drag.pointerId); drag.captured = true; } catch { /* ignore */ }
       }
       state.get('fire')?.('eventDragStart', {
@@ -251,7 +326,24 @@ function attachEventDragHandler(rootEl, state) {
       document.body.appendChild(ghost);
       drag.sourceChip.style.opacity = '0.4';
       document.body.classList.add('ec-dragging');
+      // The chip's own time-of-day text is now stale — the user is
+      // dragging it to a new time, but the text would keep showing the
+      // original. Hide it on both the source chip and the ghost so the
+      // floating gutter label is the only authoritative read of the
+      // proposed snap.
+      hideEventTimeText(drag);
     }
+    // Wall-clock vertical snap — round (originalStartMin + cursorDeltaMin)
+    // to the nearest snapMins so the ghost lands on the 00 / 15 / 30 / 45
+    // grid (anchored to the day's wall clock, not the original event
+    // time). Between snap boundaries the ghost holds position — the
+    // finger moves but the tile doesn't, which is the primary visual
+    // confirmation that snapping happened.
+    const cursorDeltaMin = (clientY - drag.startY) / drag.pxPerMin;
+    const proposedStartMin = drag.originalStartMin + cursorDeltaMin;
+    const snappedStartMin = Math.round(proposedStartMin / drag.snapMins) * drag.snapMins;
+    const snappedDeltaMin = snappedStartMin - drag.originalStartMin;
+    const snappedDeltaY = snappedDeltaMin * drag.pxPerMin;
     syncVerticalAutoScroll(drag, clientY, () => {
       updateDragMove({
         cancelable: false,
@@ -261,12 +353,34 @@ function attachEventDragHandler(rootEl, state) {
       }, drag.lastX, drag.lastY);
     });
     if (drag.ghost) {
-      // 1:1 cursor following — the grab offset (where on the chip the
-      // user grabbed) stays fixed for the duration of the drag, so the
-      // ghost feels glued to the cursor. The drop logic in onPointerUp
-      // still snaps to slot + day; only the preview is free-form.
+      // Horizontal: follow the cursor 1:1 (cross-day edge-hold owns the
+      // day step, no horizontal snapping). Vertical: snap to the
+      // wall-clock grid via snappedDeltaY so the chip only ever lands
+      // on snap-step Y multiples.
       drag.ghost.style.left = `${clientX - drag.grabOffsetX}px`;
-      drag.ghost.style.top  = `${clientY - drag.grabOffsetY}px`;
+      drag.ghost.style.top  = `${(drag.startY - drag.grabOffsetY) + snappedDeltaY}px`;
+    }
+    // Cross-day edge-hold check — runs every move while touch-editing so
+    // the finger entering / leaving the pager's edge band arms or
+    // cancels the day-step timer.
+    let dayStepHapticThisFrame = false;
+    if (touchEditing) {
+      const beforeSteps = drag.daySteps;
+      syncEdgeHold(clientX, clientY);
+      dayStepHapticThisFrame = drag.daySteps !== beforeSteps;
+    }
+    // Render the floating quarter-hour label in the live view's
+    // sidebar, and fire a selection haptic on every snap-boundary
+    // crossing. The day-step haptic (impact, fired by edgeHoldTick)
+    // takes precedence so the user doesn't feel two ticks in the same
+    // frame.
+    renderDraftStartLabel(drag, snappedStartMin);
+    if (snappedStartMin !== drag.lastSnappedStartMin) {
+      if (drag.lastSnappedStartMin !== null && !dayStepHapticThisFrame
+          && typeof navigator !== 'undefined' && navigator.vibrate) {
+        try { navigator.vibrate(SNAP_HAPTIC_MS); } catch { /* ignore */ }
+      }
+      drag.lastSnappedStartMin = snappedStartMin;
     }
     // Preventing default while actively dragging stops the browser from
     // hijacking touch gestures (e.g. iOS swipe-back, page rubber-band).
@@ -274,12 +388,42 @@ function attachEventDragHandler(rootEl, state) {
   }
 
   const onPointerUp = (jsEvent) => {
-    if (drag?.touch && jsEvent.type === 'pointercancel') return;
+    if (drag?.touch && jsEvent.type === 'pointercancel') {
+      // Normally we let touchend commit on touch — Android sometimes
+      // fires pointercancel mid-drag while the touch sequence keeps
+      // going, and finalizing on pointercancel would prematurely abort
+      // a still-live drag. But when the source chip has been torn down
+      // by a cross-day edge-hold step, iOS Safari signals capture loss
+      // with pointercancel and (depending on iOS version) may not fire
+      // a follow-up touchend at all. Schedule a short watchdog: if a
+      // real touch end / cancel does arrive in time, it cancels this
+      // and finalizes normally; otherwise we finalize ourselves so the
+      // drag doesn't get stuck stepping forever after the finger has
+      // left the screen.
+      const chipDetached = drag.sourceChip
+        && typeof document !== 'undefined'
+        && !document.contains(drag.sourceChip);
+      if (chipDetached && !drag.pointerCancelWatchdog) {
+        const d = drag;
+        d.pointerCancelWatchdog = setTimeout(() => {
+          if (drag !== d) return;
+          d.pointerCancelWatchdog = null;
+          finishDrag(jsEvent, d.lastX, d.lastY);
+        }, 150);
+      }
+      return;
+    }
     finishDrag(jsEvent, jsEvent.clientX, jsEvent.clientY);
   };
 
   const onTouchEnd = (jsEvent) => {
     if (!drag?.touch) return;
+    // A real touch end / cancel takes priority over the pointercancel
+    // watchdog above — clear it so we don't double-finalize.
+    if (drag.pointerCancelWatchdog) {
+      clearTimeout(drag.pointerCancelWatchdog);
+      drag.pointerCancelWatchdog = null;
+    }
     const touch = activeChangedTouch(jsEvent);
     finishDrag(jsEvent, touch?.clientX ?? drag.lastX, touch?.clientY ?? drag.lastY);
   };
@@ -288,9 +432,26 @@ function attachEventDragHandler(rootEl, state) {
     if (!drag) return;
     const d = drag; drag = null;
     clearTouchLongPress();
+    clearEdgeHold(d);
+    if (d.pointerCancelWatchdog) {
+      clearTimeout(d.pointerCancelWatchdog);
+      d.pointerCancelWatchdog = null;
+    }
+    // Cancel any in-flight cross-day slide so the lift doesn't commit
+    // one extra day after the finger has already left the screen.
+    const pagerApi = state.get('pagerApi');
+    if (pagerApi?.abortStepDuringDrag) {
+      try { pagerApi.abortStepDuringDrag(); } catch { /* ignore */ }
+    }
     removeTouchDragListeners();
     stopVerticalAutoScroll(d);
     document.body.classList.remove('ec-dragging');
+    if (d.dayOffsetBadge) d.dayOffsetBadge.remove();
+    // Restore the chip's time-of-day text BEFORE the ghost is removed —
+    // the helper walks both the source chip and the ghost so it can
+    // touch any inline-style stash either side may have.
+    showEventTimeText(d);
+    removeDraftStartLabel(d);
     if (d.ghost) d.ghost.remove();
     if (d.sourceChip) d.sourceChip.style.opacity = '';
     if (!d.moved) return;     // tap, not a drag
@@ -316,19 +477,29 @@ function attachEventDragHandler(rootEl, state) {
 
     let newStart, newEnd, delta;
     if (d.sourceTimeCol && targetTimeCol) {
-      // Compute the target time-of-day from the y-position within the
-      // target column, snapped to slotDuration.
-      const colRect = targetTimeCol.getBoundingClientRect();
-      const sourceColRect = d.sourceTimeCol.getBoundingClientRect();
-      const yInTargetCol = clientY - colRect.top;
-      const yInSourceCol = d.startY - sourceColRect.top;
-      const minOffset = (yInTargetCol - yInSourceCol) / pxPerMin;
-      const snappedMin = Math.round(minOffset / snapMins) * snapMins;
-      // Day-of-day part: target date - source date.
+      // Wall-clock snap: round (originalStartMin + cursorDeltaMin) to
+      // the nearest snapMins so the commit lands on a 00 / 15 / 30 / 45
+      // boundary anchored to the day's clock — regardless of where the
+      // event started. A 09:07 event becomes 09:15 / 09:30 / 09:45,
+      // not 09:22 / 09:37 / 09:52. cursorDeltaMin uses (clientY - startY)
+      // / pxPerMin: source and target columns share the same vertical
+      // ruler in TimeGrid (the body's single scroll layer) so the delta
+      // is a clean minute count regardless of which column the finger
+      // ended up over.
+      const cursorDeltaMin = (clientY - d.startY) / pxPerMin;
+      const proposedStartMin = d.originalStartMin + cursorDeltaMin;
+      const snappedStartMin = Math.round(proposedStartMin / snapMins) * snapMins;
+      const snappedDeltaMin = snappedStartMin - d.originalStartMin;
+      // Day-of-day part: target date - original source date. The
+      // sourceDateStr is the day the chip was on when grabbed; after
+      // any number of edge-hold day-steps the user lands on
+      // targetDateStr in the now-current view, so (toMid - fromMid)
+      // already covers the multi-day shift without a separate
+      // d.daySteps accumulator.
       const fromMid = new Date(d.sourceDateStr + 'T00:00:00Z').getTime();
       const toMid   = new Date(targetDateStr   + 'T00:00:00Z').getTime();
       const dayDelta = toMid - fromMid;
-      delta = dayDelta + snappedMin * 60_000;
+      delta = dayDelta + snappedDeltaMin * 60_000;
     } else {
       // DayGrid / List / etc — whole-day shift only.
       if (targetDateStr === d.sourceDateStr) return;
@@ -446,6 +617,235 @@ function attachEventDragHandler(rootEl, state) {
     return jsEvent.changedTouches?.[0] ?? null;
   }
 
+  // ---- Vertical snap gutter + chip-text muting -------------------------
+
+  function hideEventTimeText(d) {
+    if (d.timeTextHidden) return;
+    d.timeTextHidden = true;
+    const els = [];
+    if (d.sourceChip) els.push(...d.sourceChip.querySelectorAll('.ec-event-time'));
+    if (d.ghost) els.push(...d.ghost.querySelectorAll('.ec-event-time'));
+    for (const el of els) {
+      // Save and stash the prior inline value so restore puts it back
+      // verbatim rather than wiping an inline style the host app set.
+      el.dataset.ecDragPriorVisibility = el.style.visibility || '';
+      el.style.visibility = 'hidden';
+    }
+  }
+
+  function showEventTimeText(d) {
+    if (!d.timeTextHidden) return;
+    d.timeTextHidden = false;
+    const els = [];
+    if (d.sourceChip) els.push(...d.sourceChip.querySelectorAll('.ec-event-time'));
+    if (d.ghost) els.push(...d.ghost.querySelectorAll('.ec-event-time'));
+    for (const el of els) {
+      const prior = el.dataset.ecDragPriorVisibility ?? '';
+      el.style.visibility = prior;
+      delete el.dataset.ecDragPriorVisibility;
+    }
+  }
+
+  // Inject (or update) a single floating quarter-hour label in the live
+  // view's sidebar, anchored next to the ghost's top edge. The static
+  // hour labels already mark the :00 lines, so when the snap lands on
+  // the hour we remove the floating label rather than stacking ":00" on
+  // top of "9 AM". Suppressed when no TimeGrid sidebar is visible (e.g.
+  // day-grid month view, where the drag goes through the whole-day
+  // shift path that doesn't care about minutes).
+  function renderDraftStartLabel(d, snappedStartMin) {
+    if (!d.pxPerMin) return;
+    const sidebar = rootEl.querySelector?.('.ec-pager-page-current .ec-time-grid [data-row="body"] > .ec-sidebar')
+      ?? rootEl.querySelector?.('.ec-time-grid [data-row="body"] > .ec-sidebar');
+    if (!sidebar) return;
+    // Orphan-sweep: a previous frame may have left a label in the
+    // outgoing sidebar (most often because an edge-hold day-step
+    // re-mounted the live view). Cleanly remove every stale label
+    // before placing the fresh one.
+    const orphans = rootEl.querySelectorAll?.('[data-ec-draft-start-label]') ?? [];
+    for (const o of orphans) if (o !== d.draftStartLabel) o.remove();
+
+    const mins = ((Math.round(snappedStartMin) % 60) + 60) % 60;
+    if (mins === 0) {
+      // Snap landed on the hour; the permanent hour label already sits
+      // at the same Y. Remove the floating tick so the gutter reads as
+      // a single column of labels.
+      d.draftStartLabel?.remove();
+      d.draftStartLabel = null;
+      return;
+    }
+    let label = d.draftStartLabel;
+    if (!label || label.parentNode !== sidebar) {
+      label?.remove();
+      label = document.createElement('span');
+      label.dataset.ecDraftStartLabel = '';
+      label.className = 'ec-draft-start-label';
+      label.style.position = 'absolute';
+      label.style.right = '0.5rem';
+      label.style.fontSize = '0.7rem';
+      label.style.fontWeight = '600';
+      label.style.color = 'var(--ec-text-color, #1a1a1a)';
+      label.style.fontVariantNumeric = 'tabular-nums';
+      label.style.lineHeight = '1';
+      label.style.pointerEvents = 'none';
+      label.style.zIndex = '3';
+      // .ec-sidebar is position:sticky which creates a containing block
+      // for absolute descendants, so the inline `top` below is measured
+      // from the sidebar's own top.
+      sidebar.appendChild(label);
+      d.draftStartLabel = label;
+    }
+    const topPx = (snappedStartMin - d.slotMinMin) * d.pxPerMin - 6;
+    label.style.top = `${topPx}px`;
+    label.textContent = `:${String(mins).padStart(2, '0')}`;
+  }
+
+  function removeDraftStartLabel(d) {
+    d?.draftStartLabel?.remove();
+    if (d) d.draftStartLabel = null;
+    // Sweep any orphan label left behind in a non-current sidebar (e.g.
+    // a snapshot slot that the pager hasn't cleared yet).
+    const orphans = rootEl.querySelectorAll?.('[data-ec-draft-start-label]') ?? [];
+    for (const o of orphans) o.remove();
+  }
+
+  // ---- Cross-day edge-hold (mobile) ------------------------------------
+  //
+  // Drag a chip in edit mode into the left or right edge band of the
+  // pager and the pager auto-steps to the prev / next day. The first
+  // step requires a deliberate 850 ms hold so a glancing brush of the
+  // edge doesn't snap you onto the next day; once committed, further
+  // steps fire every 375 ms while the finger stays parked at the edge.
+  // Each step animates the pager track ±viewportWidth over 230 ms with
+  // a sharp cubic-bezier(0.4, 0, 1, 1) (see pager.js stepDuringDrag),
+  // followed by a light haptic and a "+N days" badge on the ghost.
+  //
+  // The ghost lives on <body> independent of the pager track, so when
+  // the track slides during a step the ghost stays glued under the
+  // finger automatically.
+  function syncEdgeHold(clientX, clientY) {
+    if (!drag) return;
+    if (!drag.touch) return;
+    if (!drag.sourceChip?.classList.contains('ec-event-editing')) return;
+    if (drag.swapping) return;
+    const pagerApi = state.get('pagerApi');
+    if (!pagerApi || typeof pagerApi.stepDuringDrag !== 'function') return;
+    // Single-day TimeGrid views only. On multi-day views the within-view
+    // drag already covers every visible column; adding edge-hold would
+    // double-fire on the leftmost / rightmost day.
+    const viewDates = state.get('viewDates') ?? [];
+    if (viewDates.length !== 1) return;
+    const pagerEl = pagerApi.element;
+    if (!pagerEl) return;
+    const rect = pagerEl.getBoundingClientRect();
+    const width = rect.width || pagerEl.offsetWidth || 0;
+    if (!width) return;
+    // Skip the gesture if the pointer is vertically outside the pager
+    // shell — the user may be reaching for the top-bar / bottom-bar.
+    if (clientY < rect.top || clientY > rect.bottom) {
+      clearEdgeHold(drag);
+      drag.edgeHoldFirstFired = false;
+      return;
+    }
+    const zone = Math.max(
+      DAY_DRAG_EDGE_ZONE_MIN_PX,
+      Math.min(DAY_DRAG_EDGE_ZONE_MAX_PX, width * DAY_DRAG_EDGE_ZONE_RATIO),
+    );
+    const inLeft  = clientX <= rect.left + zone;
+    const inRight = clientX >= rect.right - zone;
+    const direction = inLeft ? -1 : inRight ? +1 : 0;
+
+    if (direction === 0) {
+      clearEdgeHold(drag);
+      drag.edgeHoldFirstFired = false;
+      return;
+    }
+    if (drag.edgeHoldDirection === direction && drag.edgeHoldTimer) return;
+    if (drag.edgeHoldDirection !== direction) {
+      // Direction flip resets the camp counter — the user has to commit
+      // to the new direction with another full 850 ms hold.
+      drag.edgeHoldFirstFired = false;
+    }
+    clearEdgeHold(drag);
+    drag.edgeHoldDirection = direction;
+    const delay = drag.edgeHoldFirstFired
+      ? DAY_DRAG_EDGE_HOLD_MS
+      : DAY_DRAG_EDGE_HOLD_INITIAL_MS;
+    drag.edgeHoldTimer = setTimeout(() => edgeHoldTick(direction), delay);
+  }
+
+  function clearEdgeHold(d) {
+    if (!d) return;
+    if (d.edgeHoldTimer) {
+      clearTimeout(d.edgeHoldTimer);
+      d.edgeHoldTimer = null;
+    }
+    d.edgeHoldDirection = 0;
+  }
+
+  async function edgeHoldTick(direction) {
+    if (!drag) return;
+    if (drag.swapping) return;
+    const pagerApi = state.get('pagerApi');
+    if (!pagerApi?.stepDuringDrag) return;
+    drag.swapping = true;
+    drag.edgeHoldTimer = null;
+    try {
+      await pagerApi.stepDuringDrag(direction);
+    } catch { /* ignore */ }
+    // The gesture may have ended (finishDrag cleared drag = null) while
+    // the slide animation was in flight — bail rather than mutating a
+    // released gesture.
+    if (!drag) return;
+    drag.daySteps = (drag.daySteps ?? 0) + direction;
+    drag.edgeHoldFirstFired = true;
+    drag.swapping = false;
+    renderDayOffsetBadge(drag);
+    // Light haptic matched to the visual arrival of the slide — not the
+    // start of the tick. mobile_schedule_controller does the same.
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      try { navigator.vibrate(DAY_DRAG_HAPTIC_MS); } catch { /* ignore */ }
+    }
+    // If the finger is still in an edge zone, this re-arms with the
+    // fast 375 ms cadence (edgeHoldFirstFired is now true) so the user
+    // can race through multiple days by camping at the edge.
+    syncEdgeHold(drag.lastX, drag.lastY);
+  }
+
+  function renderDayOffsetBadge(d) {
+    if (!d.ghost) return;
+    const n = d.daySteps ?? 0;
+    if (n === 0) {
+      d.dayOffsetBadge?.remove();
+      d.dayOffsetBadge = null;
+      return;
+    }
+    let badge = d.dayOffsetBadge;
+    if (!badge) {
+      badge = document.createElement('div');
+      badge.className = 'ec-day-offset-badge';
+      badge.setAttribute('aria-hidden', 'true');
+      badge.style.position = 'absolute';
+      badge.style.top = '6px';
+      badge.style.right = '8px';
+      badge.style.padding = '2px 6px';
+      badge.style.borderRadius = '999px';
+      badge.style.background = 'rgba(15, 23, 42, 0.78)';
+      badge.style.color = '#fff';
+      badge.style.fontSize = '11px';
+      badge.style.fontWeight = '600';
+      badge.style.lineHeight = '1';
+      badge.style.letterSpacing = '0.01em';
+      badge.style.pointerEvents = 'none';
+      badge.style.zIndex = '2';
+      d.ghost.appendChild(badge);
+      d.dayOffsetBadge = badge;
+    }
+    const abs = Math.abs(n);
+    const noun = abs === 1 ? 'day' : 'days';
+    badge.textContent = n > 0 ? `+${n} ${noun}` : `−${abs} ${noun}`;
+  }
+
   rootEl.addEventListener('pointerdown', onPointerDown);
   rootEl.addEventListener('touchstart', onTouchStartCapture, { passive: false, capture: true });
   rootEl.addEventListener('click', onClickCapture, true);
@@ -462,6 +862,12 @@ function attachEventDragHandler(rootEl, state) {
     document.removeEventListener('pointercancel', onPointerUp);
     removeTouchDragListeners();
     clearTouchLongPress();
+    if (drag) {
+      clearEdgeHold(drag);
+      drag.dayOffsetBadge?.remove();
+      showEventTimeText(drag);
+      removeDraftStartLabel(drag);
+    }
     if (drag?.ghost) drag.ghost.remove();
     stopVerticalAutoScroll(drag);
   };
@@ -498,9 +904,17 @@ function syncVerticalAutoScroll(gesture, clientY, onScroll) {
     const before = el.scrollTop;
     const max = Math.max(0, el.scrollHeight - el.clientHeight);
     const next = Math.max(0, Math.min(max, before + gesture.autoScrollSpeed));
-    el.scrollTop = next;
     const delta = next - before;
-    if (delta) {
+    // Only commit the scroll AND compensate startY when the move went
+    // in the requested direction. If the scrollEl has no scrollable
+    // content (scrollHeight ≤ clientHeight) but scrollTop happens to be
+    // non-zero — which can occur transiently in test envs (happy-dom
+    // has no layout) or during a view re-mount mid-drag — the clamp
+    // above can produce a delta with the OPPOSITE sign of the speed,
+    // which previously left startY hundreds of pixels off and silently
+    // corrupted the snap math.
+    if (delta && Math.sign(delta) === Math.sign(gesture.autoScrollSpeed)) {
+      el.scrollTop = next;
       gesture.startY -= delta;
       onScroll?.(delta);
     }

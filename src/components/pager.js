@@ -38,6 +38,12 @@ const VERTICAL_GUARD = 6;
 const WHEEL_END_DEBOUNCE = 180;
 const WHEEL_THRESHOLD_FRACTION = 0.35;
 const WHEEL_THRESHOLD_MAX = 200;
+// Programmatic day-step (used by the Interaction plugin's edge-hold
+// cross-day drag on mobile). Faster + sharper than a finger swipe — the
+// user's already committed by camping at the edge, so the slide doesn't
+// need to feel forgiving. Mirrors mobile_schedule_controller's FLY_MS.
+const STEP_DURING_DRAG_MS = 230;
+const STEP_DURING_DRAG_EASE = 'cubic-bezier(0.4, 0, 1, 1)';
 
 // createPager(container, state, factory, { onNavigate }) → { destroy }
 //
@@ -432,6 +438,82 @@ export function createPager(container, state, factory, { onNavigate }) {
     }, SWIPE_ANIM_MS);
   }
 
+  // Programmatic single-day step driven by the Interaction plugin's
+  // edge-hold cross-day drag on mobile. The user's finger is already
+  // camped at a left/right edge; we slide the track ±width over
+  // STEP_DURING_DRAG_MS with a sharper ease, then rotate so the
+  // destination snapshot becomes the new live view. Returns a Promise
+  // that resolves after the rotation completes so the caller can fire a
+  // haptic, re-arm the next-step timer, etc.
+  //
+  // Before animating, the destination snapshot's body scrollTop is set
+  // to match the live body's so the day-step doesn't flicker the
+  // user's vertical position. After the rotation the freshly-mounted
+  // live view has its own savedScrollTop closure starting at null; we
+  // re-apply the same scrollTop so the user's finger stays glued to the
+  // same time-of-day on the new day.
+  // The single in-flight day-step (if any). Tracked at the pager level
+  // so the Interaction plugin can call abortStepDuringDrag() on finger
+  // lift and the slide cancels cleanly — without aborting, a lift mid-
+  // animation would still commit the destination day, surprising the
+  // user with one extra advance after their finger left the screen.
+  let activeStep = null;
+
+  function stepDuringDrag(direction) {
+    return new Promise((resolve) => {
+      const width = pager.offsetWidth || container.offsetWidth || 0;
+      if (!width || (direction !== 1 && direction !== -1)) {
+        resolve();
+        return;
+      }
+      ensureSnapshots();
+      const liveBody = slots[liveIdx].querySelector?.('[data-row="body"]');
+      const liveScrollTop = liveBody?.scrollTop ?? 0;
+      const destIdx = mod3(liveIdx + direction);
+      const destBody = slots[destIdx].querySelector?.('[data-row="body"]');
+      if (destBody) destBody.scrollTop = liveScrollTop;
+
+      pager.classList.add('ec-pager-dragging');
+      const toPx = -direction * width;
+      track.style.transition = `transform ${STEP_DURING_DRAG_MS}ms ${STEP_DURING_DRAG_EASE}`;
+      pager.style.setProperty('--ec-pager-transition',
+        `transform ${STEP_DURING_DRAG_MS}ms ${STEP_DURING_DRAG_EASE}`);
+      pager.style.setProperty('--ec-pager-px', `${toPx}px`);
+      track.style.transform = `translate3d(${toPx}px, 0, 0)`;
+
+      const step = { resolve, aborted: false };
+      step.timer = setTimeout(() => {
+        if (step.aborted) return;
+        if (activeStep === step) activeStep = null;
+        rotateAndCommit(direction);
+        pager.classList.remove('ec-pager-dragging');
+        const newLiveBody = slots[liveIdx].querySelector?.('[data-row="body"]');
+        if (newLiveBody) newLiveBody.scrollTop = liveScrollTop;
+        resolve();
+      }, STEP_DURING_DRAG_MS);
+      activeStep = step;
+    });
+  }
+
+  // Cancel any in-flight stepDuringDrag and snap the track back to
+  // baseline. Used by the Interaction plugin when the user's finger
+  // leaves the screen mid-slide, so the lift doesn't commit one extra
+  // day after the gesture has ended.
+  function abortStepDuringDrag() {
+    if (!activeStep) return false;
+    const step = activeStep;
+    activeStep = null;
+    step.aborted = true;
+    clearTimeout(step.timer);
+    track.style.transition = 'none';
+    pager.style.setProperty('--ec-pager-transition', 'none');
+    pager.style.setProperty('--ec-pager-px', '0px');
+    track.style.transform = 'translate3d(0px, 0, 0)';
+    pager.classList.remove('ec-pager-dragging');
+    step.resolve();
+    return true;
+  }
+
   pager.addEventListener('pointerdown', onPointerDown, { capture: true });
   pager.addEventListener('touchstart', onTouchStart, { capture: true, passive: true });
   pager.addEventListener('wheel', onWheel, { passive: false });
@@ -453,6 +535,13 @@ export function createPager(container, state, factory, { onNavigate }) {
       removeTouchListeners();
       container.replaceChildren();
     },
+    // The pager root element — exposed so the Interaction plugin can
+    // measure the edge zones for cross-day drag against the live
+    // viewport (rather than the calendar root, which on mobile shells
+    // also covers the toolbar / bottom-bar gutters).
+    element: pager,
+    stepDuringDrag,
+    abortStepDuringDrag,
     // Test helper — surfaces the inner DOM nodes without coupling tests
     // to the class names directly.
     _nodes() {

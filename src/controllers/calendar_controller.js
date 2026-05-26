@@ -348,6 +348,7 @@ export default class CalendarController extends Controller {
       });
       this._monthScroller = scroller;
       this._pager = null;
+      this._state.set('pagerApi', null);
       this._viewTeardown = () => { scroller.destroy(); this._monthScroller = null; };
       return;
     }
@@ -361,12 +362,20 @@ export default class CalendarController extends Controller {
       });
       this._pager = pager;
       this._monthScroller = null;
-      this._viewTeardown = () => { pager.destroy(); this._pager = null; };
+      // Expose for the Interaction plugin's edge-hold cross-day drag.
+      // Cleared in the teardown below + reset on every view re-mount.
+      this._state.set('pagerApi', pager);
+      this._viewTeardown = () => {
+        pager.destroy();
+        this._pager = null;
+        this._state.set('pagerApi', null);
+      };
     } else {
       this._mainEl.replaceChildren();
       this._viewTeardown = null;
       this._pager = null;
       this._monthScroller = null;
+      this._state.set('pagerApi', null);
     }
   }
 
