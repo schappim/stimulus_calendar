@@ -1,7 +1,11 @@
-// Playwright verification for the mobile-demo gesture fixes.
-//
-// Boots vite on a fresh port, runs an iPhone-emulated chromium against
-// demo/18-mobile.html, and reports a pass/fail line per assertion.
+// Playwright verification of the mobile-demo behaviour:
+//   - sidebar + day cols share ONE scroll container (the body), so Y
+//     scroll is 1:1 native (no JS in the loop).
+//   - clock-icon SVG carries width/height/fill/stroke as presentation
+//     attributes (kills the drag-ghost giant black disc).
+//   - a CDP-driven vertical touch swipe scrolls the timeline and does
+//     NOT open the create sheet.
+//   - "now" is centered vertically on first mount.
 //
 // Usage: node scripts/verify-mobile-gestures.mjs
 
@@ -12,13 +16,10 @@ import { resolve } from 'node:path';
 const PORT = 5177;
 const repoRoot = resolve(import.meta.dirname, '..');
 const vite = spawn('npx', ['vite', '--port', String(PORT), '--strictPort'], {
-  cwd: repoRoot,
-  stdio: ['ignore', 'pipe', 'pipe'],
+  cwd: repoRoot, stdio: ['ignore', 'pipe', 'pipe'],
 });
 const ready = new Promise((r) => {
-  vite.stdout.on('data', (chunk) => {
-    if (/ready in/i.test(chunk.toString())) r();
-  });
+  vite.stdout.on('data', (chunk) => { if (/ready in/i.test(chunk.toString())) r(); });
 });
 vite.stderr.on('data', (c) => process.stderr.write(c));
 
@@ -33,121 +34,78 @@ try {
   console.log('vite ready, launching iPhone-emulated chromium');
 
   const browser = await chromium.launch();
-  const ctx = await browser.newContext({
-    ...devices['iPhone 13'],
-    hasTouch: true,
-  });
+  const ctx = await browser.newContext({ ...devices['iPhone 13'], hasTouch: true });
   const page = await ctx.newPage();
   await page.goto(`http://localhost:${PORT}/demo/18-mobile.html`, { waitUntil: 'networkidle' });
   await page.waitForSelector('[data-calendar-mounted="true"]');
   await page.waitForTimeout(250);
 
-  // ── 1. Architecture sanity
+  // ── 1. Architecture sanity: single scroll container.
   const layout = await page.evaluate(() => {
-    const rail = document.querySelector('.ec-sidebar-rail');
-    const railSidebar = document.querySelector('.ec-sidebar-rail > .ec-sidebar');
-    const colsScroll = document.querySelector('.ec-cols-scroll');
     const body = document.querySelector('[data-row="body"]');
+    const sidebar = document.querySelector('[data-row="body"] > .ec-sidebar');
+    const days = document.querySelector('[data-row="body"] > .ec-days');
     return {
-      hasRail: !!rail,
-      hasRailSidebar: !!railSidebar,
-      hasColsScroll: !!colsScroll,
+      hasBody: !!body,
+      hasSidebarDirectChild: !!sidebar,
+      hasDaysDirectChild: !!days,
       bodyOverflowY: body ? getComputedStyle(body).overflowY : null,
-      railSidebarPosition: railSidebar ? getComputedStyle(railSidebar).position : null,
+      bodyDisplay: body ? getComputedStyle(body).display : null,
     };
   });
-  check('sidebar-rail in DOM', layout.hasRail);
-  check('rail-internal sidebar exists', layout.hasRailSidebar && layout.railSidebarPosition === 'absolute');
-  check('cols-scroll is the scroller', layout.hasColsScroll);
-  check('body overflow visible (not auto)', layout.bodyOverflowY === 'visible', `body overflow-y=${layout.bodyOverflowY}`);
+  check('body in DOM', layout.hasBody);
+  check('sidebar is a direct child of body', layout.hasSidebarDirectChild);
+  check('days is a direct child of body', layout.hasDaysDirectChild);
+  check('body overflow-y=auto (it is the scroller)', layout.bodyOverflowY === 'auto');
+  check('body display=grid', layout.bodyDisplay === 'grid');
 
-  // ── 2. Cols-scroll dimensions + content height
-  const dims = await page.evaluate(() => {
-    const c = document.querySelector('.ec-cols-scroll');
-    if (!c) return null;
-    const cs = getComputedStyle(c);
+  // ── 2. Clock-icon SVG: width + fill are self-contained.
+  const svg = await page.evaluate(() => {
+    const ic = document.querySelector('.ec-event .ec-clock-icon');
+    if (!ic) return null;
     return {
-      offsetHeight: c.offsetHeight,
-      scrollHeight: c.scrollHeight,
-      clientHeight: c.clientHeight,
-      overflowY: cs.overflowY,
-      webkitOverflowScrolling: cs.webkitOverflowScrolling,
-      touchAction: cs.touchAction,
+      widthAttr: ic.getAttribute('width'),
+      fillAttr: ic.getAttribute('fill'),
+      computedWidth: ic.getBoundingClientRect().width,
     };
   });
-  check('cols-scroll has scrollable content',
-    dims && dims.scrollHeight > dims.offsetHeight,
-    dims ? `scrollHeight=${dims.scrollHeight} offsetHeight=${dims.offsetHeight}` : 'not found');
-  check('cols-scroll overflow-y=auto', dims?.overflowY === 'auto');
+  check('clock SVG has width="11"', svg?.widthAttr === '11');
+  check('clock SVG has fill="none"', svg?.fillAttr === 'none');
+  check('clock SVG renders ≤ 16px wide', svg && svg.computedWidth <= 16, svg ? `${svg.computedWidth}px` : 'no chip');
 
-  // ── 3. What's at the touch point in the middle of the cols-scroll?
-  const hitChain = await page.evaluate(() => {
-    const c = document.querySelector('.ec-cols-scroll');
-    if (!c) return null;
-    const r = c.getBoundingClientRect();
-    const cx = r.x + r.width * 0.6;
-    const cy = r.y + r.height * 0.5;
-    const els = document.elementsFromPoint(cx, cy);
-    return els.slice(0, 8).map((el) => {
-      const cs = getComputedStyle(el);
-      return {
-        tag: el.tagName.toLowerCase(),
-        cls: el.className?.toString().slice(0, 80) || '',
-        pointerEvents: cs.pointerEvents,
-        touchAction: cs.touchAction,
-        zIndex: cs.zIndex,
-      };
-    });
-  });
-  console.log('  elements at middle of cols-scroll (top → bottom of stack):');
-  for (const el of hitChain ?? []) {
-    console.log(`    <${el.tag} class="${el.cls}"> touch-action=${el.touchAction} pointer-events=${el.pointerEvents} z=${el.zIndex}`);
-  }
-  check('top hit element does NOT have touch-action: none',
-    hitChain && hitChain[0]?.touchAction !== 'none',
-    hitChain && hitChain[0] ? `top=${hitChain[0].cls} touch-action=${hitChain[0].touchAction}` : '');
-
-  // ── 4. Native scroll: drive scrollTop and check sidebar Y syncs
-  const scrollSync = await page.evaluate(async () => {
-    const c = document.querySelector('.ec-cols-scroll');
-    const s = document.querySelector('.ec-sidebar-rail > .ec-sidebar');
-    if (!c || !s) return null;
-    c.scrollTop = 200;
-    await new Promise(r => requestAnimationFrame(r));
-    await new Promise(r => requestAnimationFrame(r));
+  // ── 3. "Now" is centered on first mount.
+  const center = await page.evaluate(() => {
+    const body = document.querySelector('[data-row="body"]');
+    const now = new Date();
+    const nowMin = now.getHours() * 60 + now.getMinutes();
+    const pxPerMin = 56 / 30;  // demo's slotHeight / slotDuration
+    const expectedY = nowMin * pxPerMin;
+    const idealScrollTop = Math.max(0, expectedY - body.clientHeight / 2);
     return {
-      scrollTop: c.scrollTop,
-      sidebarY: s.style.getPropertyValue('--ec-cols-scroll-y').trim(),
-      transform: getComputedStyle(s).transform,
+      scrollTop: body.scrollTop,
+      idealScrollTop,
+      diff: Math.abs(body.scrollTop - idealScrollTop),
     };
   });
-  check('cols-scroll accepts scrollTop',
-    scrollSync && scrollSync.scrollTop > 0,
-    scrollSync ? `scrollTop=${scrollSync.scrollTop}` : '');
-  check('sidebar tracks scrollTop via --ec-cols-scroll-y',
-    scrollSync && scrollSync.sidebarY === `${scrollSync.scrollTop}px`,
-    scrollSync ? `var=${scrollSync.sidebarY}` : '');
+  check('first-mount scrollTop ≈ centered on now',
+    center.diff < 30,
+    `actual=${Math.round(center.scrollTop)} ideal=${Math.round(center.idealScrollTop)} diff=${Math.round(center.diff)}`);
 
-  // ── 5. CDP-level touch swipe (mimics what iOS Safari does on a finger
-  //      drag). Drives the browser's real touch dispatch pipeline so the
-  //      native scroller engages exactly as it would on a real device.
+  // ── 4. CDP touch swipe scrolls the body 1:1 (no JS in the loop).
   const cdp = await ctx.newCDPSession(page);
-  const colBox = await page.evaluate(() => {
-    const c = document.querySelector('.ec-cols-scroll');
-    const r = c.getBoundingClientRect();
+  const bodyBox = await page.evaluate(() => {
+    const b = document.querySelector('[data-row="body"]');
+    const r = b.getBoundingClientRect();
     return { x: r.x + r.width * 0.6, top: r.y + 20, bottom: r.y + r.height - 20 };
   });
-  // Reset scrollTop so we measure the gesture, not the prior assertion.
+  // Reset scrollTop so we measure the gesture, not the centering.
   await page.evaluate(() => {
-    document.querySelector('.ec-cols-scroll').scrollTop = 0;
+    document.querySelector('[data-row="body"]').scrollTop = 0;
   });
   await page.waitForTimeout(80);
 
   const swipe = async (xs, ys, xe, ye, frames = 10) => {
-    await cdp.send('Input.dispatchTouchEvent', {
-      type: 'touchStart',
-      touchPoints: [{ x: xs, y: ys }],
-    });
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: xs, y: ys }] });
     for (let i = 1; i <= frames; ++i) {
       const t = i / frames;
       await cdp.send('Input.dispatchTouchEvent', {
@@ -156,25 +114,34 @@ try {
       });
       await page.waitForTimeout(15);
     }
-    await cdp.send('Input.dispatchTouchEvent', {
-      type: 'touchEnd',
-      touchPoints: [],
-    });
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   };
 
-  // Vertical swipe up = scroll the timeline down.
-  await swipe(colBox.x, colBox.bottom, colBox.x, colBox.top);
+  await swipe(bodyBox.x, bodyBox.bottom, bodyBox.x, bodyBox.top);
   await page.waitForTimeout(400);
 
   const afterTouchScroll = await page.evaluate(() => ({
-    scrollTop: document.querySelector('.ec-cols-scroll').scrollTop,
+    scrollTop: document.querySelector('[data-row="body"]').scrollTop,
     sheetOpen: document.querySelector('#sheet')?.classList.contains('open') ?? false,
   }));
-  check('vertical touch swipe scrolls the cols-scroll',
-    afterTouchScroll.scrollTop > 0,
+  check('vertical touch swipe scrolls the body', afterTouchScroll.scrollTop > 0,
     `scrollTop=${afterTouchScroll.scrollTop}`);
-  check('vertical touch swipe did NOT open the sheet',
-    afterTouchScroll.sheetOpen === false);
+  check('vertical touch swipe did NOT open the sheet', afterTouchScroll.sheetOpen === false);
+
+  // ── 5. touch-action: pan-y on the document elements (blocks
+  //      browser back-gesture).
+  const touchAction = await page.evaluate(() => ({
+    html: getComputedStyle(document.documentElement).touchAction,
+    body: getComputedStyle(document.body).touchAction,
+    shell: getComputedStyle(document.querySelector('.shell')).touchAction,
+  }));
+  check('html has touch-action that blocks horizontal browser pan',
+    touchAction.html === 'pan-y',
+    `html touch-action=${touchAction.html}`);
+  check('body has touch-action that blocks horizontal browser pan',
+    touchAction.body === 'pan-y');
+  check('shell has touch-action that blocks horizontal browser pan',
+    touchAction.shell === 'pan-y');
 
   await browser.close();
 } catch (err) {

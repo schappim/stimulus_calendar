@@ -50,25 +50,9 @@
       flex-direction: column;
       height: 100vh;
       height: 100dvh;
-      max-width: 460px;
-      margin: 0 auto;
+      width: 100%;
       background: #fff;
       position: relative;
-      /* Faux phone frame for the desktop preview only — vanishes on real
-         phones because there's no room. */
-      box-shadow: 0 0 0 1px var(--line);
-    }
-    @media (min-width: 481px) {
-      body { padding: 24px 0; }
-      .shell {
-        height: calc(100dvh - 48px);
-        border-radius: 28px;
-        overflow: hidden;
-        box-shadow:
-          0 0 0 8px #0f172a,
-          0 0 0 9px #1e293b,
-          0 20px 50px -10px rgba(15, 23, 42, 0.35);
-      }
     }
 
     /* -- Top bar --------------------------------------------------- */
@@ -219,18 +203,26 @@
     }
 
     /* TimeGrid body is normally capped at 540px — drop the cap on mobile
-       so it fills the whole vertical space. The actual scroll container
-       is .ec-cols-scroll (a child of the body); putting overflow:auto on
-       the body here would re-clip the sidebar's swipe counter-translate
-       because the CSS spec forces overflow-y:auto to also clip X. Native
-       momentum + contained overscroll go on the scroller itself. */
+       so it fills the whole vertical space. The body is now the single
+       scroll container (sidebar + day cols share one scroll layer), so
+       native iOS / Android scroll is 1:1 pixel-perfect between the
+       gutter labels and the events. */
     #cal .ec-time-grid [data-row="body"] {
       max-height: none !important;
       flex: 1 1 0;
-    }
-    #cal .ec-time-grid .ec-cols-scroll {
+      overflow-y: auto;
       -webkit-overflow-scrolling: touch;
       overscroll-behavior: contain;
+    }
+
+    /* Block the browser's edge-swipe back navigation (iOS Safari) and
+       any horizontal pan the system might otherwise claim (Android
+       Chrome's pull-to-refresh-down or edge-swipe-back). pan-y allows
+       vertical pan (which iOS / Android use natively to scroll the
+       cols), while horizontal motion goes to the pager's pointer
+       handlers, never to the browser shell. */
+    html, body, .shell, .cal-wrap {
+      touch-action: pan-y;
     }
 
     /* -- Touch-friendly typography + chips ------------------------ */
@@ -698,12 +690,9 @@
     // corresponds to the TimeGrid body's current scrollTop. Returns
     // null if no TimeGrid body is mounted (e.g., we're in Month / List).
     function captureScrollSeconds() {
-      // The TimeGrid scroll container moved from [data-row="body"] to
-      // .ec-cols-scroll so the sidebar (now in .ec-sidebar-rail) can
-      // counter-translate during swipes without being clipped by an
-      // overflow:auto ancestor.
-      const scroller = document.querySelector('#cal .ec-time-grid .ec-cols-scroll')
-        || document.querySelector('#cal .ec-time-grid [data-row="body"]');
+      // The body is the single scroll container for the gutter + day
+      // cols, so they scroll together natively in lockstep.
+      const scroller = document.querySelector('#cal .ec-time-grid [data-row="body"]');
       if (!scroller) return null;
       const sd = api.getOption('slotDuration');
       const slotMins = ((sd?.days ?? 0) * 1440) + ((sd?.seconds ?? 1800) / 60) || 30;
@@ -742,13 +731,9 @@
     // ----- Today button --------------------------------------------
     document.getElementById('todayBtn').addEventListener('click', () => api.today());
 
-    // ----- Scroll the TimeGrid body to (current hour − 1 hour) so the
-    // user lands on "now" instead of 08:00 when they open the demo
-    // at any time of day. ------------------------------------------
-    const nowHr = new Date().getHours();
-    if (nowHr >= 1) {
-      api.setOption('scrollTime', `${pad(Math.max(0, nowHr - 1))}:00:00`);
-    }
+    // The library now auto-centers "now" vertically on first mount of
+    // a TimeGrid view when today is in the visible range, so we don't
+    // need to set scrollTime here ourselves.
 
     // ----- Tap an event ⇒ open the built-in popover. The default
     // popover trigger is double-click (suited to desktop). On mobile,
@@ -1005,12 +990,7 @@
     let lastDownX = 0, lastDownY = 0;
     let downBodyScrollTop = null;
     function getTimeGridBody() {
-      // Reads the live TimeGrid scroller. Was [data-row="body"] before
-      // the sidebar was lifted into .ec-sidebar-rail; the scroll now
-      // happens on .ec-cols-scroll. Falls back to the body element for
-      // any older code paths.
-      return document.querySelector('#cal .ec-time-grid .ec-cols-scroll')
-        || document.querySelector('#cal .ec-time-grid [data-row="body"]');
+      return document.querySelector('#cal .ec-time-grid [data-row="body"]');
     }
     function gestureWasScrollOrSwipe() {
       const body = getTimeGridBody();

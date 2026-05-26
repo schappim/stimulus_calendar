@@ -383,73 +383,28 @@
 
 .ec-time-grid .ec-all-day-cell:last-child { border-right: none; }
 
-/* body — sidebar (in a clipped rail) + day columns (in their own scroller).
+/* body — sidebar + day columns in a single scroll container.
  *
- * The sidebar can't sit inside an overflow:auto/hidden container because
- * the spec forces a non-visible overflow on one axis to clip the other
- * too, and that would crop the sidebar's swipe counter-translate (the
- * transform that keeps the hour gutter pinned while the day columns
- * slide). Splitting the body into a clip-path-clipped rail (Y only) +
- * a separate cols-scroll (Y only, X hidden) keeps each axis under our
- * control without breaking either.
+ * Earlier attempts split this into a clip-path'd rail + a separate
+ * cols-scroll so the sidebar could counter-translate against the
+ * pager's swipe transform without being clipped by overflow:auto.
+ * That worked for the swipe but forced a JS scroll-sync between the
+ * cols-scroll and the sidebar's transform, which on iOS Safari is
+ * intrinsically ~1 frame behind native scroll — the gutter visibly
+ * jitters and lags during a finger drag.
  *
- * Layout is flex (not grid). A nested flex parent above (each level of
- * the demo's mobile shell does `flex: 1 1 0`) leaves the body's height
- * "indefinite from flex" — grid's `1fr` rows resolve to `auto` in that
- * mode, so the body would grow to fit its 24-hour content (~2688px)
- * instead of capping at the available viewport height, and the inner
- * scroll container would have nothing to scroll. With flex on the body
- * + `min-height: 0` + `align-items: stretch` (default), the inner items
- * inherit the body's flex-derived height and the cols-scroll's
- * overflow:auto kicks in normally. */
+ * Putting everything back inside ONE scroll container means the
+ * sidebar and day cols share the same scroll layer and the browser
+ * paints them together every frame: true 1:1 pixel-perfect Y sync,
+ * no JS in the loop. The tradeoff is the gutter slides with the slot
+ * during a horizontal swipe — but each pager slot renders its own
+ * gutter with identical hour labels, so visually it stays continuous
+ * (this matches iOS Calendar). */
 .ec-time-grid [data-row="body"] {
-  display: flex;
-  flex-direction: row;
-  align-items: stretch;
-  min-height: 0;
+  display: grid;
+  grid-template-columns: var(--ec-sidebar-width) 1fr;
   max-height: 540px;
-}
-
-.ec-time-grid .ec-sidebar-rail {
-  position: relative;
-  flex: 0 0 var(--ec-sidebar-width);
-  /* clip-path clips top/bottom but leaves left/right unbounded so the
-   * swipe counter-translate isn't cropped. overflow:hidden would clip
-   * X too. The -100vw insets keep the X-clip well off-screen for any
-   * realistic swipe distance. */
-  clip-path: inset(0 -100vw);
-  border-right: 1px solid var(--ec-border-color);
-  background: var(--ec-bg-color);
-  /* z-index goes on the RAIL, not on the inner .ec-sidebar. The rail's
-   * clip-path already creates a stacking context, which traps the
-   * sidebar's z-index inside the rail's local scope — it can't compete
-   * with the rail's sibling .ec-cols-scroll. Without this the cols-scroll
-   * (later in DOM order, also z-auto in the body's flex layout) paints
-   * above the rail, and during a swipe the chips that have translated
-   * left into the gutter's viewport strip cover the counter-translated
-   * hour labels. Putting the z-index here lifts the whole rail subtree
-   * above the cols-scroll. */
-  z-index: 2;
-}
-
-.ec-time-grid .ec-sidebar-rail > .ec-sidebar {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  /* border lives on the rail now so it stays at the rail's edge while
-   * the inner sidebar counter-translates during a swipe. */
-  border-right: none;
-}
-
-.ec-time-grid .ec-cols-scroll {
-  flex: 1 1 0;
-  min-width: 0;
-  min-height: 0;
   overflow-y: auto;
-  overflow-x: hidden;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior: contain;
 }
 
 .ec-time-grid .ec-sidebar {
@@ -1048,17 +1003,15 @@
   visibility: visible;
 }
 
-/* Time-axis columns (the time-of-day sidebar in TimeGrid views) stay
- * horizontally fixed during a swipe — only the day columns slide. They
- * read --ec-pager-px from the pager element and counter-translate by
- * the negative of the track's translate so the net viewport position
- * stays put. Both the transform and the transition come from the same
- * CSS variable as the track so they animate together when the pager
- * commits a swipe.
- *
- * The body sidebar additionally tracks --ec-cols-scroll-y (set by
- * time_grid.js from the cols-scroll scrollTop) so it slides up and
- * down with the events as the user scrolls the timeline. */
+/* The corner spacer and all-day sidebar still counter-translate during
+ * a swipe — they sit outside the body's scroll container, so they're
+ * not affected by the body's overflow:auto, and there's no JS sync
+ * involved (they never scroll vertically). The body sidebar (hour
+ * labels) intentionally does NOT counter-translate: it lives inside
+ * the same scroll container as the day cols and slides with the slot,
+ * which means the browser handles its Y position natively in lockstep
+ * with the events (no JS scroll-sync lag). Each pager slot renders
+ * its own identical body gutter, so the slide reads as continuous. */
 .ec-pager-page-current .ec-time-grid .ec-corner,
 .ec-pager-page-current .ec-time-grid .ec-all-day > .ec-sidebar {
   position: relative;
@@ -1068,25 +1021,12 @@
   transition: var(--ec-pager-transition, none);
 }
 
-.ec-pager-page-current .ec-time-grid .ec-sidebar-rail > .ec-sidebar {
-  z-index: 4;
-  background: var(--ec-bg-color);
-  transform: translate3d(
-    calc(-1 * var(--ec-pager-px, 0px)),
-    calc(-1 * var(--ec-cols-scroll-y, 0px)),
-    0
-  );
-  transition: var(--ec-pager-transition, none);
-}
-
-/* Adjacent snapshot pages bring their own (now stale) time-axis cells
- * into view as the user swipes; hide them so the user only ever sees
- * the live, pinned sidebar. */
+/* Adjacent snapshot pages bring their own (now stale) corner +
+ * all-day sidebar into view as the user swipes; hide them so the
+ * user only ever sees the live, counter-translated ones. */
 .ec-pager-page-prev .ec-time-grid .ec-corner,
-.ec-pager-page-prev .ec-time-grid .ec-sidebar-rail,
 .ec-pager-page-prev .ec-time-grid .ec-all-day > .ec-sidebar,
 .ec-pager-page-next .ec-time-grid .ec-corner,
-.ec-pager-page-next .ec-time-grid .ec-sidebar-rail,
 .ec-pager-page-next .ec-time-grid .ec-all-day > .ec-sidebar {
   visibility: hidden;
 }
