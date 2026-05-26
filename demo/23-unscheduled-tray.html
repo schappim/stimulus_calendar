@@ -173,7 +173,7 @@
         const stat = STATUS[j.extendedProps?.status] ?? STATUS.quoted;
         const colour = stat.border;
         return `<div class="tray-card" data-id="${j.id}"
-                     style="border-left: 4px solid ${colour}">
+                     style="border-left: 1px solid ${colour}">
           <div class="title">${escapeHtml(j.title)}</div>
           <div class="row">
             <span>${escapeHtml(j.extendedProps?.customer?.name ?? '')}</span>
