@@ -270,10 +270,22 @@
       pointer-events: none;
       z-index: 5;
     }
-    /* start handle ⇒ top-right corner */
-    #cal .ec-event.ec-event-editing::before { top: -9px; right: -9px; }
-    /* end handle ⇒ bottom-left corner */
-    #cal .ec-event.ec-event-editing::after  { bottom: -9px; left: -9px; }
+    /* start handle ⇒ top-right corner. left: auto / bottom: auto explicitly
+       override the .ec-time-grid .ec-event::before accent-strip defaults
+       (left: 3.5px, bottom: 5px) that would otherwise leak through the
+       cascade and pull the circle to the top-LEFT. Sitting 4px inside the
+       chip's right edge (was -9px) keeps the circle from being clipped by
+       the phone-frame's overflow:hidden. Top still overhangs 9px above
+       the chip for the iOS-Calendar "half-above" look. */
+    #cal .ec-event.ec-event-editing::before {
+      top: -9px; right: 4px; left: auto; bottom: auto;
+    }
+    /* end handle ⇒ bottom-left corner. left: 4px (was -9px) so the
+       circle stays fully visible inside the chip's left edge. Bottom
+       still overhangs 9px below the chip, mirroring the top. */
+    #cal .ec-event.ec-event-editing::after {
+      bottom: -9px; left: 4px; right: auto; top: auto;
+    }
 
     /* Touch-only gate: resize handles are inert until the user enters
        edit mode via long-press. Desktop (mouse / hover-capable) keeps
