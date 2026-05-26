@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>stimulus_calendar — unscheduled job tray</title>
+  <link rel="stylesheet" href="../src/styles/calendar.css">
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; margin: 1.5rem; color: #0f172a; }
+    h1 { margin: 0 0 0.25rem; font-size: 1.25rem; }
+    .sub { color: #64748b; margin: 0 0 1rem; font-size: 14px; }
+
+    .layout {
+      display: grid; grid-template-columns: 260px 1fr; gap: 16px;
+      align-items: start;
+    }
+    @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+
+    /* ---- Tray ----------------------------------------------------- */
+    .tray {
+      background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px;
+      padding: 10px; display: flex; flex-direction: column; gap: 8px;
+      min-height: 400px;
+    }
+    .tray h2 {
+      margin: 0; font-size: 13px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.06em; color: #475569;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .tray .count {
+      background: #2563eb; color: #fff; padding: 1px 7px; border-radius: 999px;
+      font-size: 11px; font-weight: 700;
+    }
+    .tray .hint { color: #64748b; font-size: 11px; margin: 0; line-height: 1.4; }
+
+    .tray-card {
+      background: #fff; border: 1px solid #e2e8f0; border-radius: 8px;
+      padding: 8px 10px; cursor: grab; user-select: none;
+      box-shadow: 0 1px 2px rgba(15,23,42,0.04);
+      transition: box-shadow 120ms, transform 60ms;
+      touch-action: none;
+    }
+    .tray-card:hover { box-shadow: 0 4px 12px -2px rgba(15,23,42,0.12); }
+    .tray-card:active { cursor: grabbing; transform: scale(0.99); }
+    .tray-card .title { font-weight: 700; font-size: 13px; line-height: 1.3; }
+    .tray-card .row { display: flex; justify-content: space-between; font-size: 11px; color: #475569; margin-top: 2px; }
+    .tray-card .dur { font-variant-numeric: tabular-nums; }
+    .tray-card[data-drag-source="true"] { opacity: 0.35; }
+
+    /* ---- The flying ghost while dragging ------------------------- */
+    .drop-ghost {
+      position: fixed; pointer-events: none; z-index: 9999;
+      background: #2563eb; color: #fff; padding: 6px 10px; border-radius: 8px;
+      font-size: 12px; font-weight: 600; box-shadow: 0 8px 20px -4px rgba(37,99,235,0.4);
+      transform: translate(-50%, -50%);
+    }
+
+    /* ---- Highlight the lane the ghost is over -------------------- */
+    .ec [data-resource-id].drop-target {
+      box-shadow: inset 0 0 0 2px #2563eb;
+      background: rgba(37, 99, 235, 0.04);
+    }
+
+    /* ---- Live preview event while dragging over the grid --------- */
+    .ec-event.drag-preview {
+      opacity: 0.85;
+      outline: 2px dashed #1d4ed8;
+      outline-offset: -2px;
+      pointer-events: none;
+    }
+
+    /* Use the same chip styling and status palette as 22-dispatch-board */
+    .ec-event .job-chip { display: flex; flex-direction: column; gap: 1px; line-height: 1.2; }
+    .ec-event .job-chip .title { font-weight: 700; font-size: 12px; }
+    .ec-event .job-chip .cust  { font-size: 11px; opacity: 0.85; }
+
+    .empty {
+      color: #94a3b8; text-align: center; font-size: 12px;
+      padding: 1rem 0; font-style: italic;
+    }
+  </style>
+</head>
+<body>
+  <h1>Unscheduled job tray</h1>
+  <p class="sub">
+    Drag a job card from the tray onto a crew's lane to schedule it.
+    Drop coordinates are resolved with <code>api.dateFromPoint(x, y)</code>
+    for the time and a DOM walk to <code>[data-resource-id]</code> for the lane.
+    Pure host‑app code — no library changes.
+  </p>
+
+  <div class="layout">
+    <aside class="tray" id="tray">
+      <h2>Unscheduled <span class="count" id="count">0</span></h2>
+      <p class="hint">Drag a card onto a crew's column to slot it in. Drop on a time slot to pick the start.</p>
+      <div id="tray-list"></div>
+    </aside>
+
+    <div id="cal"
+         data-controller="calendar"
+         data-calendar-plugins-value='["ResourceTimeGrid","Interaction"]'
+         data-calendar-view-value="resourceTimeGridDay"
+         data-calendar-options-value='{
+           "editable": true,
+           "scrollTime": "07:00:00",
+           "slotMinTime": "06:00:00",
+           "slotMaxTime": "20:00:00",
+           "nowIndicator": true,
+           "slotHeight": 22,
+           "slotDuration": "00:30:00",
+           "snapDuration": "00:15:00",
+           "headerToolbar": { "start": "title", "center": "", "end": "today prev,next" }
+         }'>
+    </div>
+  </div>
+
+  <style id="status-style"></style>
+
+  <script type="module">
+    import { Application } from '/node_modules/@hotwired/stimulus/dist/stimulus.js';
+    import CalendarController from '/src/controllers/calendar_controller.js';
+    import { CREWS, makeJobs, STATUS, statusCss, statusClass, wallClock } from './tradie_data.js';
+
+    // Mount-time resources — see 22-dispatch-board.html for the why.
+    document.getElementById('cal').setAttribute(
+      'data-calendar-resources-value', JSON.stringify(CREWS)
+    );
+
+    Application.start().register('calendar', CalendarController);
+    await new Promise((r) => setTimeout(r, 80));
+
+    const el  = document.getElementById('cal');
+    const api = el.calendarApi;
+    document.getElementById('status-style').textContent = statusCss();
+    api.setOption('eventClassNames', statusClass);
+    api.setOption('eventContent', ({ event }) => ({ html:
+      `<div class="job-chip">
+         <div class="title">${escapeHtml(event.title)}</div>
+         <div class="cust">${escapeHtml(event.extendedProps?.customer?.name ?? '')}</div>
+       </div>`
+    }));
+
+    // ---- Split jobs: today already-scheduled go onto the grid; quoted +
+    // a few extras go into the tray.
+    const all = makeJobs();
+    const tray = [];
+    const scheduled = [];
+    for (const j of all) {
+      const isToday = new Date(j.start).toDateString() === new Date().toDateString();
+      if (j.extendedProps.status === 'quoted' || !isToday) {
+        // Tray entries keep their durationEst + customer + address but
+        // drop the start/end (unscheduled).
+        tray.push({
+          id: j.id,
+          title: j.title,
+          extendedProps: j.extendedProps,
+          durationEst: j.extendedProps.durationEst,
+        });
+      } else {
+        scheduled.push(j);
+      }
+    }
+    scheduled.forEach((j) => api.addEvent(j));
+    renderTray();
+
+    function renderTray() {
+      const root = document.getElementById('tray-list');
+      document.getElementById('count').textContent = tray.length;
+      if (tray.length === 0) {
+        root.innerHTML = '<div class="empty">All jobs scheduled 🎉</div>';
+        return;
+      }
+      root.innerHTML = tray.map((j) => {
+        const stat = STATUS[j.extendedProps?.status] ?? STATUS.quoted;
+        const colour = stat.border;
+        return `<div class="tray-card" data-id="${j.id}"
+                     style="border-left: 4px solid ${colour}">
+          <div class="title">${escapeHtml(j.title)}</div>
+          <div class="row">
+            <span>${escapeHtml(j.extendedProps?.customer?.name ?? '')}</span>
+            <span class="dur">${formatDur(j.durationEst)}</span>
+          </div>
+          <div class="row" style="opacity:.7">
+            <span>${escapeHtml(j.extendedProps?.address?.suburb ?? '')}</span>
+            <span>${escapeHtml(j.extendedProps?.jobNumber ?? '')}</span>
+          </div>
+        </div>`;
+      }).join('');
+      root.querySelectorAll('.tray-card').forEach(attachDrag);
+    }
+
+    function formatDur(mins) {
+      if (mins >= 60) return `${Math.floor(mins/60)}h${mins%60 ? ' '+(mins%60)+'m' : ''}`;
+      return `${mins}m`;
+    }
+
+    // ---- Drag-from-outside ------------------------------------------------
+    // Standard pointer sequence:
+    //   pointerdown on card → arm the drag (no ghost yet — wait 4px to
+    //   distinguish from a click)
+    //   pointermove crossing 4px → spawn ghost, dim the source card
+    //   pointermove → follow pointer, highlight whichever resource lane
+    //   the pointer is over
+    //   pointerup → if over a lane, addEvent with resourceIds + dateFromPoint
+    function attachDrag(card) {
+      card.addEventListener('pointerdown', (ev) => {
+        if (ev.button !== undefined && ev.button !== 0) return;
+        ev.preventDefault();
+        const id = card.dataset.id;
+        const job = tray.find((j) => j.id === id);
+        if (!job) return;
+
+        const startX = ev.clientX, startY = ev.clientY;
+        const PREVIEW_ID = `__preview_${job.id}`;
+        let armed = false, ghost = null, currentLane = null;
+        let previewEvent = null, previewSlot = null;
+
+        // Resolve the pointer to a snapped { resourceId, start, end } if the
+        // pointer is over a calendar lane, otherwise null.
+        const resolveSlot = (x, y) => {
+          const lane = document
+            .elementFromPoint(x, y)
+            ?.closest('[data-resource-id]');
+          if (!lane) return null;
+          const date = api.dateFromPoint(x, y);
+          if (!date) return null;
+          const startLocal = new Date(
+            date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(),
+            date.getUTCHours(), date.getUTCMinutes()
+          );
+          startLocal.setMinutes(Math.round(startLocal.getMinutes() / 15) * 15, 0, 0);
+          const endLocal = new Date(startLocal.getTime() + job.durationEst * 60000);
+          return {
+            lane,
+            resourceId: lane.getAttribute('data-resource-id'),
+            start: startLocal,
+            end:   endLocal,
+          };
+        };
+
+        const clearPreview = () => {
+          previewEvent?.remove();
+          previewEvent = null;
+          previewSlot  = null;
+        };
+
+        const onMove = (m) => {
+          const dx = m.clientX - startX, dy = m.clientY - startY;
+          if (!armed) {
+            if (Math.hypot(dx, dy) < 4) return;
+            armed = true;
+            card.dataset.dragSource = 'true';
+            ghost = document.createElement('div');
+            ghost.className = 'drop-ghost';
+            ghost.textContent = `${job.title} · ${formatDur(job.durationEst)}`;
+            document.body.appendChild(ghost);
+          }
+
+          const slot = resolveSlot(m.clientX, m.clientY);
+
+          // Lane highlight follows the pointer.
+          const lane = slot?.lane ?? null;
+          if (lane !== currentLane) {
+            currentLane?.classList.remove('drop-target');
+            lane?.classList.add('drop-target');
+            currentLane = lane;
+          }
+
+          if (slot) {
+            // Over the grid: hide the floating ghost and show / move the
+            // live preview event chip at the pointer's time + lane.
+            ghost.style.display = 'none';
+
+            const same = previewSlot
+              && previewSlot.resourceId === slot.resourceId
+              && previewSlot.start.getTime() === slot.start.getTime();
+
+            if (!previewEvent) {
+              api.addEvent({
+                id: PREVIEW_ID,
+                resourceIds: [slot.resourceId],
+                title: job.title,
+                start: wallClock(slot.start),
+                end:   wallClock(slot.end),
+                classNames: ['drag-preview'],
+                extendedProps: { ...job.extendedProps, status: 'scheduled' },
+              });
+              previewEvent = api.getEventById(PREVIEW_ID);
+              previewSlot  = slot;
+            } else if (!same) {
+              previewEvent.setDates(wallClock(slot.start), wallClock(slot.end));
+              previewEvent.setResources([slot.resourceId]);
+              previewSlot = slot;
+            }
+          } else {
+            // Off the grid: show the floating ghost again and drop the
+            // preview event so the calendar looks unchanged.
+            ghost.style.display = '';
+            ghost.style.left = `${m.clientX}px`;
+            ghost.style.top  = `${m.clientY}px`;
+            clearPreview();
+          }
+        };
+
+        const onUp = (u) => {
+          document.removeEventListener('pointermove', onMove);
+          document.removeEventListener('pointerup',   onUp);
+          card.removeAttribute('data-drag-source');
+          ghost?.remove();
+          currentLane?.classList.remove('drop-target');
+
+          if (!armed) { clearPreview(); return; }
+
+          const slot = previewSlot ?? resolveSlot(u.clientX, u.clientY);
+          clearPreview();
+          if (!slot) return;
+
+          api.addEvent({
+            id: job.id,
+            resourceIds: [slot.resourceId],
+            title: job.title,
+            start: wallClock(slot.start),
+            end:   wallClock(slot.end),
+            extendedProps: { ...job.extendedProps, status: 'scheduled' },
+          });
+          tray.splice(tray.indexOf(job), 1);
+          renderTray();
+        };
+
+        document.addEventListener('pointermove', onMove);
+        document.addEventListener('pointerup',   onUp);
+      });
+    }
+
+    function escapeHtml(s = '') {
+      return String(s).replace(/[&<>"']/g, (c) => ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+      }[c]));
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>stimulus_calendar — capacity heatmap</title>
+  <link rel="stylesheet" href="../src/styles/calendar.css">
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; margin: 1.5rem; color: #0f172a; }
+    h1 { margin: 0 0 0.25rem; font-size: 1.25rem; }
+    .sub { color: #64748b; margin: 0 0 1rem; font-size: 14px; }
+
+    .heatmap {
+      width: 100%; border-collapse: collapse;
+      margin-bottom: 18px;
+      font-size: 13px;
+      table-layout: fixed;
+    }
+    .heatmap th, .heatmap td {
+      padding: 0; border: 1px solid #e2e8f0;
+      text-align: center;
+    }
+    .heatmap th {
+      background: #f8fafc; padding: 8px 6px;
+      font-size: 12px; font-weight: 700; color: #475569;
+    }
+    .heatmap thead th:first-child { text-align: left; padding-left: 12px; }
+    .heatmap th .dow { display: block; font-size: 10px; color: #94a3b8; }
+    .heatmap th.today { background: #ecfeff; color: #0e7490; }
+
+    .heatmap .crew-cell {
+      text-align: left; padding: 10px 12px;
+      font-weight: 600;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .heatmap .crew-cell .avatar {
+      width: 22px; height: 22px; border-radius: 50%;
+      display: inline-flex; align-items: center; justify-content: center;
+      color: #fff; font-size: 10px; font-weight: 700;
+    }
+
+    .heatmap td.cap {
+      height: 64px;
+      cursor: pointer; transition: filter 120ms;
+      position: relative;
+      font-variant-numeric: tabular-nums;
+    }
+    .heatmap td.cap:hover { filter: brightness(0.95); outline: 2px solid #0f172a; outline-offset: -2px; }
+    .heatmap td.cap .pct {
+      font-size: 16px; font-weight: 700; display: block;
+      line-height: 1.2;
+    }
+    .heatmap td.cap .hrs {
+      font-size: 10px; opacity: 0.7; font-weight: 600;
+    }
+    .heatmap td.cap.weekend { background: #f1f5f9 !important; color: #cbd5e1; cursor: default; }
+
+    .legend {
+      display: flex; gap: 6px; align-items: center; font-size: 11px;
+      margin-bottom: 12px; color: #475569;
+    }
+    .legend .scale { display: inline-flex; }
+    .legend .scale .swatch {
+      width: 28px; height: 14px; border-right: 1px solid #fff;
+    }
+    .legend .scale .swatch:last-child { border-right: 0; }
+
+    .ec { width: 100%; }
+    .ec-event .job-chip { display: flex; flex-direction: column; gap: 1px; line-height: 1.2; }
+    .ec-event .job-chip .title { font-weight: 700; font-size: 12px; }
+    .ec-event .job-chip .cust  { font-size: 11px; opacity: 0.85; }
+
+    section { margin-top: 18px; }
+    section h2 {
+      margin: 0 0 8px; font-size: 13px;
+      text-transform: uppercase; letter-spacing: 0.06em; color: #475569;
+    }
+  </style>
+</head>
+<body>
+  <h1>Capacity heatmap — who's full, who has room</h1>
+  <p class="sub">
+    Each cell is a crew × day; the colour is hours booked ÷ working hours.
+    Built by walking <code>api.getEvents()</code> + the resource's
+    <code>extendedProps.workingHours</code>, then stamping a CSS background
+    on each cell. Click a cell to jump that crew + day into the dispatch view below.
+  </p>
+
+  <div class="legend">
+    <span>0%</span>
+    <span class="scale">
+      <span class="swatch" style="background:#dcfce7"></span>
+      <span class="swatch" style="background:#bbf7d0"></span>
+      <span class="swatch" style="background:#fde68a"></span>
+      <span class="swatch" style="background:#fdba74"></span>
+      <span class="swatch" style="background:#fca5a5"></span>
+      <span class="swatch" style="background:#f87171"></span>
+    </span>
+    <span>100%+</span>
+    <span style="margin-left: 12px">· hover for cell breakdown · click to drill in</span>
+  </div>
+
+  <table class="heatmap" id="heat"></table>
+
+  <section>
+    <h2>Drill-in (click any heatmap cell)</h2>
+    <div id="day-detail" style="color:#94a3b8;font-size:13px;font-style:italic;padding:12px;border:1px dashed #cbd5e1;border-radius:8px;text-align:center">
+      Click a heatmap cell to see that crew's day in the dispatch view.
+    </div>
+    <div id="cal"
+         style="display:none"
+         data-controller="calendar"
+         data-calendar-plugins-value='["ResourceTimeGrid","Interaction"]'
+         data-calendar-view-value="resourceTimeGridDay"
+         data-calendar-options-value='{
+           "editable": true,
+           "scrollTime": "07:00:00",
+           "slotMinTime": "06:00:00",
+           "slotMaxTime": "20:00:00",
+           "nowIndicator": true,
+           "slotHeight": 22,
+           "slotDuration": "00:30:00",
+           "headerToolbar": { "start": "title", "center": "", "end": "today prev,next" }
+         }'>
+    </div>
+  </section>
+
+  <style id="status-style"></style>
+
+  <script type="module">
+    import { Application } from '/node_modules/@hotwired/stimulus/dist/stimulus.js';
+    import CalendarController from '/src/controllers/calendar_controller.js';
+    import { CREWS, makeJobs, STATUS, statusCss, statusClass, day, dayOnly } from './tradie_data.js';
+
+    // Mount-time resources — see 22-dispatch-board.html.
+    document.getElementById('cal').setAttribute(
+      'data-calendar-resources-value', JSON.stringify(CREWS)
+    );
+
+    Application.start().register('calendar', CalendarController);
+    await new Promise((r) => setTimeout(r, 80));
+
+    const cal = document.getElementById('cal');
+    const api = cal.calendarApi;
+    document.getElementById('status-style').textContent = statusCss();
+
+    api.setOption('eventClassNames', statusClass);
+    api.setOption('eventContent', ({ event }) => {
+      const ep = event.extendedProps || {};
+      return { html:
+        `<div class="job-chip">
+           <div class="title">${escapeHtml(event.title)}</div>
+           <div class="cust">${escapeHtml(ep.customer?.name ?? '')}</div>
+         </div>` };
+    });
+
+    makeJobs().forEach((j) => api.addEvent(j));
+
+    // ---- Heatmap calc -----------------------------------------------------
+    const days = Array.from({ length: 7 }).map((_, i) => {
+      const d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate() + i);
+      return d;
+    });
+    const todayStr = days[0].toDateString();
+
+    function workingMins(crew) {
+      const [sh, sm] = crew.extendedProps.workingHours.start.split(':').map(Number);
+      const [eh, em] = crew.extendedProps.workingHours.end.split(':').map(Number);
+      return (eh * 60 + em) - (sh * 60 + sm);
+    }
+
+    function eventMinsForCrewDay(crewId, date) {
+      const start = +date;
+      const end   = start + 86400000;
+      return api.getEvents()
+        .filter((e) => e.resourceIds?.includes(crewId))
+        // Convert calendar's UTC-mode date back to a local equivalent for compare.
+        .filter((e) => {
+          const localStart = +new Date(
+            e.start.getUTCFullYear(), e.start.getUTCMonth(), e.start.getUTCDate());
+          return localStart >= start && localStart < end;
+        })
+        .reduce((sum, e) => sum + Math.round((e.end - e.start) / 60000), 0);
+    }
+
+    // Build the heatmap table.
+    const heat = document.getElementById('heat');
+    heat.innerHTML = `
+      <thead>
+        <tr>
+          <th>Crew</th>
+          ${days.map((d, i) => {
+            const dow = new Intl.DateTimeFormat(undefined, { weekday: 'short' }).format(d);
+            const dn  = d.getDate();
+            const isToday = d.toDateString() === todayStr;
+            return `<th class="${isToday ? 'today' : ''}">${dn}<span class="dow">${dow}</span></th>`;
+          }).join('')}
+        </tr>
+      </thead>
+      <tbody>
+        ${CREWS.map((c) => `
+          <tr>
+            <td class="crew-cell">
+              <span class="avatar" style="background:${c.eventBackgroundColor}">${c.extendedProps.initials}</span>
+              ${escapeHtml(c.title)}
+            </td>
+            ${days.map((d) => {
+              const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+              const booked = eventMinsForCrewDay(c.id, d);
+              const cap = workingMins(c);
+              const pct = cap === 0 ? 0 : Math.round((booked / cap) * 100);
+              const bg = pctColor(pct, isWeekend);
+              const fg = pct > 70 ? '#7f1d1d' : pct > 40 ? '#78350f' : pct > 10 ? '#166534' : '#475569';
+              return `<td class="cap ${isWeekend && booked === 0 ? 'weekend' : ''}"
+                          style="background:${bg};color:${fg}"
+                          data-crew="${c.id}" data-day="${dayOnly(d)}"
+                          title="${booked} min booked / ${cap} min capacity">
+                ${booked === 0 && isWeekend
+                  ? '<span class="pct" style="font-size:11px">off</span>'
+                  : `<span class="pct">${pct}%</span>
+                     <span class="hrs">${(booked/60).toFixed(1)}h / ${(cap/60).toFixed(1)}h</span>`}
+              </td>`;
+            }).join('')}
+          </tr>`).join('')}
+      </tbody>
+    `;
+
+    function pctColor(pct, weekend) {
+      if (weekend && pct === 0) return '#f1f5f9';
+      if (pct === 0)  return '#f9fafb';
+      if (pct < 25)   return '#dcfce7';
+      if (pct < 50)   return '#bbf7d0';
+      if (pct < 75)   return '#fde68a';
+      if (pct < 90)   return '#fdba74';
+      if (pct < 110)  return '#fca5a5';
+      return '#f87171';
+    }
+
+    // ---- Drill-in on click ------------------------------------------------
+    heat.addEventListener('click', (ev) => {
+      const td = ev.target.closest('td.cap');
+      if (!td) return;
+      const crewId = td.dataset.crew;
+      const day = new Date(td.dataset.day);
+      const detail = document.getElementById('day-detail');
+      const crew = CREWS.find((c) => c.id === crewId);
+      detail.style.display = 'none';
+      cal.style.display = 'block';
+      // Filter to this crew + jump to this day.
+      api.setOption('eventFilter', ({ event }) => event.resourceIds?.includes(crewId));
+      api.gotoDate(day);
+      // Re-set resources to just this one so the column-per-crew view
+      // shows ONLY this crew. setOption('resources', …) post-mount has
+      // the layout caveat documented elsewhere, so we leave all crews
+      // visible and let the filter do the work — chips in other lanes
+      // simply disappear.
+    });
+
+    function escapeHtml(s = '') {
+      return String(s).replace(/[&<>"']/g, (c) => ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+      }[c]));
+    }
+  </script>
+</body>
+</html>

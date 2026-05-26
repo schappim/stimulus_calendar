@@ -43,6 +43,14 @@ function fireWheel(target, deltaX, deltaY = 0) {
   return ev;
 }
 
+function fireTouch(target, type, touches, changedTouches = touches) {
+  const ev = new Event(type, { bubbles: true, cancelable: true });
+  Object.defineProperty(ev, 'touches', { value: touches });
+  Object.defineProperty(ev, 'changedTouches', { value: changedTouches });
+  target.dispatchEvent(ev);
+  return ev;
+}
+
 describe('Pager — swipe / wheel / keyboard navigation', () => {
   beforeEach(() => { document.body.innerHTML = ''; });
   afterEach(() => { app?.stop(); app = null; vi.restoreAllMocks(); });
@@ -79,6 +87,90 @@ describe('Pager — swipe / wheel / keyboard navigation', () => {
     await new Promise((r) => setTimeout(r, 280));
     const date = el.calendarApi.getOption('date');
     expect(date.toISOString().substring(0, 10)).toBe('2026-05-22');
+  });
+
+  it('a rightward touch pointercancel uses the last move position and goes back', async () => {
+    const el = mount(`<div data-controller="calendar"
+                            data-calendar-plugins-value='["DayGrid"]'
+                            data-calendar-date-value="2026-05-15"
+                            data-calendar-options-value='{"duration":{"weeks":1}}'></div>`);
+    await tick();
+    const pager = el.querySelector('.ec-pager');
+    Object.defineProperty(pager, 'offsetWidth', { configurable: true, value: 600 });
+
+    fire(pager, 'pointerdown', { pointerType: 'touch', clientX: 100, clientY: 200 });
+    fire(document, 'pointermove', { pointerType: 'touch', clientX: 320, clientY: 200 });
+    fire(document, 'pointercancel', { pointerType: 'touch', clientX: 0, clientY: 0 });
+
+    await new Promise((r) => setTimeout(r, 280));
+    const date = el.calendarApi.getOption('date');
+    expect(date.toISOString().substring(0, 10)).toBe('2026-05-08');
+  });
+
+  it('a rightward touch pointerup with zero coordinates still goes back', async () => {
+    const el = mount(`<div data-controller="calendar"
+                            data-calendar-plugins-value='["DayGrid"]'
+                            data-calendar-date-value="2026-05-15"
+                            data-calendar-options-value='{"duration":{"weeks":1}}'></div>`);
+    await tick();
+    const pager = el.querySelector('.ec-pager');
+    Object.defineProperty(pager, 'offsetWidth', { configurable: true, value: 600 });
+
+    fire(pager, 'pointerdown', { pointerType: 'touch', clientX: 100, clientY: 200 });
+    fire(document, 'pointermove', { pointerType: 'touch', clientX: 320, clientY: 200 });
+    fire(document, 'pointerup', { pointerType: 'touch', clientX: 0, clientY: 0 });
+
+    await new Promise((r) => setTimeout(r, 280));
+    const date = el.calendarApi.getOption('date');
+    expect(date.toISOString().substring(0, 10)).toBe('2026-05-08');
+  });
+
+  it('touch-event fallback supports left and right swipe navigation', async () => {
+    const el = mount(`<div data-controller="calendar"
+                            data-calendar-plugins-value='["DayGrid"]'
+                            data-calendar-date-value="2026-05-15"
+                            data-calendar-options-value='{"duration":{"weeks":1}}'></div>`);
+    await tick();
+    const pager = el.querySelector('.ec-pager');
+    Object.defineProperty(pager, 'offsetWidth', { configurable: true, value: 600 });
+
+    fireTouch(pager, 'touchstart', [{ identifier: 1, clientX: 500, clientY: 200 }]);
+    fireTouch(document, 'touchmove', [{ identifier: 1, clientX: 200, clientY: 200 }]);
+    fireTouch(document, 'touchend', [], [{ identifier: 1, clientX: 200, clientY: 200 }]);
+    await new Promise((r) => setTimeout(r, 280));
+    expect(el.calendarApi.getOption('date').toISOString().substring(0, 10)).toBe('2026-05-22');
+
+    fireTouch(pager, 'touchstart', [{ identifier: 2, clientX: 100, clientY: 200 }]);
+    fireTouch(document, 'touchmove', [{ identifier: 2, clientX: 400, clientY: 200 }]);
+    fireTouch(document, 'touchend', [], [{ identifier: 2, clientX: 400, clientY: 200 }]);
+    await new Promise((r) => setTimeout(r, 280));
+    expect(el.calendarApi.getOption('date').toISOString().substring(0, 10)).toBe('2026-05-15');
+  });
+
+  it('touch swipes can start on event chips, while vertical chip gestures are left to scrolling', async () => {
+    const el = mount(`<div data-controller="calendar"
+                            data-calendar-plugins-value='["DayGrid"]'
+                            data-calendar-date-value="2026-05-15"
+                            data-calendar-options-value='{"duration":{"weeks":1}}'></div>`);
+    await tick();
+    const pager = el.querySelector('.ec-pager');
+    Object.defineProperty(pager, 'offsetWidth', { configurable: true, value: 600 });
+    el.calendarApi.addEvent({ id: 'chip-swipe', title: 'Swipe over me', start: '2026-05-15T09:00', end: '2026-05-15T10:00' });
+    await tick();
+    const chip = el.querySelector('[data-event-id="chip-swipe"]');
+
+    fireTouch(chip, 'touchstart', [{ identifier: 1, clientX: 250, clientY: 100 }]);
+    const move = fireTouch(document, 'touchmove', [{ identifier: 1, clientX: 252, clientY: 260 }]);
+    fireTouch(document, 'touchend', [], [{ identifier: 1, clientX: 252, clientY: 260 }]);
+    await new Promise((r) => setTimeout(r, 280));
+    expect(move.defaultPrevented).toBe(false);
+    expect(el.calendarApi.getOption('date').toISOString().substring(0, 10)).toBe('2026-05-15');
+
+    fireTouch(chip, 'touchstart', [{ identifier: 2, clientX: 500, clientY: 200 }]);
+    fireTouch(document, 'touchmove', [{ identifier: 2, clientX: 200, clientY: 200 }]);
+    fireTouch(document, 'touchend', [], [{ identifier: 2, clientX: 200, clientY: 200 }]);
+    await new Promise((r) => setTimeout(r, 280));
+    expect(el.calendarApi.getOption('date').toISOString().substring(0, 10)).toBe('2026-05-22');
   });
 
   it('a short drag snaps back without advancing', async () => {

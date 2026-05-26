@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#0f172a">
+  <title>stimulus_calendar — field view (single tradie)</title>
+  <link rel="stylesheet" href="../src/styles/calendar.css">
+  <style>
+    :root {
+      --safe-top:    env(safe-area-inset-top,    0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+      --accent: #0ea5e9;
+      --ink: #0f172a;
+      --muted: #64748b;
+      --line: #e2e8f0;
+      --bg: #f1f5f9;
+    }
+    html, body {
+      margin: 0; padding: 0; height: 100%; overflow: hidden;
+      background: var(--bg); color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    }
+    .shell {
+      display: flex; flex-direction: column;
+      height: 100dvh; max-width: 480px; margin: 0 auto;
+      background: #fff; box-shadow: 0 0 0 1px var(--line);
+    }
+    @media (min-width: 481px) {
+      body { padding: 24px 0; }
+      .shell {
+        height: calc(100dvh - 48px);
+        border-radius: 28px;
+        box-shadow:
+          0 0 0 8px #0f172a,
+          0 0 0 9px #1e293b,
+          0 20px 50px -10px rgba(15, 23, 42, 0.35);
+      }
+    }
+
+    .topbar {
+      flex: 0 0 auto;
+      padding: calc(10px + var(--safe-top)) 14px 10px;
+      background: linear-gradient(180deg, #0ea5e9 0%, #0284c7 100%);
+      color: #fff;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .topbar .avatar {
+      width: 38px; height: 38px; border-radius: 50%;
+      background: rgba(255,255,255,0.2); color: #fff;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 14px;
+    }
+    .topbar .who { display: flex; flex-direction: column; line-height: 1.2; }
+    .topbar .who .name { font-size: 15px; font-weight: 700; }
+    .topbar .who .role { font-size: 12px; opacity: 0.85; }
+    .topbar .switcher {
+      margin-left: auto;
+      background: rgba(255,255,255,0.15); color: #fff; border: 0;
+      padding: 6px 10px; border-radius: 8px; font: inherit; font-size: 13px;
+    }
+    .day-strip {
+      flex: 0 0 auto;
+      display: flex; gap: 6px; padding: 10px 14px;
+      background: #fff; border-bottom: 1px solid var(--line);
+      overflow-x: auto; -webkit-overflow-scrolling: touch;
+    }
+    .day-strip button {
+      flex: 0 0 auto; min-width: 56px; min-height: 52px;
+      border: 1px solid var(--line); background: #fff;
+      border-radius: 12px; padding: 4px 8px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      font: inherit; cursor: pointer; line-height: 1.1;
+    }
+    .day-strip button .dow  { font-size: 10px; color: var(--muted); font-weight: 600; text-transform: uppercase; }
+    .day-strip button .day  { font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .day-strip button.today { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .day-strip button.today .dow { color: rgba(255,255,255,0.85); }
+
+    .list {
+      flex: 1 1 0; overflow-y: auto;
+      padding: 12px 14px calc(14px + var(--safe-bottom));
+      display: flex; flex-direction: column; gap: 10px;
+    }
+
+    .card {
+      background: #fff; border: 1px solid var(--line); border-radius: 14px;
+      padding: 12px 14px;
+      box-shadow: 0 1px 2px rgba(15,23,42,0.04);
+    }
+    .card.status-completed  { background: #f0fdf4; border-color: #bbf7d0; }
+    .card.status-inProgress { background: #fefce8; border-color: #fde68a; }
+    .card.status-quoted     { background: #fef3c7; border-color: #fcd34d; }
+
+    .card .row1 {
+      display: flex; gap: 8px; align-items: baseline;
+    }
+    .card .time {
+      font-size: 14px; font-weight: 700; color: var(--ink);
+      font-variant-numeric: tabular-nums; min-width: 56px;
+    }
+    .card .duration { font-size: 11px; color: var(--muted); }
+    .card .pill {
+      margin-left: auto;
+      font-size: 10px; padding: 2px 7px; border-radius: 999px;
+      font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+    }
+    .card .title { font-size: 15px; font-weight: 700; margin-top: 4px; }
+    .card .customer { font-size: 13px; color: var(--muted); margin-top: 2px; }
+    .card .gate {
+      margin-top: 8px; padding: 6px 8px; background: #fef3c7;
+      border-left: 3px solid #f59e0b; border-radius: 4px;
+      font-size: 12px; color: #78350f;
+    }
+    .card .notes {
+      margin-top: 6px; padding: 6px 8px; background: #f8fafc;
+      border-radius: 4px; font-size: 12px; color: #475569;
+    }
+    .card .actions {
+      margin-top: 10px;
+      display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+    }
+    .card .actions a {
+      min-height: 44px;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+      padding: 0 10px;
+      background: var(--ink); color: #fff;
+      border-radius: 10px; text-decoration: none;
+      font-size: 14px; font-weight: 600;
+    }
+    .card .actions a.call { background: #16a34a; }
+    .card .actions a.nav  { background: var(--accent); }
+    .card .actions a:active { transform: scale(0.98); }
+
+    .empty {
+      color: var(--muted); font-style: italic; text-align: center;
+      padding: 2rem 0;
+    }
+
+    /* The off-screen calendar that backs the day-strip + list. We use it
+       to source events; the cards above are our own render. */
+    #cal { display: none; }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <div class="avatar" id="who-avatar">DM</div>
+      <div class="who">
+        <span class="name" id="who-name">Dan — Plumbing</span>
+        <span class="role" id="who-role">Van 1 · Today</span>
+      </div>
+      <select class="switcher" id="switcher"></select>
+    </header>
+
+    <nav class="day-strip" id="strip"></nav>
+
+    <section class="list" id="list"></section>
+
+    <!-- Hidden calendar that owns the data store. We read from
+         api.getEvents() to render the cards above. -->
+    <div id="cal"
+         data-controller="calendar"
+         data-calendar-plugins-value='["TimeGrid","Interaction"]'
+         data-calendar-view-value="timeGridDay"
+         data-calendar-options-value='{ "editable": false }'>
+    </div>
+  </div>
+
+  <script type="module">
+    import { Application } from '/node_modules/@hotwired/stimulus/dist/stimulus.js';
+    import CalendarController from '/src/controllers/calendar_controller.js';
+    import { CREWS, makeJobs, STATUS } from './tradie_data.js';
+
+    Application.start().register('calendar', CalendarController);
+    await new Promise((r) => setTimeout(r, 60));
+
+    const el  = document.getElementById('cal');
+    const api = el.calendarApi;
+
+    // Load every job; we filter in render.
+    makeJobs().forEach((j) => api.addEvent(j));
+
+    // ---- Tradie switcher --------------------------------------------------
+    const sw = document.getElementById('switcher');
+    sw.innerHTML = CREWS
+      .map((c) => `<option value="${c.id}">${escapeHtml(c.title)}</option>`)
+      .join('');
+    sw.addEventListener('change', () => { activeCrew = sw.value; render(); });
+
+    let activeCrew = 'van-1';
+    let activeOffset = 0;
+
+    // ---- Day strip (today + 6 days) --------------------------------------
+    function renderStrip() {
+      const strip = document.getElementById('strip');
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      strip.innerHTML = Array.from({ length: 7 }).map((_, i) => {
+        const d = new Date(today);
+        d.setDate(d.getDate() + i);
+        const dow = new Intl.DateTimeFormat(undefined, { weekday: 'short' }).format(d);
+        return `<button data-offset="${i}" class="${i === activeOffset ? 'today' : ''}">
+                  <span class="dow">${dow}</span>
+                  <span class="day">${d.getDate()}</span>
+                </button>`;
+      }).join('');
+      strip.querySelectorAll('button').forEach((b) =>
+        b.addEventListener('click', () => {
+          activeOffset = Number(b.dataset.offset);
+          render();
+        })
+      );
+    }
+
+    // ---- Card list -------------------------------------------------------
+    function render() {
+      renderStrip();
+      const crew = CREWS.find((c) => c.id === activeCrew);
+      document.getElementById('who-avatar').textContent  = crew.extendedProps.initials;
+      document.getElementById('who-avatar').style.background = 'rgba(255,255,255,0.2)';
+      document.getElementById('who-name').textContent    = crew.title;
+      document.getElementById('who-role').textContent =
+        `${crew.id.toUpperCase()} · ${formatRelative(activeOffset)}`;
+
+      const targetDay = new Date();
+      targetDay.setHours(0, 0, 0, 0);
+      targetDay.setDate(targetDay.getDate() + activeOffset);
+      const nextDay = new Date(targetDay); nextDay.setDate(nextDay.getDate() + 1);
+
+      const todaysJobs = api.getEvents()
+        .filter((e) => e.resourceIds?.includes(activeCrew))
+        // Calendar events are UTC-mode-wall-clock; rebuild as local to compare.
+        .filter((e) => {
+          const start = new Date(
+            e.start.getUTCFullYear(), e.start.getUTCMonth(), e.start.getUTCDate());
+          return +start === +targetDay;
+        })
+        .sort((a, b) => a.start - b.start);
+
+      const list = document.getElementById('list');
+      if (todaysJobs.length === 0) {
+        list.innerHTML = '<div class="empty">No jobs scheduled.</div>';
+        return;
+      }
+
+      list.innerHTML = todaysJobs.map(renderCard).join('');
+    }
+
+    function renderCard(e) {
+      const ep   = e.extendedProps || {};
+      const stat = STATUS[ep.status] ?? STATUS.scheduled;
+      const start = fmtTime(e.start);
+      const end   = fmtTime(e.end);
+      const dur   = Math.round((e.end - e.start) / 60000);
+      const addr  = ep.address;
+      const phone = ep.customer?.phone?.replace(/\s/g, '');
+      const navUrl = addr?.lat
+        ? `https://maps.apple.com/?q=${encodeURIComponent(addr.line1 + ', ' + addr.suburb)}&ll=${addr.lat},${addr.lng}`
+        : null;
+      return `
+        <div class="card status-${escapeHtml(ep.status ?? 'scheduled')}">
+          <div class="row1">
+            <span class="time">${start}</span>
+            <span class="duration">${dur} min · ${end}</span>
+            <span class="pill" style="background:${stat.bg};color:${stat.fg};border:1px solid ${stat.border}">
+              ${stat.label}
+            </span>
+          </div>
+          <div class="title">${escapeHtml(e.title)} <span style="opacity:.6;font-size:12px">· ${escapeHtml(ep.jobNumber ?? '')}</span></div>
+          <div class="customer">${escapeHtml(ep.customer?.name ?? '')}${addr ? ' · ' + escapeHtml(addr.suburb) : ''}</div>
+          ${addr?.gateCode ? `<div class="gate">🔑 Gate code: <strong>${escapeHtml(addr.gateCode)}</strong></div>` : ''}
+          ${ep.notes      ? `<div class="notes">📝 ${escapeHtml(ep.notes)}</div>` : ''}
+          ${ep.arrival?.kind === 'window'
+             ? `<div class="notes">⏰ Customer window ${escapeHtml(ep.arrival.from)}–${escapeHtml(ep.arrival.to)}</div>`
+             : ''}
+          <div class="actions">
+            ${phone
+               ? `<a class="call" href="tel:${escapeHtml(phone)}">📞 Call ${escapeHtml(ep.customer?.name?.split(' ')[0] ?? '')}</a>`
+               : '<span></span>'}
+            ${navUrl
+               ? `<a class="nav" href="${escapeHtml(navUrl)}" target="_blank" rel="noopener">📍 Navigate</a>`
+               : '<span></span>'}
+          </div>
+        </div>
+      `;
+    }
+
+    function fmtTime(d) {
+      return new Intl.DateTimeFormat(undefined,
+        { hour: 'numeric', minute: '2-digit', timeZone: 'UTC' }).format(d);
+    }
+    function formatRelative(off) {
+      if (off === 0) return 'Today';
+      if (off === 1) return 'Tomorrow';
+      const d = new Date(); d.setDate(d.getDate() + off);
+      return new Intl.DateTimeFormat(undefined, { weekday: 'long' }).format(d);
+    }
+    function escapeHtml(s = '') {
+      return String(s).replace(/[&<>"']/g, (c) => ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+      }[c]));
+    }
+
+    render();
+  </script>
+</body>
+</html>

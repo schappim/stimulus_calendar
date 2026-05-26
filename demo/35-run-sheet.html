@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>stimulus_calendar — printable run sheet</title>
+  <link rel="stylesheet" href="../src/styles/calendar.css">
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; margin: 1.5rem; color: #0f172a; }
+    h1 { margin: 0 0 0.25rem; font-size: 1.25rem; }
+    .sub { color: #64748b; margin: 0 0 1rem; font-size: 14px; }
+
+    .controls {
+      display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+      margin: 0 0 14px; padding: 10px 12px;
+      background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px;
+    }
+    .controls label { font-size: 12px; color: #475569; font-weight: 600; }
+    .controls select {
+      padding: 6px 10px; border: 1px solid #e2e8f0; border-radius: 8px;
+      font: inherit; font-size: 13px; background: #fff;
+    }
+    .controls button {
+      margin-left: auto; padding: 8px 14px; border: 0;
+      background: #0f172a; color: #fff; border-radius: 8px;
+      font: inherit; font-weight: 600; cursor: pointer;
+    }
+    .controls button:hover { background: #1e293b; }
+
+    /* Run sheet — print-first layout. Looks like a clipboard page. */
+    .sheet {
+      max-width: 760px; margin: 0 auto;
+      background: #fff; border: 1px solid #e2e8f0; border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(15,23,42,0.06);
+      padding: 28px 32px;
+      font-size: 13px;
+    }
+    .sheet header {
+      border-bottom: 2px solid #0f172a;
+      padding-bottom: 10px; margin-bottom: 16px;
+      display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: end;
+    }
+    .sheet header .who { font-size: 20px; font-weight: 800; letter-spacing: -0.01em; }
+    .sheet header .date { color: #475569; font-size: 13px; }
+    .sheet header .meta { text-align: right; font-size: 11px; color: #64748b; line-height: 1.4; }
+
+    .totals {
+      display: flex; gap: 16px; flex-wrap: wrap;
+      padding: 8px 0 14px;
+      font-size: 12px; color: #475569;
+      border-bottom: 1px dashed #cbd5e1; margin-bottom: 14px;
+    }
+    .totals strong { color: #0f172a; font-variant-numeric: tabular-nums; }
+
+    .job {
+      display: grid; grid-template-columns: 28px 70px 1fr; gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px dashed #cbd5e1;
+      page-break-inside: avoid;
+    }
+    .job:last-child { border-bottom: 0; }
+    .job .num {
+      font-size: 18px; font-weight: 800; text-align: right;
+      color: #475569; line-height: 1.2;
+    }
+    .job .when { font-variant-numeric: tabular-nums; line-height: 1.35; }
+    .job .when .start { font-size: 14px; font-weight: 700; }
+    .job .when .end   { font-size: 11px; color: #64748b; }
+    .job .when .dur   { font-size: 11px; color: #64748b; margin-top: 2px; }
+    .job .body .title { font-size: 14px; font-weight: 700; }
+    .job .body .cust  { font-size: 13px; color: #1f2937; margin-top: 2px; }
+    .job .body .addr  { font-size: 12px; color: #475569; margin-top: 2px; }
+    .job .body .meta  {
+      display: flex; gap: 14px; flex-wrap: wrap;
+      margin-top: 6px; font-size: 11px; color: #475569;
+    }
+    .job .body .meta .lbl { font-weight: 700; color: #0f172a; }
+    .job .body .alert {
+      margin-top: 6px; padding: 4px 8px; background: #fef3c7;
+      border-left: 3px solid #f59e0b; border-radius: 3px;
+      font-size: 11px; color: #78350f;
+    }
+    .job .body .travel {
+      margin-top: 8px; padding-top: 4px;
+      border-top: 1px dotted #94a3b8;
+      font-size: 11px; color: #64748b; font-style: italic;
+    }
+
+    .checkbox {
+      display: inline-block; width: 14px; height: 14px;
+      border: 1.5px solid #475569; border-radius: 3px;
+      vertical-align: -2px; margin-right: 6px;
+    }
+
+    /* Print: hide the controls, fit the sheet to the page. */
+    @media print {
+      body { margin: 0; background: #fff; }
+      .controls, h1, .sub { display: none; }
+      .sheet {
+        box-shadow: none; border: 0; border-radius: 0;
+        max-width: 100%; padding: 14mm 16mm;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>Printable run sheet</h1>
+  <p class="sub">
+    A paper‑friendly day list for tradies who'd rather have a sheet on a
+    clipboard than another app. Pick a crew + day; the sheet renders
+    from <code>api.getEvents()</code> filtered to that pair.
+    <code>@media print</code> strips everything except the sheet.
+  </p>
+
+  <div class="controls">
+    <label>Crew <select id="crew"></select></label>
+    <label>Day <select id="day"></select></label>
+    <button id="print">🖨 Print run sheet</button>
+  </div>
+
+  <div class="sheet" id="sheet"></div>
+
+  <!-- Hidden calendar — owns the data source. -->
+  <div id="cal" style="display:none"
+       data-controller="calendar"
+       data-calendar-plugins-value='["TimeGrid"]'
+       data-calendar-view-value="timeGridDay"
+       data-calendar-options-value='{}'>
+  </div>
+
+  <script type="module">
+    import { Application } from '/node_modules/@hotwired/stimulus/dist/stimulus.js';
+    import CalendarController from '/src/controllers/calendar_controller.js';
+    import { CREWS, makeJobs, STATUS, distanceKm, travelMins } from './tradie_data.js';
+
+    Application.start().register('calendar', CalendarController);
+    await new Promise((r) => setTimeout(r, 60));
+
+    const api = document.getElementById('cal').calendarApi;
+    makeJobs().forEach((j) => api.addEvent(j));
+
+    // Pickers
+    const crewSel = document.getElementById('crew');
+    crewSel.innerHTML = CREWS
+      .map((c) => `<option value="${c.id}">${escapeHtml(c.title)}</option>`)
+      .join('');
+    const daySel = document.getElementById('day');
+    daySel.innerHTML = Array.from({ length: 7 }).map((_, i) => {
+      const d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate() + i);
+      const label = i === 0 ? 'Today'
+                   : i === 1 ? 'Tomorrow'
+                   : new Intl.DateTimeFormat(undefined, { weekday: 'long', month: 'short', day: 'numeric' }).format(d);
+      return `<option value="${i}">${label}</option>`;
+    }).join('');
+
+    [crewSel, daySel].forEach((s) => s.addEventListener('change', render));
+    document.getElementById('print').addEventListener('click', () => window.print());
+
+    function render() {
+      const crew = CREWS.find((c) => c.id === crewSel.value);
+      const offset = Number(daySel.value);
+      const dayStart = new Date(); dayStart.setHours(0,0,0,0);
+      dayStart.setDate(dayStart.getDate() + offset);
+      const dayEnd = new Date(dayStart); dayEnd.setDate(dayEnd.getDate() + 1);
+
+      const jobs = api.getEvents()
+        .filter((e) => e.resourceIds?.includes(crew.id))
+        .filter((e) => {
+          const s = new Date(
+            e.start.getUTCFullYear(), e.start.getUTCMonth(), e.start.getUTCDate());
+          return s >= dayStart && s < dayEnd;
+        })
+        .sort((a, b) => a.start - b.start);
+
+      const dateStr = new Intl.DateTimeFormat(undefined,
+        { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+        .format(dayStart);
+
+      // Day totals.
+      const totalMin = jobs.reduce((s, j) =>
+        s + ((j.extendedProps?.durationEst) ?? Math.round((j.end - j.start) / 60000)), 0);
+      let totalKm = 0, totalTravel = 0;
+      for (let i = 0; i < jobs.length - 1; i++) {
+        const a = jobs[i].extendedProps?.address;
+        const b = jobs[i + 1].extendedProps?.address;
+        if (a?.lat && b?.lat) {
+          totalKm     += distanceKm(a, b);
+          totalTravel += travelMins(a, b);
+        }
+      }
+
+      const sheet = document.getElementById('sheet');
+      sheet.innerHTML = `
+        <header>
+          <div>
+            <div class="who">${escapeHtml(crew.title)}</div>
+            <div class="date">${dateStr}</div>
+          </div>
+          <div class="meta">
+            Run sheet · v1<br>
+            ${jobs.length} jobs · ${(totalMin/60).toFixed(1)} h work +
+            ${(totalTravel/60).toFixed(1)} h travel
+          </div>
+        </header>
+
+        <div class="totals">
+          <span><strong>${jobs.length}</strong> jobs scheduled</span>
+          <span><strong>${(totalMin/60).toFixed(1)} h</strong> on the tools</span>
+          <span><strong>${totalKm.toFixed(1)} km</strong> driving</span>
+          <span><strong>${(totalTravel/60).toFixed(1)} h</strong> travel</span>
+        </div>
+
+        ${jobs.length === 0
+           ? '<div style="text-align:center;color:#94a3b8;font-style:italic;padding:2rem 0">No jobs scheduled.</div>'
+           : jobs.map((j, i) => renderJob(j, i, jobs[i + 1])).join('')}
+      `;
+    }
+
+    function renderJob(e, i, next) {
+      const ep = e.extendedProps || {};
+      const startTime = fmtTime(e.start);
+      const endTime   = fmtTime(e.end);
+      const dur = Math.round((e.end - e.start) / 60000);
+      const addr = ep.address;
+      const phone = ep.customer?.phone ?? '';
+      const stat = STATUS[ep.status] ?? STATUS.scheduled;
+      const a = ep.address, b = next?.extendedProps?.address;
+      const km = (a?.lat && b?.lat) ? distanceKm(a, b) : null;
+      const mins = (a?.lat && b?.lat) ? travelMins(a, b) : null;
+      return `
+        <div class="job">
+          <div class="num">${i + 1}.</div>
+          <div class="when">
+            <div class="start">${startTime}</div>
+            <div class="end">– ${endTime}</div>
+            <div class="dur">${dur} min</div>
+          </div>
+          <div class="body">
+            <div class="title"><span class="checkbox"></span>${escapeHtml(e.title)}
+              <span style="opacity:.6;font-weight:400">· ${escapeHtml(ep.jobNumber ?? '')} · ${stat.label}</span></div>
+            <div class="cust">${escapeHtml(ep.customer?.name ?? '')} · ${escapeHtml(phone)}</div>
+            ${addr ? `<div class="addr">${escapeHtml(addr.line1)}, ${escapeHtml(addr.suburb)} ${escapeHtml(addr.postcode)}</div>` : ''}
+            <div class="meta">
+              ${ep.arrival?.kind === 'window'
+                 ? `<span><span class="lbl">Window:</span> ${escapeHtml(ep.arrival.from)}–${escapeHtml(ep.arrival.to)}</span>`
+                 : ''}
+              ${ep.durationEst ? `<span><span class="lbl">Est:</span> ${ep.durationEst} min</span>` : ''}
+            </div>
+            ${addr?.gateCode ? `<div class="alert">🔑 Gate code: <strong>${escapeHtml(addr.gateCode)}</strong></div>` : ''}
+            ${ep.notes      ? `<div class="alert">📝 ${escapeHtml(ep.notes)}</div>` : ''}
+            ${next ? `<div class="travel">→ then ${escapeHtml(next.title)} — ${
+              km != null ? `${km.toFixed(1)} km · ${mins} min drive` : 'same address'
+            }</div>` : ''}
+          </div>
+        </div>
+      `;
+    }
+
+    function fmtTime(d) {
+      return new Intl.DateTimeFormat(undefined,
+        { hour: 'numeric', minute: '2-digit', timeZone: 'UTC' }).format(d);
+    }
+
+    function escapeHtml(s = '') {
+      return String(s).replace(/[&<>"']/g, (c) => ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+      }[c]));
+    }
+
+    render();
+  </script>
+</body>
+</html>

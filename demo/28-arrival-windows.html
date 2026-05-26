@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>stimulus_calendar — arrival windows</title>
+  <link rel="stylesheet" href="../src/styles/calendar.css">
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; margin: 1.5rem; color: #0f172a; }
+    h1 { margin: 0 0 0.25rem; font-size: 1.25rem; }
+    .sub { color: #64748b; margin: 0 0 1rem; font-size: 14px; }
+    .ec { width: 100%; }
+
+    /* Arrival-window band ships as a display:'background' event — the
+       library renders those as .ec-bg-event divs (no chip styling).
+       We override the library's translucent default and lay in our
+       own hatched fill. The actual scheduled chip sits *inside* the
+       band; if the chip strays outside, the band still shows the window
+       the customer was promised. */
+    .ec-bg-event.arrival-window {
+      background:
+        repeating-linear-gradient(135deg,
+          rgba(14, 165, 233, 0.32) 0 8px,
+          rgba(14, 165, 233, 0.12) 8px 16px) !important;
+      border-left: 2px dashed #0ea5e9 !important;
+      opacity: 1 !important;
+    }
+    .ec-bg-event.arrival-window .window-chip {
+      font-size: 10px; font-weight: 700; line-height: 1.3;
+      color: #0c4a6e; opacity: 0.9;
+      padding: 2px 4px;
+    }
+    .ec-bg-event.arrival-window .window-chip .from {
+      display: inline-block; padding: 0 4px; background: rgba(14,165,233,0.18);
+      border-radius: 4px; margin-right: 4px;
+    }
+
+    /* Jobs that have an arrival window get a distinct corner mark
+       so the dispatcher knows the time is a customer commitment, not
+       a unilateral assignment. */
+    .ec-event.has-window {
+      border-right: 4px solid #0ea5e9 !important;
+    }
+
+    /* Chip layout. */
+    .ec-event .job-chip { display: flex; flex-direction: column; gap: 1px; line-height: 1.2; }
+    .ec-event .job-chip .title { font-weight: 700; font-size: 12px; }
+    .ec-event .job-chip .cust  { font-size: 11px; opacity: 0.85; }
+    .ec-event .job-chip .window-tag {
+      align-self: flex-start; font-size: 9px; padding: 0 5px;
+      background: #0ea5e9; color: #fff;
+      border-radius: 3px; font-weight: 700; letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .legend-row {
+      display: flex; gap: 10px; align-items: center; font-size: 12px;
+      margin: 0 0 10px;
+    }
+    .legend-row .swatch { width: 16px; height: 12px; border-radius: 3px; }
+    .legend-row .scheduled { background: #dbeafe; border-left: 4px solid #2563eb; }
+    .legend-row .window {
+      background:
+        repeating-linear-gradient(135deg,
+          rgba(14, 165, 233, 0.4) 0 4px,
+          rgba(14, 165, 233, 0.15) 4px 8px);
+    }
+  </style>
+</head>
+<body>
+  <h1>Arrival windows — bands, not point times</h1>
+  <p class="sub">
+    Real tradies usually promise customers "between 9 and 11", not "at 9:42".
+    Jobs with <code>extendedProps.arrival.kind === 'window'</code> render
+    a translucent striped band across the window range using
+    <code>display: 'background'</code>. The scheduled chip sits inside;
+    drag the chip — the band stays put.
+  </p>
+
+  <div class="legend-row">
+    <span class="swatch scheduled"></span><span>Scheduled chip</span>
+    <span class="swatch window"></span><span>Customer window</span>
+    <span style="opacity:.6">Right border = chip has a window</span>
+  </div>
+
+  <div id="cal"
+       data-controller="calendar"
+       data-calendar-plugins-value='["ResourceTimeGrid","Interaction"]'
+       data-calendar-view-value="resourceTimeGridDay"
+       data-calendar-options-value='{
+         "editable": true,
+         "scrollTime": "07:00:00",
+         "slotMinTime": "06:00:00",
+         "slotMaxTime": "20:00:00",
+         "nowIndicator": true,
+         "slotHeight": 22,
+         "slotDuration": "00:30:00",
+         "snapDuration": "00:15:00",
+         "headerToolbar": { "start": "title", "center": "", "end": "today prev,next" }
+       }'>
+  </div>
+
+  <style id="status-style"></style>
+
+  <script type="module">
+    import { Application } from '/node_modules/@hotwired/stimulus/dist/stimulus.js';
+    import CalendarController from '/src/controllers/calendar_controller.js';
+    import { CREWS, makeJobs, STATUS, statusCss, statusClass, day, wallClock } from './tradie_data.js';
+
+    // Mount-time resources — see 22-dispatch-board.html for the why.
+    document.getElementById('cal').setAttribute(
+      'data-calendar-resources-value', JSON.stringify(CREWS)
+    );
+
+    Application.start().register('calendar', CalendarController);
+    await new Promise((r) => setTimeout(r, 80));
+
+    const el  = document.getElementById('cal');
+    const api = el.calendarApi;
+    document.getElementById('status-style').textContent = statusCss();
+
+    api.setOption('eventClassNames', (info) => {
+      const ep = info.event.extendedProps || {};
+      if (ep.kind === 'arrival-window') return ['arrival-window'];
+      const cls = statusClass(info);
+      if (ep.arrival?.kind === 'window') cls.push('has-window');
+      return cls;
+    });
+    api.setOption('eventContent', ({ event }) => {
+      const ep = event.extendedProps || {};
+      if (ep.kind === 'arrival-window') {
+        return { html:
+          `<div class="window-chip">
+             <span class="from">${ep.from}–${ep.to}</span>
+             arrival window
+           </div>` };
+      }
+      return { html:
+        `<div class="job-chip">
+           <div class="title">${escapeHtml(event.title)}</div>
+           <div class="cust">${escapeHtml(ep.customer?.name ?? '')}</div>
+           ${ep.arrival?.kind === 'window'
+             ? `<span class="window-tag">window ${ep.arrival.from}–${ep.arrival.to}</span>`
+             : ''}
+         </div>` };
+    });
+
+    // Seed today's jobs; for ones with an arrival window, also push a
+    // companion background event spanning that window.
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
+    const jobs = makeJobs().filter((j) => {
+      const d = new Date(j.start);
+      return d >= today && d < tomorrow;
+    });
+    jobs.forEach((j) => api.addEvent(j));
+
+    // Add a few extra arrival-window jobs so the demo has more bands to look at.
+    // Then materialise the window bands for every windowed job.
+    for (const j of jobs) {
+      if (j.extendedProps?.arrival?.kind === 'window') {
+        addWindowBand(j);
+      }
+    }
+
+    function addWindowBand(j) {
+      const w = j.extendedProps.arrival;
+      // j.start is a wall-clock ISO string (no Z). new Date(s) parses it
+      // as a LOCAL instant. Pull local Y/M/D off it and combine with
+      // the window hh:mm to land the band on the right day.
+      const base = new Date(j.start);
+      const startLocal = atDayTime(base, w.from);
+      const endLocal   = atDayTime(base, w.to);
+      api.addEvent({
+        id: `window-${j.id}`,
+        resourceIds: j.resourceIds,
+        start: wallClock(startLocal),
+        end:   wallClock(endLocal),
+        display: 'background',
+        extendedProps: { kind: 'arrival-window', from: w.from, to: w.to, jobId: j.id },
+      });
+    }
+
+    function atDayTime(date, hhmm) {
+      const [hh, mm] = hhmm.split(':').map(Number);
+      return new Date(date.getFullYear(), date.getMonth(), date.getDate(), hh, mm);
+    }
+
+    function escapeHtml(s = '') {
+      return String(s).replace(/[&<>"']/g, (c) => ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+      }[c]));
+    }
+  </script>
+</body>
+</html>

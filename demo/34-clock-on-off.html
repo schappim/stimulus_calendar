@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>stimulus_calendar — clock on/off → actuals</title>
+  <link rel="stylesheet" href="../src/styles/calendar.css">
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; margin: 1.5rem; color: #0f172a; }
+    h1 { margin: 0 0 0.25rem; font-size: 1.25rem; }
+    .sub { color: #64748b; margin: 0 0 1rem; font-size: 14px; }
+
+    .layout {
+      display: grid; grid-template-columns: 1fr 360px; gap: 16px; align-items: start;
+    }
+    @media (max-width: 1100px) { .layout { grid-template-columns: 1fr; } }
+    .ec { width: 100%; }
+
+    /* Actual band — appears alongside the scheduled chip after a clock
+       cycle finishes. display:'background' so it sits behind the chip;
+       the library renders it as .ec-bg-event. We override the
+       library's translucent default so the green stripes are legible. */
+    .ec-bg-event.job-actual {
+      background:
+        repeating-linear-gradient(0deg,
+          rgba(22, 163, 74, 0.30) 0 4px,
+          rgba(22, 163, 74, 0.10) 4px 8px) !important;
+      border-right: 3px solid #16a34a !important;
+      opacity: 1 !important;
+    }
+
+    /* Running timer — pulsing border + "running" badge. */
+    .ec-event.is-running {
+      box-shadow: 0 0 0 2px #16a34a, 0 0 0 4px rgba(22,163,74,0.25);
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 0 2px #16a34a, 0 0 0 4px rgba(22,163,74,0.25); }
+      50%      { box-shadow: 0 0 0 2px #16a34a, 0 0 0 8px rgba(22,163,74,0.10); }
+    }
+
+    .ec-event .job-chip { display: flex; flex-direction: column; gap: 1px; line-height: 1.2; }
+    .ec-event .job-chip .title { font-weight: 700; font-size: 12px; }
+    .ec-event .job-chip .cust  { font-size: 11px; opacity: 0.85; }
+    .ec-event .job-chip .timer {
+      align-self: flex-start; font-size: 10px; padding: 0 5px;
+      background: #16a34a; color: #fff;
+      border-radius: 3px; font-weight: 700; letter-spacing: 0.04em;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Side panel — the tradie's "current job" card with big clock button. */
+    .panel {
+      background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
+      padding: 16px; position: sticky; top: 12px;
+    }
+    .panel h2 {
+      margin: 0 0 8px; font-size: 12px; text-transform: uppercase;
+      letter-spacing: 0.06em; color: #475569; font-weight: 700;
+    }
+    .current {
+      padding: 12px; border-radius: 10px; margin-bottom: 12px;
+      background: #f1f5f9;
+    }
+    .current .label { font-size: 11px; color: #64748b; }
+    .current .title { font-size: 16px; font-weight: 700; margin: 2px 0; }
+    .current .meta  { font-size: 13px; color: #475569; }
+
+    .timer-big {
+      font-size: 36px; font-weight: 700; font-variant-numeric: tabular-nums;
+      letter-spacing: -0.02em; text-align: center; margin: 12px 0;
+      color: #0f172a;
+    }
+    .timer-big.running { color: #16a34a; }
+
+    .clock-btn {
+      width: 100%; min-height: 56px;
+      border: 0; border-radius: 14px; font: inherit;
+      font-size: 16px; font-weight: 700; cursor: pointer;
+      letter-spacing: 0.02em; text-transform: uppercase;
+      background: #16a34a; color: #fff;
+    }
+    .clock-btn.stop { background: #dc2626; }
+    .clock-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .actuals { margin-top: 12px; font-size: 13px; line-height: 1.5; }
+    .actuals .row { display: flex; justify-content: space-between; }
+    .actuals .row .v { font-variant-numeric: tabular-nums; font-weight: 600; }
+    .actuals .delta.over  { color: #b91c1c; }
+    .actuals .delta.under { color: #15803d; }
+
+    select#crew {
+      width: 100%; padding: 8px 10px; border: 1px solid #e2e8f0;
+      border-radius: 8px; font: inherit; font-size: 14px; margin-bottom: 8px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Clock on / off — record actuals vs scheduled</h1>
+  <p class="sub">
+    The tradie taps <strong>clock on</strong> when they start, <strong>clock
+    off</strong> when they finish. Each cycle writes
+    <code>extendedProps.actuals.{startedAt, stoppedAt}</code> and adds
+    a green "actual" band to the grid alongside the scheduled chip,
+    so the back office can spot under‑ and over‑runs without
+    asking.
+  </p>
+
+  <div class="layout">
+    <div id="cal"
+         data-controller="calendar"
+         data-calendar-plugins-value='["ResourceTimeGrid","Interaction"]'
+         data-calendar-view-value="resourceTimeGridDay"
+         data-calendar-options-value='{
+           "editable": true,
+           "scrollTime": "07:00:00",
+           "slotMinTime": "06:00:00",
+           "slotMaxTime": "20:00:00",
+           "nowIndicator": true,
+           "slotHeight": 22,
+           "slotDuration": "00:30:00",
+           "headerToolbar": { "start": "title", "center": "", "end": "today prev,next" }
+         }'>
+    </div>
+
+    <aside class="panel">
+      <h2>Field — clock on/off</h2>
+      <select id="crew"></select>
+
+      <div class="current" id="current">
+        <div class="label">CURRENT JOB</div>
+        <div class="title" id="cur-title">Select a job on the grid</div>
+        <div class="meta" id="cur-meta"></div>
+      </div>
+
+      <div class="timer-big" id="timer-big">--:--:--</div>
+
+      <button class="clock-btn" id="clock-btn" disabled>Clock on</button>
+
+      <div class="actuals" id="actuals"></div>
+    </aside>
+  </div>
+
+  <style id="status-style"></style>
+
+  <script type="module">
+    import { Application } from '/node_modules/@hotwired/stimulus/dist/stimulus.js';
+    import CalendarController from '/src/controllers/calendar_controller.js';
+    import { CREWS, makeJobs, STATUS, statusCss, statusClass, wallClock } from './tradie_data.js';
+
+    // Mount-time resources — see 22-dispatch-board.html for the why.
+    document.getElementById('cal').setAttribute(
+      'data-calendar-resources-value', JSON.stringify(CREWS)
+    );
+
+    Application.start().register('calendar', CalendarController);
+    await new Promise((r) => setTimeout(r, 80));
+
+    const el  = document.getElementById('cal');
+    const api = el.calendarApi;
+    document.getElementById('status-style').textContent = statusCss();
+
+    api.setOption('eventClassNames', (info) => {
+      const ep = info.event.extendedProps || {};
+      if (ep.kind === 'actual') return ['job-actual'];
+      const cls = statusClass(info);
+      if (ep.actuals?.startedAt && !ep.actuals.stoppedAt) cls.push('is-running');
+      return cls;
+    });
+    api.setOption('eventContent', ({ event }) => {
+      const ep = event.extendedProps || {};
+      if (ep.kind === 'actual') return { html: '' };
+      const running = ep.actuals?.startedAt && !ep.actuals?.stoppedAt;
+      return { html:
+        `<div class="job-chip">
+           <div class="title">${escapeHtml(event.title)}</div>
+           <div class="cust">${escapeHtml(ep.customer?.name ?? '')}</div>
+           ${running ? '<span class="timer" data-running></span>' : ''}
+         </div>` };
+    });
+
+    // Seed today's jobs.
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
+    const jobs = makeJobs().filter((j) => {
+      const d = new Date(j.start);
+      return d >= today && d < tomorrow;
+    });
+    jobs.forEach((j) => api.addEvent(j));
+
+    // ---- Panel state ------------------------------------------------------
+    const crewSelect = document.getElementById('crew');
+    crewSelect.innerHTML = CREWS
+      .map((c) => `<option value="${c.id}">${escapeHtml(c.title)}</option>`).join('');
+    crewSelect.value = 'van-1';
+
+    let selectedId = null;
+
+    el.addEventListener('calendar:eventClick', (ev) => {
+      const e = ev.detail.event;
+      if (e.extendedProps?.kind === 'actual') return;
+      selectedId = e.id;
+      refreshPanel();
+    });
+
+    document.getElementById('clock-btn').addEventListener('click', toggleClock);
+
+    function toggleClock() {
+      const ev = api.getEventById(selectedId);
+      if (!ev) return;
+      const a = ev.extendedProps.actuals || { startedAt: null, stoppedAt: null };
+      if (!a.startedAt) {
+        api.updateEvent({
+          id: ev.id,
+          extendedProps: {
+            ...ev.extendedProps,
+            status: 'inProgress',
+            actuals: { startedAt: new Date().toISOString(), stoppedAt: null },
+          },
+        });
+      } else if (!a.stoppedAt) {
+        const stopped = new Date();
+        api.updateEvent({
+          id: ev.id,
+          extendedProps: {
+            ...ev.extendedProps,
+            status: 'completed',
+            actuals: { startedAt: a.startedAt, stoppedAt: stopped.toISOString() },
+          },
+        });
+        // Materialise the actual band on the grid.
+        const startLocal = new Date(a.startedAt);
+        api.addEvent({
+          id: `actual-${ev.id}`,
+          resourceIds: ev.resourceIds,
+          start: wallClock(startLocal),
+          end:   wallClock(stopped),
+          display: 'background',
+          extendedProps: { kind: 'actual', jobId: ev.id },
+        });
+      }
+      refreshPanel();
+    }
+
+    function refreshPanel() {
+      const ev = api.getEventById(selectedId);
+      const cur = document.getElementById('current');
+      const meta = document.getElementById('cur-meta');
+      const btn  = document.getElementById('clock-btn');
+      const tBig = document.getElementById('timer-big');
+
+      if (!ev) {
+        document.getElementById('cur-title').textContent = 'Select a job on the grid';
+        meta.textContent = '';
+        btn.disabled = true; btn.textContent = 'Clock on';
+        tBig.textContent = '--:--:--';
+        return;
+      }
+      const ep = ev.extendedProps;
+      document.getElementById('cur-title').textContent = ev.title;
+      meta.innerHTML = `${escapeHtml(ep.customer?.name ?? '')} · ${escapeHtml(ep.address?.suburb ?? '')}<br>
+                        Scheduled ${fmtTime(ev.start)}–${fmtTime(ev.end)} ·
+                        est. ${ep.durationEst ?? '?'} min`;
+      const a = ep.actuals || {};
+      btn.disabled = false;
+      if (!a.startedAt)       { btn.textContent = 'Clock on'; btn.className = 'clock-btn'; }
+      else if (!a.stoppedAt)  { btn.textContent = 'Clock off'; btn.className = 'clock-btn stop'; }
+      else                    { btn.textContent = 'Already clocked off'; btn.disabled = true; }
+
+      renderActuals(ev);
+    }
+
+    function renderActuals(ev) {
+      const a = ev.extendedProps.actuals || {};
+      const out = document.getElementById('actuals');
+      if (!a.startedAt) { out.innerHTML = ''; return; }
+      const start = new Date(a.startedAt);
+      const stop  = a.stoppedAt ? new Date(a.stoppedAt) : null;
+      const scheduledMin = Math.round((ev.end - ev.start) / 60000);
+      const actualMin    = stop
+        ? Math.round((stop - start) / 60000)
+        : Math.round((Date.now() - start) / 60000);
+      const delta = actualMin - scheduledMin;
+      out.innerHTML = `
+        <div class="row"><span>Started</span><span class="v">${fmtTimeLocal(start)}</span></div>
+        ${stop
+           ? `<div class="row"><span>Stopped</span><span class="v">${fmtTimeLocal(stop)}</span></div>`
+           : '<div class="row"><span>Status</span><span class="v" style="color:#16a34a">● running</span></div>'}
+        <div class="row"><span>Scheduled</span><span class="v">${scheduledMin} min</span></div>
+        <div class="row"><span>Actual</span><span class="v">${actualMin} min</span></div>
+        <div class="row"><span>Variance</span>
+          <span class="v delta ${delta > 0 ? 'over' : 'under'}">
+            ${delta > 0 ? '+' : ''}${delta} min
+          </span>
+        </div>
+      `;
+    }
+
+    // ---- Tick to advance running timers -----------------------------------
+    setInterval(() => {
+      // Big timer
+      const ev = api.getEventById(selectedId);
+      if (ev) {
+        const a = ev.extendedProps?.actuals;
+        if (a?.startedAt && !a.stoppedAt) {
+          const ms = Date.now() - new Date(a.startedAt).getTime();
+          document.getElementById('timer-big').textContent = fmtElapsed(ms);
+          document.getElementById('timer-big').classList.add('running');
+          renderActuals(ev);
+        } else if (a?.startedAt && a.stoppedAt) {
+          document.getElementById('timer-big').textContent =
+            fmtElapsed(new Date(a.stoppedAt) - new Date(a.startedAt));
+          document.getElementById('timer-big').classList.remove('running');
+        } else {
+          document.getElementById('timer-big').textContent = '--:--:--';
+          document.getElementById('timer-big').classList.remove('running');
+        }
+      }
+      // Chip mini-timers
+      document.querySelectorAll('[data-running]').forEach((el) => {
+        const chip = el.closest('.ec-event');
+        const id = chip?.getAttribute('data-event-id');
+        const e = api.getEventById(id);
+        const a = e?.extendedProps?.actuals;
+        if (a?.startedAt) {
+          const ms = Date.now() - new Date(a.startedAt).getTime();
+          el.textContent = `● ${fmtElapsed(ms, true)}`;
+        }
+      });
+    }, 1000);
+
+    function fmtElapsed(ms, short = false) {
+      const s = Math.floor(ms / 1000);
+      const h = Math.floor(s / 3600);
+      const m = Math.floor((s % 3600) / 60);
+      const sec = s % 60;
+      const pad = (n) => String(n).padStart(2, '0');
+      if (short) return `${pad(h)}:${pad(m)}`;
+      return `${pad(h)}:${pad(m)}:${pad(sec)}`;
+    }
+    function fmtTime(d) {
+      return new Intl.DateTimeFormat(undefined,
+        { hour: 'numeric', minute: '2-digit', timeZone: 'UTC' }).format(d);
+    }
+    function fmtTimeLocal(d) {
+      return new Intl.DateTimeFormat(undefined,
+        { hour: 'numeric', minute: '2-digit' }).format(d);
+    }
+
+    function escapeHtml(s = '') {
+      return String(s).replace(/[&<>"']/g, (c) => ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+      }[c]));
+    }
+
+    refreshPanel();
+  </script>
+</body>
+</html>

@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>stimulus_calendar — tradie dispatch board</title>
+  <link rel="stylesheet" href="../src/styles/calendar.css">
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; margin: 1.5rem; color: #0f172a; }
+    h1 { margin: 0 0 0.25rem; font-size: 1.25rem; }
+    .sub { color: #64748b; margin: 0 0 1rem; font-size: 14px; }
+    .legend { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 12px; font-size: 12px; }
+    .legend .pill {
+      padding: 2px 8px; border-radius: 999px; border: 1px solid;
+      font-weight: 600; letter-spacing: 0.02em;
+    }
+    .board { display: grid; grid-template-columns: 1fr; gap: 12px; }
+    .ec { width: 100%; }
+
+    /* Per-status colours — a single source of truth lives in tradie_data.js;
+       we re-inject the same block here so the chip backgrounds match.
+       (statusCss() called from JS once Stimulus is up.) */
+    #status-css {}
+
+    /* Custom chip layout: title row + customer + a status pill. */
+    .ec-event .job-chip { display: flex; flex-direction: column; gap: 1px; line-height: 1.2; }
+    .ec-event .job-chip .row1 { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
+    .ec-event .job-chip .title { font-weight: 700; font-size: 12px; }
+    .ec-event .job-chip .jobno { font-size: 10px; opacity: 0.7; font-variant-numeric: tabular-nums; }
+    .ec-event .job-chip .cust  { font-size: 11px; opacity: 0.85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ec-event .job-chip .pill {
+      align-self: flex-start;
+      font-size: 9px; padding: 0 5px; border-radius: 4px;
+      text-transform: uppercase; letter-spacing: 0.04em; font-weight: 700;
+      background: rgba(255,255,255,0.4);
+    }
+
+    /* The crew label across the top — initials avatar + name. */
+    .ec-resource-label { font-weight: 600; }
+    .crew-label { display: inline-flex; gap: 6px; align-items: center; }
+    .crew-label .avatar {
+      width: 22px; height: 22px; border-radius: 50%;
+      display: inline-flex; align-items: center; justify-content: center;
+      color: #fff; font-size: 10px; font-weight: 700; letter-spacing: 0.02em;
+    }
+
+    /* Toast for the "tradie:reassigned" notification hook. */
+    .toast-rail {
+      position: fixed; right: 16px; bottom: 16px;
+      display: flex; flex-direction: column; gap: 8px; z-index: 100;
+      pointer-events: none;
+    }
+    .toast {
+      background: #0f172a; color: #fff; padding: 10px 14px; border-radius: 10px;
+      font-size: 13px; box-shadow: 0 8px 24px -8px rgba(15,23,42,0.4);
+      max-width: 360px; line-height: 1.35;
+      animation: pop-in 200ms ease-out;
+    }
+    .toast strong { color: #93c5fd; }
+    @keyframes pop-in { from { transform: translateY(8px); opacity: 0 } to { transform: none; opacity: 1 } }
+  </style>
+</head>
+<body>
+  <h1>Dispatch board — one column per crew</h1>
+  <p class="sub">
+    <code>resourceTimeGridDay</code> with five lanes. Status colours via
+    <code>eventClassNames</code>. Drag a job between lanes to reassign;
+    the demo fires <code>tradie:reassigned</code> as a toast — your host
+    app would push a SMS or Push notification from that hook.
+  </p>
+
+  <div class="legend" id="legend"></div>
+
+  <div class="board">
+    <div id="cal"
+         data-controller="calendar"
+         data-calendar-plugins-value='["ResourceTimeGrid","Interaction"]'
+         data-calendar-view-value="resourceTimeGridDay"
+         data-calendar-options-value='{
+           "editable": true,
+           "eventStartEditable": true,
+           "eventDurationEditable": true,
+           "scrollTime": "07:00:00",
+           "slotMinTime": "06:00:00",
+           "slotMaxTime": "20:00:00",
+           "nowIndicator": true,
+           "slotHeight": 22,
+           "slotDuration": "00:30:00",
+           "snapDuration": "00:15:00",
+           "headerToolbar": { "start": "title", "center": "", "end": "today prev,next" }
+         }'>
+    </div>
+  </div>
+
+  <div class="toast-rail" id="toasts" aria-live="polite"></div>
+
+  <style id="status-style"></style>
+
+  <script type="module">
+    import { Application } from '/node_modules/@hotwired/stimulus/dist/stimulus.js';
+    import CalendarController from '/src/controllers/calendar_controller.js';
+    import {
+      CREWS, makeJobs, STATUS, statusCss, statusClass,
+    } from './tradie_data.js';
+
+    // Resources MUST be set as a data-* attribute before the controller
+    // connects — setOption('resources', …) after mount mutates options
+    // but doesn't re-derive the per-resource column layout, so events
+    // fall back to a phantom "no-resource" lane to the left of the grid.
+    document.getElementById('cal').setAttribute(
+      'data-calendar-resources-value', JSON.stringify(CREWS)
+    );
+
+    const app = Application.start();
+    app.register('calendar', CalendarController);
+    await new Promise((r) => setTimeout(r, 80));
+
+    const el  = document.getElementById('cal');
+    const api = el.calendarApi;
+
+    // ---- Inject the shared status CSS so chip colours track status. ------
+    document.getElementById('status-style').textContent = statusCss();
+
+    // Per-resource header: initials avatar + name. resourceLabelContent
+    // returns an { html } payload that the view inserts into the cell.
+    api.setOption('resourceLabelContent', ({ resource }) => {
+      const colour = resource.eventBackgroundColor ?? '#334155';
+      const initials = resource.extendedProps?.initials ?? '?';
+      return { html:
+        `<span class="crew-label">
+           <span class="avatar" style="background:${colour}">${initials}</span>
+           ${resource.title}
+         </span>` };
+    });
+
+    // Chip content: title + jobNo, customer name, status pill.
+    api.setOption('eventContent', ({ event }) => {
+      const ep   = event.extendedProps || {};
+      const stat = STATUS[ep.status] ?? STATUS.scheduled;
+      return { html:
+        `<div class="job-chip">
+           <div class="row1">
+             <span class="title">${escapeHtml(event.title)}</span>
+             <span class="jobno">${escapeHtml(ep.jobNumber ?? '')}</span>
+           </div>
+           <div class="cust">${escapeHtml(ep.customer?.name ?? '')}</div>
+           <span class="pill">${stat.label}</span>
+         </div>` };
+    });
+
+    api.setOption('eventClassNames', statusClass);
+
+    // ---- Seed today's jobs ----------------------------------------------
+    const todayJobs = makeJobs().filter((j) => {
+      const d = new Date(j.start);
+      const t = new Date(); t.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(t); tomorrow.setDate(t.getDate() + 1);
+      return d >= t && d < tomorrow;
+    });
+    todayJobs.forEach((j) => api.addEvent(j));
+
+    // ---- Legend ---------------------------------------------------------
+    const legend = document.getElementById('legend');
+    legend.innerHTML = Object.entries(STATUS).map(([k, v]) =>
+      `<span class="pill" style="background:${v.bg};color:${v.fg};border-color:${v.border}">${v.label}</span>`
+    ).join('');
+
+    // ---- Drag-to-reassign hook ------------------------------------------
+    // The Interaction plugin doesn't natively shift resourceIds on a
+    // drop between columns — only start/end. So on every drop we walk
+    // the DOM under the pointer to find which crew's lane it landed
+    // in, compare with the source, and if it changed: update
+    // resourceIds + fire our own "tradie:reassigned" hook.
+    el.addEventListener('calendar:eventDrop', (ev) => {
+      const { event, jsEvent } = ev.detail;
+      const targetCell = document.elementFromPoint(jsEvent.clientX, jsEvent.clientY)
+        ?.closest('[data-resource-id]');
+      if (!targetCell) return;
+      const newResId = targetCell.getAttribute('data-resource-id');
+      const oldResId = event.resourceIds?.[0];
+      if (!newResId || newResId === oldResId) return;
+
+      api.updateEvent({
+        id: event.id,
+        resourceIds: [newResId],
+        // Re-pass start/end so the plugin's committed times survive
+        // the secondary updateEvent below.
+        start: event.start.toISOString(),
+        end:   event.end.toISOString(),
+      });
+
+      // Fire the host-app hook + a visible toast.
+      const oldCrew = CREWS.find((c) => c.id === oldResId);
+      const newCrew = CREWS.find((c) => c.id === newResId);
+      const ep      = event.extendedProps || {};
+      const detail = {
+        jobId: event.id,
+        jobNumber: ep.jobNumber,
+        customer: ep.customer,
+        from: oldCrew, to: newCrew,
+        at: new Date(),
+      };
+      el.dispatchEvent(new CustomEvent('tradie:reassigned', { detail, bubbles: true }));
+
+      toast(
+        `<strong>${ep.jobNumber}</strong> ${event.title}<br>` +
+        `Reassigned <strong>${oldCrew?.title?.split(' — ')[0] ?? '?'}</strong> → ` +
+        `<strong>${newCrew?.title?.split(' — ')[0] ?? '?'}</strong>. ` +
+        `SMS queued to ${escapeHtml(ep.customer?.name ?? 'customer')}.`
+      );
+    });
+
+    function toast(html, ms = 3500) {
+      const t = document.createElement('div');
+      t.className = 'toast';
+      t.innerHTML = html;
+      document.getElementById('toasts').appendChild(t);
+      setTimeout(() => {
+        t.style.transition = 'opacity 240ms';
+        t.style.opacity = '0';
+        setTimeout(() => t.remove(), 260);
+      }, ms);
+    }
+
+    function escapeHtml(s = '') {
+      return String(s).replace(/[&<>"']/g, (c) => ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+      }[c]));
+    }
+  </script>
+</body>
+</html>

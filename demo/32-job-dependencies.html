@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>stimulus_calendar — job dependencies</title>
+  <link rel="stylesheet" href="../src/styles/calendar.css">
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; margin: 1.5rem; color: #0f172a; }
+    h1 { margin: 0 0 0.25rem; font-size: 1.25rem; }
+    .sub { color: #64748b; margin: 0 0 1rem; font-size: 14px; }
+    .ec { width: 100%; }
+
+    .ec-event .job-chip { display: flex; flex-direction: column; gap: 1px; line-height: 1.2; }
+    .ec-event .job-chip .title { font-weight: 700; font-size: 12px; }
+    .ec-event .job-chip .cust  { font-size: 11px; opacity: 0.85; }
+    .ec-event .job-chip .dep-tag {
+      align-self: flex-start; font-size: 9px; padding: 0 5px;
+      background: #475569; color: #fff;
+      border-radius: 3px; font-weight: 700; letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .ec-event .job-chip .dep-tag.head { background: #16a34a; }
+
+    /* Briefly flash the dependent + dependency chips after a revert
+       so the user sees what conflicted. */
+    .ec-event.dep-flash {
+      animation: dep-flash 600ms ease-out 2;
+    }
+    @keyframes dep-flash {
+      0%   { box-shadow: 0 0 0 0 rgba(220,38,38,0); }
+      30%  { box-shadow: 0 0 0 4px rgba(220,38,38,0.5); }
+      100% { box-shadow: 0 0 0 0 rgba(220,38,38,0); }
+    }
+
+    .toast {
+      position: fixed; right: 16px; bottom: 16px;
+      max-width: 360px;
+      background: #7f1d1d; color: #fff; padding: 10px 14px; border-radius: 10px;
+      font-size: 13px; box-shadow: 0 8px 24px -8px rgba(127,29,29,0.6);
+      animation: pop-in 200ms ease-out;
+    }
+    @keyframes pop-in { from { transform: translateY(8px); opacity: 0 } to { transform: none; opacity: 1 } }
+
+    .legend {
+      margin: 0 0 12px; padding: 10px 12px; background: #f8fafc;
+      border: 1px solid #e2e8f0; border-radius: 10px; font-size: 13px;
+    }
+    .legend strong { color: #16a34a; }
+  </style>
+</head>
+<body>
+  <h1>Job dependencies — rough‑in must precede fit‑off</h1>
+  <p class="sub">
+    Each dependent job carries <code>extendedProps.dependsOn: [jobId]</code>.
+    On <code>calendar:eventDrop</code> we look up the dependency and, if
+    the new start lands before the dependency's end, call
+    <code>detail.revert()</code> and warn. The library handles the revert
+    optimistically — the chip snaps back without any extra plumbing.
+  </p>
+
+  <div class="legend">
+    <strong>Try it:</strong> drag <em>"Bathroom fit-off"</em> earlier than
+    <em>"Bathroom rough-in"</em> — the drop reverts with a toast.
+  </div>
+
+  <div id="cal"
+       data-controller="calendar"
+       data-calendar-plugins-value='["ResourceTimeGrid","Interaction"]'
+       data-calendar-view-value="resourceTimeGridDay"
+       data-calendar-options-value='{
+         "editable": true,
+         "scrollTime": "07:00:00",
+         "slotMinTime": "06:00:00",
+         "slotMaxTime": "20:00:00",
+         "nowIndicator": true,
+         "slotHeight": 22,
+         "slotDuration": "00:30:00",
+         "snapDuration": "00:15:00",
+         "headerToolbar": { "start": "title", "center": "", "end": "today prev,next" }
+       }'>
+  </div>
+
+  <style id="status-style"></style>
+
+  <script type="module">
+    import { Application } from '/node_modules/@hotwired/stimulus/dist/stimulus.js';
+    import CalendarController from '/src/controllers/calendar_controller.js';
+    import { CREWS, STATUS, statusCss, statusClass, day, wallClock } from './tradie_data.js';
+
+    // Mount-time resources — see 22-dispatch-board.html for the why.
+    document.getElementById('cal').setAttribute(
+      'data-calendar-resources-value', JSON.stringify(CREWS)
+    );
+
+    Application.start().register('calendar', CalendarController);
+    await new Promise((r) => setTimeout(r, 80));
+
+    const el  = document.getElementById('cal');
+    const api = el.calendarApi;
+    document.getElementById('status-style').textContent = statusCss();
+    api.setOption('eventClassNames', statusClass);
+    api.setOption('eventContent', ({ event }) => {
+      const ep = event.extendedProps || {};
+      const isDep = !!ep.dependsOn?.length;
+      const isHead = api.getEvents().some((e) => e.extendedProps?.dependsOn?.includes(event.id));
+      return { html:
+        `<div class="job-chip">
+           <div class="title">${escapeHtml(event.title)}</div>
+           <div class="cust">${escapeHtml(ep.customer?.name ?? '')}</div>
+           ${isHead ? `<span class="dep-tag head">↳ blocks ${depName(event.id)}</span>` : ''}
+           ${isDep ? `<span class="dep-tag">needs ${ep.dependsOn[0].toUpperCase()} first</span>` : ''}
+         </div>` };
+    });
+
+    // ---- Seed three explicit dependency chains ----------------------------
+    const JOBS = [
+      // Pair 1: tiling — rough-in then fit-off, same crew, today.
+      {
+        id: 'j-rough', resourceIds: ['van-5'],
+        title: 'Bathroom rough-in',
+        start: day(0, 8), end: day(0, 11),
+        extendedProps: { status: 'inProgress', customer: { name: 'Aiyana T.' } },
+      },
+      {
+        id: 'j-fit', resourceIds: ['van-5'],
+        title: 'Bathroom fit-off',
+        start: day(0, 13), end: day(0, 16),
+        extendedProps: {
+          status: 'scheduled', customer: { name: 'Aiyana T.' },
+          dependsOn: ['j-rough'],
+        },
+      },
+
+      // Pair 2: electrical — rough-in then make-good.
+      {
+        id: 'e-rough', resourceIds: ['van-2'],
+        title: 'Switchboard rough-in',
+        start: day(0, 9), end: day(0, 11),
+        extendedProps: { status: 'scheduled', customer: { name: 'Hiro Y.' } },
+      },
+      {
+        id: 'e-fit', resourceIds: ['van-2'],
+        title: 'Switchboard commission',
+        start: day(0, 14), end: day(0, 16),
+        extendedProps: {
+          status: 'scheduled', customer: { name: 'Hiro Y.' },
+          dependsOn: ['e-rough'],
+        },
+      },
+
+      // Solo: a regular job in another lane for contrast.
+      {
+        id: 'h-1', resourceIds: ['van-3'],
+        title: 'AC service',
+        start: day(0, 10), end: day(0, 11, 30),
+        extendedProps: { status: 'scheduled', customer: { name: 'Lena K.' } },
+      },
+    ];
+    JOBS.forEach((j) => api.addEvent(j));
+
+    // ---- Dependency guard --------------------------------------------------
+    // calendar:eventDrop fires BEFORE the library commits the new times
+    // via updateEvent. So event.start / event.end still hold the OLD
+    // values at this point; the new values are event.start + delta.ms.
+    // (Same shape the Rails gem's broadcaster uses to optimistically
+    // apply moves.)
+    el.addEventListener('calendar:eventDrop', (ev) => {
+      const { event, revert, delta } = ev.detail;
+      const offsetMs = delta?.milliseconds ?? 0;
+      const newStart = new Date(event.start.getTime() + offsetMs);
+      const newEnd   = new Date(event.end.getTime()   + offsetMs);
+
+      const deps = event.extendedProps?.dependsOn ?? [];
+      for (const depId of deps) {
+        const dep = api.getEventById(depId);
+        if (!dep) continue;
+        if (newStart < dep.end) {
+          revert();
+          toast(
+            `<strong>${escapeHtml(event.title)}</strong> can't start before ` +
+            `<strong>${escapeHtml(dep.title)}</strong> finishes ` +
+            `(${fmtTime(dep.end)}). Move <em>${escapeHtml(dep.title)}</em> earlier first.`
+          );
+          flash(event.id);
+          flash(dep.id);
+          return;
+        }
+      }
+      // Also guard the upstream side — if rough-in moves later than its
+      // dependent fit-off's start, that's the same conflict.
+      for (const e of api.getEvents()) {
+        if (!e.extendedProps?.dependsOn?.includes(event.id)) continue;
+        if (e.start < newEnd) {
+          revert();
+          toast(
+            `Moving <strong>${escapeHtml(event.title)}</strong> later would ` +
+            `clash with <strong>${escapeHtml(e.title)}</strong> ` +
+            `(${fmtTime(e.start)}). Push the dependent job too?`
+          );
+          flash(event.id);
+          flash(e.id);
+          return;
+        }
+      }
+    });
+
+    // ---- helpers ----------------------------------------------------------
+    function depName(id) {
+      const e = api.getEvents().find((x) => x.extendedProps?.dependsOn?.includes(id));
+      return e?.extendedProps?.jobNumber || (e?.title.split(' ')[0] ?? '') || 'next stage';
+    }
+
+    function flash(id) {
+      const chip = document.querySelector(`.ec-event[data-event-id="${CSS.escape(id)}"]`);
+      if (!chip) return;
+      chip.classList.add('dep-flash');
+      setTimeout(() => chip.classList.remove('dep-flash'), 1300);
+    }
+
+    function fmtTime(d) {
+      return new Intl.DateTimeFormat(undefined,
+        { hour: 'numeric', minute: '2-digit', timeZone: 'UTC' }).format(d);
+    }
+
+    function toast(html, ms = 4500) {
+      document.querySelectorAll('.toast').forEach((t) => t.remove());
+      const t = document.createElement('div');
+      t.className = 'toast';
+      t.innerHTML = html;
+      document.body.appendChild(t);
+      setTimeout(() => {
+        t.style.transition = 'opacity 240ms';
+        t.style.opacity = '0';
+        setTimeout(() => t.remove(), 260);
+      }, ms);
+    }
+
+    function escapeHtml(s = '') {
+      return String(s).replace(/[&<>"']/g, (c) => ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+      }[c]));
+    }
+  </script>
+</body>
+</html>

@@ -5,7 +5,7 @@
 // rotates which slot is "live" so the swipe rests in place (no snap-back
 // to centre). Backs:
 //
-//   - touch swipe + mouse drag (Pointer Events)
+//   - touch swipe (Pointer Events, with Touch Events fallback)
 //   - trackpad horizontal scroll (deltaX accumulation)
 //   - keyboard left/right arrows (instant nav, no animation)
 //
@@ -209,9 +209,10 @@ export function createPager(container, state, factory, { onNavigate }) {
     suppressRangeSub = false;
   }
 
-  // --- pointer (touch + mouse) ------------------------------------------
+  // --- pointer / touch ---------------------------------------------------
 
-  let drag = null; // { startX, startY, pointerId, decided, abandoned }
+  let drag = null; // { startX, startY, lastX, lastY, pointerId, touchId, decided, abandoned }
+  let touchListening = false;
 
   function onPointerDown(ev) {
     if (drag || wheelGesture) return;
@@ -222,22 +223,66 @@ export function createPager(container, state, factory, { onNavigate }) {
     // ArrowLeft / ArrowRight on the focused pager. Touch + pen still
     // pan because that's the expected gesture on iPad / mobile.
     if (ev.pointerType === 'mouse') return;
-    // Skip gestures that start on something interactive — chips, resizers,
-    // more-links, expanders, buttons.
-    if (ev.target.closest?.('[data-event-id], [data-more-link], [data-popover-action], .ec-resizer, .ec-pager-no-swipe, .ec-button, button, input, select, textarea, a')) return;
-    drag = {
-      startX: ev.clientX, startY: ev.clientY,
-      pointerId: ev.pointerId, decided: false, abandoned: false,
-    };
+    if (shouldSkipSwipeStart(ev.target, { allowEventChips: ev.pointerType === 'touch' })) return;
+    beginGesture(ev.clientX, ev.clientY, { pointerId: ev.pointerId });
     document.addEventListener('pointermove', onPointerMove, { passive: false });
     document.addEventListener('pointerup', onPointerUp);
     document.addEventListener('pointercancel', onPointerUp);
   }
 
+  function onTouchStart(ev) {
+    if (wheelGesture) return;
+    if (ev.touches?.length !== 1) return;
+    const touch = ev.touches[0];
+    if (drag) {
+      drag.touchId ??= touch.identifier;
+      listenForTouch();
+      return;
+    }
+    if (shouldSkipSwipeStart(ev.target, { allowEventChips: true })) return;
+    beginGesture(touch.clientX, touch.clientY, { touchId: touch.identifier });
+    listenForTouch();
+  }
+
+  function listenForTouch() {
+    if (touchListening) return;
+    touchListening = true;
+    document.addEventListener('touchmove', onTouchMove, { passive: false });
+    document.addEventListener('touchend', onTouchEnd, { passive: false });
+    document.addEventListener('touchcancel', onTouchEnd, { passive: false });
+  }
+
+  function beginGesture(clientX, clientY, { pointerId, touchId } = {}) {
+    drag = {
+      startX: clientX, startY: clientY,
+      lastX: clientX, lastY: clientY,
+      pointerId, touchId,
+      decided: false, abandoned: false,
+    };
+  }
+
   function onPointerMove(ev) {
     if (!drag || drag.abandoned) return;
-    const dx = ev.clientX - drag.startX;
-    const dy = ev.clientY - drag.startY;
+    updateGesture(ev.clientX, ev.clientY, ev);
+  }
+
+  function onTouchMove(ev) {
+    if (!drag || drag.abandoned) return;
+    const touch = touchForEvent(ev);
+    if (!touch) return;
+    updateGesture(touch.clientX, touch.clientY, ev);
+  }
+
+  function updateGesture(clientX, clientY, ev) {
+    if (document.body.classList.contains('ec-dragging') || document.body.classList.contains('ec-resizing-active')) {
+      drag.abandoned = true;
+      endGesture();
+      return;
+    }
+    drag.lastX = clientX;
+    drag.lastY = clientY;
+    const dx = clientX - drag.startX;
+    const dy = clientY - drag.startY;
     if (!drag.decided) {
       if (Math.abs(dy) > Math.abs(dx) + VERTICAL_GUARD) {
         drag.abandoned = true;
@@ -254,17 +299,31 @@ export function createPager(container, state, factory, { onNavigate }) {
   }
 
   function onPointerUp(ev) {
+    endGesture();
+  }
+
+  function onTouchEnd(ev) {
+    const touch = touchForEvent(ev);
+    if (touch && drag) {
+      drag.lastX = touch.clientX;
+      drag.lastY = touch.clientY;
+    }
+    endGesture();
+  }
+
+  function endGesture() {
     if (!drag) return;
     const d = drag; drag = null;
     document.removeEventListener('pointermove', onPointerMove);
     document.removeEventListener('pointerup', onPointerUp);
     document.removeEventListener('pointercancel', onPointerUp);
+    removeTouchListeners();
     if (!d.decided || d.abandoned) {
       pager.classList.remove('ec-pager-dragging');
       setTransform(0, false);
       return;
     }
-    const dx = (ev?.clientX ?? d.startX) - d.startX;
+    const dx = d.lastX - d.startX;
     const width = pager.offsetWidth || container.offsetWidth || 1;
     const threshold = Math.min(width * SWIPE_THRESHOLD_FRACTION, SWIPE_THRESHOLD_MAX);
     if (dx <= -threshold) {
@@ -278,6 +337,31 @@ export function createPager(container, state, factory, { onNavigate }) {
       setTransform(0, true);
       setTimeout(() => pager.classList.remove('ec-pager-dragging'), SWIPE_ANIM_MS);
     }
+  }
+
+  function touchForEvent(ev) {
+    const lists = [ev.touches, ev.changedTouches];
+    for (const list of lists) {
+      if (!list) continue;
+      for (const touch of Array.from(list)) {
+        if (touch.identifier === drag?.touchId) return touch;
+      }
+    }
+    return ev.touches?.[0] ?? ev.changedTouches?.[0] ?? null;
+  }
+
+  function removeTouchListeners() {
+    if (!touchListening) return;
+    touchListening = false;
+    document.removeEventListener('touchmove', onTouchMove);
+    document.removeEventListener('touchend', onTouchEnd);
+    document.removeEventListener('touchcancel', onTouchEnd);
+  }
+
+  function shouldSkipSwipeStart(target, { allowEventChips = false } = {}) {
+    if (target.closest?.('.ec-resizer, .ec-event.ec-event-editing')) return true;
+    if (!allowEventChips && target.closest?.('[data-event-id]')) return true;
+    return !!target.closest?.('[data-more-link], [data-popover-action], .ec-pager-no-swipe, .ec-button, button, input, select, textarea, a');
   }
 
   // --- wheel / trackpad --------------------------------------------------
@@ -348,7 +432,8 @@ export function createPager(container, state, factory, { onNavigate }) {
     }, SWIPE_ANIM_MS);
   }
 
-  pager.addEventListener('pointerdown', onPointerDown);
+  pager.addEventListener('pointerdown', onPointerDown, { capture: true });
+  pager.addEventListener('touchstart', onTouchStart, { capture: true, passive: true });
   pager.addEventListener('wheel', onWheel, { passive: false });
   pager.addEventListener('keydown', onKeyDown);
 
@@ -358,12 +443,14 @@ export function createPager(container, state, factory, { onNavigate }) {
       try { if (liveTeardown) liveTeardown(); } catch { /* ignore */ }
       clearAllSnapshots();
       clearTimeout(wheelCleanupTimer);
-      pager.removeEventListener('pointerdown', onPointerDown);
+      pager.removeEventListener('pointerdown', onPointerDown, { capture: true });
+      pager.removeEventListener('touchstart', onTouchStart, { capture: true });
       pager.removeEventListener('wheel', onWheel);
       pager.removeEventListener('keydown', onKeyDown);
       document.removeEventListener('pointermove', onPointerMove);
       document.removeEventListener('pointerup', onPointerUp);
       document.removeEventListener('pointercancel', onPointerUp);
+      removeTouchListeners();
       container.replaceChildren();
     },
     // Test helper — surfaces the inner DOM nodes without coupling tests

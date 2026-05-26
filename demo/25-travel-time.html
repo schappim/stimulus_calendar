@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>stimulus_calendar — auto travel-time blocks</title>
+  <link rel="stylesheet" href="../src/styles/calendar.css">
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; margin: 1.5rem; color: #0f172a; }
+    h1 { margin: 0 0 0.25rem; font-size: 1.25rem; }
+    .sub { color: #64748b; margin: 0 0 1rem; font-size: 14px; }
+    .ec { width: 100%; }
+
+    /* Travel blocks ship as display:'background' events — the library
+       renders those as .ec-bg-event divs (no chip styling). We override
+       the library's translucent default so the hatched pattern is
+       legible at 100% opacity. */
+    .ec-bg-event.travel-block {
+      background:
+        repeating-linear-gradient(135deg,
+          rgba(100, 116, 139, 0.28) 0 6px,
+          rgba(100, 116, 139, 0.10) 6px 12px) !important;
+      border-left: 2px dashed #94a3b8 !important;
+      color: #475569 !important;
+      opacity: 1 !important;
+    }
+    .ec-bg-event.travel-block .travel-chip {
+      font-size: 10px; font-weight: 600;
+      padding: 1px 4px; line-height: 1.3;
+      display: flex; gap: 4px; align-items: center;
+      opacity: 0.9;
+    }
+    .ec-bg-event.travel-block .travel-chip .arrow { color: #64748b; }
+
+    .ec-event .job-chip { display: flex; flex-direction: column; gap: 1px; line-height: 1.2; }
+    .ec-event .job-chip .title { font-weight: 700; font-size: 12px; }
+    .ec-event .job-chip .cust  { font-size: 11px; opacity: 0.85; }
+
+    .summary {
+      margin: 0 0 12px; padding: 10px 12px; background: #f8fafc;
+      border: 1px solid #e2e8f0; border-radius: 10px; font-size: 13px;
+      display: flex; gap: 24px; flex-wrap: wrap;
+    }
+    .summary .stat { display: flex; flex-direction: column; line-height: 1.2; }
+    .summary .label { font-size: 11px; text-transform: uppercase; color: #64748b; letter-spacing: 0.04em; }
+    .summary .value { font-weight: 700; font-size: 16px; font-variant-numeric: tabular-nums; }
+  </style>
+</head>
+<body>
+  <h1>Auto‑inserted travel‑time blocks</h1>
+  <p class="sub">
+    After every drop, the demo re‑scans each crew's day, computes
+    travel time between back‑to‑back jobs from their address coordinates
+    (cheap haversine, 32&nbsp;km/h average), and inserts a
+    <code>display: 'background'</code> event for each gap. Drag a job
+    to a different time — watch the travel blocks rebuild.
+  </p>
+
+  <div class="summary" id="summary"></div>
+
+  <div id="cal"
+       data-controller="calendar"
+       data-calendar-plugins-value='["ResourceTimeGrid","Interaction"]'
+       data-calendar-view-value="resourceTimeGridDay"
+       data-calendar-options-value='{
+         "editable": true,
+         "scrollTime": "07:00:00",
+         "slotMinTime": "06:00:00",
+         "slotMaxTime": "20:00:00",
+         "nowIndicator": true,
+         "slotHeight": 22,
+         "slotDuration": "00:30:00",
+         "snapDuration": "00:15:00",
+         "headerToolbar": { "start": "title", "center": "", "end": "today prev,next" }
+       }'>
+  </div>
+
+  <style id="status-style"></style>
+
+  <script type="module">
+    import { Application } from '/node_modules/@hotwired/stimulus/dist/stimulus.js';
+    import CalendarController from '/src/controllers/calendar_controller.js';
+    import {
+      CREWS, makeJobs, STATUS, statusCss, statusClass,
+      distanceKm, travelMins, wallClock,
+    } from './tradie_data.js';
+
+    // Mount-time resources — see 22-dispatch-board.html for the why.
+    document.getElementById('cal').setAttribute(
+      'data-calendar-resources-value', JSON.stringify(CREWS)
+    );
+
+    Application.start().register('calendar', CalendarController);
+    await new Promise((r) => setTimeout(r, 80));
+
+    const el  = document.getElementById('cal');
+    const api = el.calendarApi;
+    document.getElementById('status-style').textContent = statusCss();
+
+    api.setOption('eventClassNames', (info) => {
+      const t = info.event.extendedProps?.kind === 'travel';
+      return t ? ['travel-block'] : statusClass(info);
+    });
+    api.setOption('eventContent', ({ event }) => {
+      if (event.extendedProps?.kind === 'travel') {
+        const ep = event.extendedProps;
+        return { html:
+          `<div class="travel-chip">
+             <span>→ ${ep.mins}m</span>
+             <span class="arrow">·</span>
+             <span>${ep.km.toFixed(1)} km</span>
+             <span class="arrow">·</span>
+             <span>${escapeHtml(ep.toSuburb)}</span>
+           </div>` };
+      }
+      const ep = event.extendedProps || {};
+      return { html:
+        `<div class="job-chip">
+           <div class="title">${escapeHtml(event.title)}</div>
+           <div class="cust">${escapeHtml(ep.customer?.name ?? '')}</div>
+         </div>` };
+    });
+
+    // Seed today's jobs.
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
+    const todayJobs = makeJobs().filter((j) => {
+      const d = new Date(j.start);
+      return d >= today && d < tomorrow && !j.extendedProps.onCall;
+    });
+    todayJobs.forEach((j) => api.addEvent(j));
+
+    rebuildTravelBlocks();
+    renderSummary();
+
+    // ---- Recompute on every drop/resize -----------------------------------
+    el.addEventListener('calendar:eventDrop', () => {
+      // Defer one tick — the library's own update has to land first.
+      setTimeout(() => { rebuildTravelBlocks(); renderSummary(); }, 0);
+    });
+    el.addEventListener('calendar:eventResize', () => {
+      setTimeout(() => { rebuildTravelBlocks(); renderSummary(); }, 0);
+    });
+
+    // ---- The actual algorithm --------------------------------------------
+    // For each crew, sort their non-travel events by start, walk pairs,
+    // and emit a background event for the gap iff the jobs are at
+    // different addresses. We always remove any existing travel-* events
+    // first so multiple rebuilds don't accumulate ghosts.
+    function rebuildTravelBlocks() {
+      api.getEvents()
+        .filter((e) => e.extendedProps?.kind === 'travel')
+        .forEach((e) => api.removeEventById(e.id));
+
+      for (const crew of CREWS) {
+        const jobs = api.getEvents()
+          .filter((e) => e.resourceIds?.includes(crew.id))
+          .filter((e) => e.extendedProps?.kind !== 'travel')
+          .sort((a, b) => a.start - b.start);
+
+        for (let i = 0; i < jobs.length - 1; i++) {
+          const from = jobs[i], to = jobs[i + 1];
+          const a = from.extendedProps?.address;
+          const b = to.extendedProps?.address;
+          if (!a || !b) continue;
+          if (a.line1 === b.line1) continue;     // same site, no travel
+          const km = distanceKm(a, b);
+          const mins = travelMins(a, b);
+          // Use the actual gap if it's smaller than the estimate (the
+          // dispatcher gave them less time than they need — flag it).
+          const gapMs = to.start - from.end;
+          const blockMs = Math.min(gapMs, mins * 60000);
+          if (blockMs <= 0) continue;
+          const blockStart = new Date(from.end.getTime());
+          const blockEnd   = new Date(from.end.getTime() + blockMs);
+          api.addEvent({
+            id: `travel-${from.id}-${to.id}`,
+            resourceIds: [crew.id],
+            start: wallClockUtc(blockStart),
+            end:   wallClockUtc(blockEnd),
+            display: 'background',
+            extendedProps: {
+              kind: 'travel', km, mins,
+              fromSuburb: a.suburb, toSuburb: b.suburb,
+              tight: gapMs < mins * 60000,
+            },
+          });
+        }
+      }
+    }
+
+    // ---- Day summary stats ------------------------------------------------
+    function renderSummary() {
+      const travel = api.getEvents().filter((e) => e.extendedProps?.kind === 'travel');
+      const totalMin = travel.reduce((s, t) => s + t.extendedProps.mins, 0);
+      const totalKm  = travel.reduce((s, t) => s + t.extendedProps.km, 0);
+      const tight = travel.filter((t) => t.extendedProps.tight).length;
+      document.getElementById('summary').innerHTML = `
+        <div class="stat"><span class="label">Travel today</span><span class="value">${(totalMin/60).toFixed(1)} h</span></div>
+        <div class="stat"><span class="label">Kilometres</span><span class="value">${totalKm.toFixed(1)} km</span></div>
+        <div class="stat"><span class="label">Travel blocks</span><span class="value">${travel.length}</span></div>
+        <div class="stat"><span class="label">Tight gaps</span><span class="value" style="color:${tight ? '#dc2626' : '#16a34a'}">${tight}</span></div>
+      `;
+    }
+
+    // Calendar's getEvents() returns Date objects in calendar-internal
+    // UTC-mode-wall-clock form. wallClock() in tradie_data takes a local
+    // Date — convert components back so the round-trip stays stable.
+    function wallClockUtc(d) {
+      const local = new Date(
+        d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(),
+        d.getUTCHours(), d.getUTCMinutes(), d.getUTCSeconds()
+      );
+      return wallClock(local);
+    }
+
+    function escapeHtml(s = '') {
+      return String(s).replace(/[&<>"']/g, (c) => ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+      }[c]));
+    }
+  </script>
+</body>
+</html>

@@ -106,6 +106,16 @@
       <span class="desc">Double-click any chip for an edit/delete popover.</span></li>
   </ul>
 
+  <h2>Mobile</h2>
+  <ul>
+    <li><a href="18-mobile.html">Mobile-optimised <span class="pill">new</span></a>
+      <span class="desc">
+        Phone-shell layout, sticky top bar &amp; bottom view switcher, FAB,
+        safe-area insets, native date pickers in a bottom sheet,
+        single-tap popover, fat-finger slot heights, swipe navigation.
+      </span></li>
+  </ul>
+
   <h2>Data &amp; sync</h2>
   <ul>
     <li><a href="11-broadcast.html">Turbo Streams live sync</a>
@@ -141,6 +151,129 @@
         different zones — drag in Sydney, the same UTC instant lands at
         New York's local wall-clock. Wire format carries the explicit offset
         so receivers can re-anchor.
+      </span></li>
+  </ul>
+
+  <h2>Tradie / field service <span class="pill">new</span></h2>
+  <p class="sub" style="margin-top: -0.25rem">
+    A ServiceM8 / Tradify / Fergus-style dispatch board, field view and
+    customer touchpoints layered on top of the calendar. Conventions and
+    hook map live in <a href="../TRADIE.md"><code>TRADIE.md</code></a>;
+    shared data + helpers in <a href="tradie_data.js"><code>tradie_data.js</code></a>.
+  </p>
+
+  <h2 style="margin-top: 0.75rem; font-size: 0.95rem; color: #475569">Dispatch board</h2>
+  <ul>
+    <li><a href="22-dispatch-board.html">Dispatch board</a>
+      <span class="desc">
+        The spine: <code>resourceTimeGridDay</code> with column-per-crew, status-coloured
+        chips, drag-between-lanes fires a <code>tradie:reassigned</code> hook + toast.
+      </span></li>
+    <li><a href="23-unscheduled-tray.html">Unscheduled job tray</a>
+      <span class="desc">
+        Sidebar of jobs waiting to be slotted; drag a card onto a lane to schedule.
+        Pure host-app — <code>dateFromPoint</code> + DOM walk for the resource.
+      </span></li>
+    <li><a href="24-status-lifecycle.html">Status lifecycle</a>
+      <span class="desc">
+        Quoted → scheduled → in-progress → completed → invoiced. Click the chip's
+        status pill to advance; pipeline header re-counts live.
+      </span></li>
+  </ul>
+
+  <h2 style="margin-top: 0.75rem; font-size: 0.95rem; color: #475569">Geography</h2>
+  <ul>
+    <li><a href="25-travel-time.html">Auto travel-time blocks</a>
+      <span class="desc">
+        Background events auto-inserted between back-to-back jobs at different
+        addresses; rebuilds on every drop with km + minutes + tight-gap warning.
+      </span></li>
+    <li><a href="26-map-sidecar.html">Map sidecar</a>
+      <span class="desc">
+        SVG map of today's jobs as crew-coloured pins; click pin ↔ chip selects
+        the matching job two-way.
+      </span></li>
+    <li><a href="27-nearby-hint.html">Nearby-hint on drag</a>
+      <span class="desc">
+        Floating tooltip during drag — shows distance to the closest existing
+        job in whichever lane you're hovering over.
+      </span></li>
+  </ul>
+
+  <h2 style="margin-top: 0.75rem; font-size: 0.95rem; color: #475569">Tradie reality</h2>
+  <ul>
+    <li><a href="28-arrival-windows.html">Arrival windows</a>
+      <span class="desc">
+        Customer "between 9–11am" rendered as a hatched band over the booked
+        chip; chip can move inside the band without losing the promise.
+      </span></li>
+    <li><a href="29-multi-day-site.html">Multi-day site work + service calls</a>
+      <span class="desc">
+        Builder on a 3-day site rendered as a striped banner across the week
+        timeline alongside same-day service calls in the dispatcher view.
+      </span></li>
+    <li><a href="30-on-call-shifts.html">On-call / after-hours shifts</a>
+      <span class="desc">
+        On-call windows render as red-hatched bands; jobs that land inside
+        inherit an "after-hours rate" tag automatically.
+      </span></li>
+    <li><a href="31-recurring-maintenance.html">Recurring maintenance</a>
+      <span class="desc">
+        Series expanded by the host app; click a recurring chip for "skip
+        this occurrence", "reschedule this one", or "cancel series".
+      </span></li>
+    <li><a href="32-job-dependencies.html">Job dependencies</a>
+      <span class="desc">
+        Fit-off depends on rough-in; dropping the dependent earlier than its
+        dependency reverts and warns. Same guard runs both directions.
+      </span></li>
+  </ul>
+
+  <h2 style="margin-top: 0.75rem; font-size: 0.95rem; color: #475569">Field view</h2>
+  <ul>
+    <li><a href="33-field-view.html">Single-tradie agenda (mobile)</a>
+      <span class="desc">
+        Phone-shell layout, day strip, big cards with tap-to-call, tap-to-navigate,
+        gate code / notes inline. Swap which crew you are with the picker.
+      </span></li>
+    <li><a href="34-clock-on-off.html">Clock on/off → actuals</a>
+      <span class="desc">
+        Tap to clock on a job; running timer pulses on the chip; clock off
+        writes a green "actual" band so the office sees variance at a glance.
+      </span></li>
+    <li><a href="35-run-sheet.html">Printable run sheet</a>
+      <span class="desc">
+        Paper-friendly day list per crew with travel between stops, gate
+        codes, customer phones. <code>@media print</code> strips the controls.
+      </span></li>
+  </ul>
+
+  <h2 style="margin-top: 0.75rem; font-size: 0.95rem; color: #475569">Capacity &amp; customer hooks</h2>
+  <ul>
+    <li><a href="36-capacity-heatmap.html">Capacity heatmap</a>
+      <span class="desc">
+        Crew × day grid coloured by % of working hours booked. Click any cell
+        to drill in to that crew's day in the dispatch view.
+      </span></li>
+    <li><a href="37-find-slot.html">Find me a slot</a>
+      <span class="desc">
+        Given duration + suburb + role, scans every crew's gaps for the next
+        N days; surfaces top 3 by earliest-and-nearest score and pins them on the grid.
+      </span></li>
+    <li><a href="38-sms-reminders.html">SMS reminders that auto-shift</a>
+      <span class="desc">
+        Each job has a child 24h-prior reminder; <code>eventDrop</code>
+        on the job re-computes and <code>updateEvent</code>s the reminder.
+      </span></li>
+    <li><a href="39-customer-confirm.html">Customer self-serve confirm / reschedule</a>
+      <span class="desc">
+        Right pane is the customer-facing booking page; Confirm or
+        Reschedule round-trips into the dispatcher view alongside.
+      </span></li>
+    <li><a href="40-offline-edits.html">Offline edit queue</a>
+      <span class="desc">
+        Toggle offline → edits queue locally with "pending sync" badges;
+        toggle online → progress strip drains the queue.
       </span></li>
   </ul>
 </body>

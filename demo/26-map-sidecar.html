@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>stimulus_calendar — map sidecar</title>
+  <link rel="stylesheet" href="../src/styles/calendar.css">
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; margin: 1.5rem; color: #0f172a; }
+    h1 { margin: 0 0 0.25rem; font-size: 1.25rem; }
+    .sub { color: #64748b; margin: 0 0 1rem; font-size: 14px; }
+
+    .layout { display: grid; grid-template-columns: 1fr 360px; gap: 16px; align-items: start; }
+    @media (max-width: 1100px) { .layout { grid-template-columns: 1fr; } }
+
+    .map-pane {
+      background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 12px;
+      padding: 10px; position: sticky; top: 12px;
+    }
+    .map-pane h2 {
+      margin: 0 0 8px; font-size: 12px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.06em; color: #0c4a6e;
+    }
+    .map {
+      width: 100%; height: 360px; background: #e0f2fe; border-radius: 8px;
+      position: relative; overflow: hidden;
+    }
+    .map svg { width: 100%; height: 100%; display: block; }
+    .map .pin {
+      cursor: pointer; transition: transform 120ms;
+      transform-origin: center;
+    }
+    .map .pin:hover { transform: scale(1.25); }
+    .map .pin.selected { transform: scale(1.5); }
+    .map .pin .ring { fill: rgba(255,255,255,0.95); stroke: #0f172a; stroke-width: 0.5; }
+    .map .pin .dot  { stroke: #0f172a; stroke-width: 0.5; }
+    .map .pin .label {
+      fill: #0f172a; font-size: 4px; font-weight: 700; text-anchor: middle;
+      pointer-events: none;
+    }
+    .map .pin.selected .ring {
+      stroke: #dc2626; stroke-width: 1.5;
+    }
+    .map-legend {
+      display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px;
+      font-size: 11px;
+    }
+    .map-legend .item {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 2px 6px; background: #fff; border-radius: 999px;
+    }
+    .map-legend .dot {
+      width: 10px; height: 10px; border-radius: 50%; display: inline-block;
+    }
+
+    /* The compass / "you are here" — North arrow. */
+    .map .compass { fill: #0c4a6e; font-size: 4px; font-weight: 700; text-anchor: middle; }
+
+    /* Highlight the selected event chip. */
+    .ec-event.selected {
+      outline: 3px solid #dc2626;
+      outline-offset: -1px;
+      z-index: 5;
+    }
+
+    .ec-event .job-chip { display: flex; flex-direction: column; gap: 1px; line-height: 1.2; }
+    .ec-event .job-chip .title { font-weight: 700; font-size: 12px; }
+    .ec-event .job-chip .cust  { font-size: 11px; opacity: 0.85; }
+
+    .selection-card {
+      margin-top: 10px; padding: 10px 12px;
+      background: #fff; border: 1px solid #e2e8f0; border-radius: 10px;
+      font-size: 13px;
+    }
+    .selection-card .meta { color: #475569; font-size: 12px; margin-top: 4px; }
+    .selection-card .meta strong { color: #0f172a; }
+    .selection-card.empty { color: #94a3b8; font-style: italic; text-align: center; }
+  </style>
+</head>
+<body>
+  <h1>Map sidecar — click a pin ↔ select an event</h1>
+  <p class="sub">
+    Each timed job with an <code>extendedProps.address</code> renders as a
+    pin on the right. Click a pin to select the matching chip; click a chip
+    to highlight the pin. Pin colour = the crew's lane colour.
+  </p>
+
+  <div class="layout">
+    <div id="cal"
+         data-controller="calendar"
+         data-calendar-plugins-value='["ResourceTimeGrid","Interaction"]'
+         data-calendar-view-value="resourceTimeGridDay"
+         data-calendar-options-value='{
+           "editable": true,
+           "scrollTime": "07:00:00",
+           "slotMinTime": "06:00:00",
+           "slotMaxTime": "20:00:00",
+           "nowIndicator": true,
+           "slotHeight": 22,
+           "slotDuration": "00:30:00",
+           "headerToolbar": { "start": "title", "center": "", "end": "today prev,next" }
+         }'>
+    </div>
+
+    <aside class="map-pane">
+      <h2>Today's jobs · map</h2>
+      <div class="map" id="map"></div>
+      <div class="map-legend" id="map-legend"></div>
+      <div class="selection-card empty" id="selection">Click a pin or a chip to inspect a job.</div>
+    </aside>
+  </div>
+
+  <style id="status-style"></style>
+
+  <script type="module">
+    import { Application } from '/node_modules/@hotwired/stimulus/dist/stimulus.js';
+    import CalendarController from '/src/controllers/calendar_controller.js';
+    import { CREWS, makeJobs, STATUS, statusCss, statusClass } from './tradie_data.js';
+
+    // Mount-time resources — see 22-dispatch-board.html for the why.
+    document.getElementById('cal').setAttribute(
+      'data-calendar-resources-value', JSON.stringify(CREWS)
+    );
+
+    Application.start().register('calendar', CalendarController);
+    await new Promise((r) => setTimeout(r, 80));
+
+    const el  = document.getElementById('cal');
+    const api = el.calendarApi;
+    document.getElementById('status-style').textContent = statusCss();
+    api.setOption('eventClassNames', statusClass);
+    api.setOption('eventContent', ({ event }) => {
+      const ep = event.extendedProps || {};
+      return { html:
+        `<div class="job-chip">
+           <div class="title">${escapeHtml(event.title)}</div>
+           <div class="cust">${escapeHtml(ep.customer?.name ?? '')}</div>
+         </div>` };
+    });
+
+    // Today's jobs only.
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
+    const todayJobs = makeJobs().filter((j) => {
+      const d = new Date(j.start);
+      return d >= today && d < tomorrow;
+    });
+    todayJobs.forEach((j) => api.addEvent(j));
+
+    // ---- Map renderer -----------------------------------------------------
+    // Project lat/lng into a 100×100 SVG viewBox. Bounds chosen to contain
+    // every address in tradie_data with a bit of margin so pins don't
+    // hug the edge.
+    const BOUNDS = { minLat: -33.95, maxLat: -33.78, minLng: 151.10, maxLng: 151.32 };
+    const proj = ({ lat, lng }) => ({
+      x: ((lng - BOUNDS.minLng) / (BOUNDS.maxLng - BOUNDS.minLng)) * 100,
+      // SVG y grows downward, but higher lat = further north = up
+      y: 100 - ((lat - BOUNDS.minLat) / (BOUNDS.maxLat - BOUNDS.minLat)) * 100,
+    });
+
+    const events = api.getEvents();
+    const pinData = events
+      .filter((e) => e.extendedProps?.address?.lat != null)
+      .map((e) => ({
+        id: e.id,
+        title: e.title,
+        suburb: e.extendedProps.address.suburb,
+        jobNumber: e.extendedProps.jobNumber,
+        crew: CREWS.find((c) => c.id === e.resourceIds?.[0]),
+        time: shortTime(e.start),
+        ...proj(e.extendedProps.address),
+      }));
+
+    const svg = `
+      <svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
+        <!-- a few decorative city features so the map reads as a place -->
+        <rect x="0" y="0" width="100" height="100" fill="#e0f2fe"/>
+        <path d="M 0 35 Q 30 45 60 30 Q 80 22 100 25 L 100 0 L 0 0 Z" fill="#a7d3f0"/>
+        <path d="M 35 100 Q 45 70 65 60 Q 85 50 100 55 L 100 100 Z" fill="#d6f1f6"/>
+        <text x="92" y="6" class="compass">N ↑</text>
+        ${pinData.map(renderPin).join('')}
+      </svg>
+    `;
+    document.getElementById('map').innerHTML = svg;
+    document.getElementById('map-legend').innerHTML = CREWS
+      .map((c) => `<span class="item">
+        <span class="dot" style="background:${c.eventBackgroundColor}"></span>
+        ${escapeHtml(c.title.split(' — ')[0])}
+      </span>`).join('');
+
+    function renderPin(p) {
+      const colour = p.crew?.eventBackgroundColor ?? '#334155';
+      return `<g class="pin" data-id="${p.id}" transform="translate(${p.x.toFixed(2)} ${p.y.toFixed(2)})">
+        <circle class="ring" r="3.2"/>
+        <circle class="dot" r="2.2" fill="${colour}"/>
+        <text class="label" y="-4.5">${escapeHtml(p.time)}</text>
+      </g>`;
+    }
+
+    function shortTime(d) {
+      return new Intl.DateTimeFormat(undefined,
+        { hour: 'numeric', minute: '2-digit', timeZone: 'UTC' })
+        .format(d).replace(' ', '').toLowerCase();
+    }
+
+    // ---- Two-way selection -------------------------------------------------
+    let selectedId = null;
+    function select(id) {
+      selectedId = id;
+      // Pins
+      document.querySelectorAll('.map .pin').forEach((g) =>
+        g.classList.toggle('selected', g.dataset.id === id));
+      // Chips
+      document.querySelectorAll('.ec-event').forEach((c) =>
+        c.classList.toggle('selected', c.getAttribute('data-event-id') === id));
+      // Selection card
+      const ev = api.getEventById(id);
+      const card = document.getElementById('selection');
+      if (!ev) { card.className = 'selection-card empty'; card.textContent = 'Click a pin or a chip to inspect a job.'; return; }
+      const ep = ev.extendedProps || {};
+      const crew = CREWS.find((c) => c.id === ev.resourceIds?.[0]);
+      card.className = 'selection-card';
+      card.innerHTML = `
+        <div><strong>${escapeHtml(ev.title)}</strong> <span style="opacity:.6">· ${escapeHtml(ep.jobNumber ?? '')}</span></div>
+        <div class="meta">
+          <strong>${escapeHtml(ep.customer?.name ?? '')}</strong> ·
+          ${escapeHtml(ep.address?.line1 ?? '')}, ${escapeHtml(ep.address?.suburb ?? '')}<br>
+          ${escapeHtml(shortTime(ev.start))}–${escapeHtml(shortTime(ev.end))} ·
+          <strong>${escapeHtml(crew?.title?.split(' — ')[0] ?? '')}</strong>
+        </div>
+      `;
+    }
+
+    // Click pin → select event
+    document.getElementById('map').addEventListener('click', (ev) => {
+      const g = ev.target.closest('.pin');
+      if (g) select(g.dataset.id);
+    });
+
+    // Click chip → select pin
+    el.addEventListener('calendar:eventClick', (ev) => {
+      select(ev.detail.event.id);
+    });
+
+    function escapeHtml(s = '') {
+      return String(s).replace(/[&<>"']/g, (c) => ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+      }[c]));
+    }
+  </script>
+</body>
+</html>

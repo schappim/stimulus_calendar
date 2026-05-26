@@ -112,18 +112,57 @@ export function renderResourceTimeGridView(container, state) {
         );
         // Stagger overlapping events into staircase lanes so the chip
         // behind keeps a clickable left strip when a later event paints
-        // on top.
-        const laneMap = assignOverlapLanes(dayEvents);
+        // on top. Background bands (display:'background') are excluded
+        // from lane assignment so a real chip that overlaps a band still
+        // lands at lane 0.
+        const laneEvents = dayEvents.filter((e) => e.display !== 'background');
+        const laneMap = assignOverlapLanes(laneEvents);
         const LANE_OFFSET_PX = 16;
+        const minutesPerSlot = totalSeconds(options.slotDuration) / 60;
+        const slotMinMin = totalSeconds(slotTimeLimits.min) / 60;
+        const pxPerMin = options.slotHeight / minutesPerSlot;
         for (const event of dayEvents) {
+          const startMin = minsSinceMidnight(event.start) - slotMinMin;
+          const endMin = minsSinceMidnight(event.end) - slotMinMin;
+
+          // Background bands: full-width, z-index 0, no content.
+          // eventClassNames still runs so the host app can style each band.
+          if (event.display === 'background') {
+            const bgClasses = ['ec-bg-event'];
+            const globalCls = options.eventClassNames;
+            if (typeof globalCls === 'function') {
+              const c = globalCls({ event });
+              if (c) bgClasses.push(...(Array.isArray(c) ? c : [c]));
+            } else if (globalCls) {
+              bgClasses.push(...(Array.isArray(globalCls) ? globalCls : [globalCls]));
+            }
+            if (event.classNames) bgClasses.push(...(Array.isArray(event.classNames) ? event.classNames : [event.classNames]));
+            const bg = createElement('div', bgClasses.filter(Boolean).join(' '), '', [
+              ['data-event-id', event.id],
+            ]);
+            bg.style.position = 'absolute';
+            bg.style.top = `${startMin * pxPerMin}px`;
+            bg.style.height = `${Math.max((endMin - startMin) * pxPerMin, 12)}px`;
+            bg.style.left = '0';
+            bg.style.right = '0';
+            bg.style.zIndex = '0';
+            if (event.backgroundColor) bg.style.background = event.backgroundColor;
+            // eventContent runs for bg events here too — see time_grid.js
+            // for the rationale.
+            const contentFn = options.eventContent;
+            if (typeof contentFn === 'function') {
+              const c = contentFn({ event });
+              if (typeof c === 'string') bg.textContent = c;
+              else if (c?.html) bg.innerHTML = c.html;
+              else if (c?.domNodes) c.domNodes.forEach((n) => bg.append(n));
+            }
+            overlay.append(bg);
+            continue;
+          }
+
           const chip = createElement('div', theme.event, '', [
             ['data-event-id', event.id],
           ]);
-          const minutesPerSlot = totalSeconds(options.slotDuration) / 60;
-          const slotMinMin = totalSeconds(slotTimeLimits.min) / 60;
-          const startMin = minsSinceMidnight(event.start) - slotMinMin;
-          const endMin = minsSinceMidnight(event.end) - slotMinMin;
-          const pxPerMin = options.slotHeight / minutesPerSlot;
           const lane = laneMap.get(event) ?? 0;
           chip.style.position = 'absolute';
           chip.style.top = `${startMin * pxPerMin}px`;

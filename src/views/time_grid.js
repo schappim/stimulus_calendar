@@ -225,18 +225,67 @@ export function renderTimeGridView(container, state) {
           startsBefore, endsAfter,
         });
       }
-      const laneWrappers = dayEvents.map((e) => ({
-        start: eventBounds.get(e).visStart,
-        end:   eventBounds.get(e).visEnd,
-        event: e,
-      }));
+      // Background events (display:'background') don't compete with regular
+      // chips for lane space — they paint a translucent band behind
+      // everything. Exclude them from lane assignment so a real chip that
+      // overlaps a band still lands at lane 0.
+      const laneWrappers = dayEvents
+        .filter((e) => e.display !== 'background')
+        .map((e) => ({
+          start: eventBounds.get(e).visStart,
+          end:   eventBounds.get(e).visEnd,
+          event: e,
+        }));
       const laneMap = assignOverlapLanes(laneWrappers);
       const laneByEvent = new Map();
       for (const w of laneWrappers) laneByEvent.set(w.event, laneMap.get(w));
       const LANE_OFFSET_PX = 16;
+      const minutesPerSlot = (totalSeconds(options.slotDuration) / 60);
+      const slotMinMin = totalSeconds(slotTimeLimits.min) / 60;
+      const pxPerMin = options.slotHeight / minutesPerSlot;
       for (const event of dayEvents) {
         const bounds = eventBounds.get(event);
         const { visStart, visEnd, startsBefore, endsAfter } = bounds;
+        const startMin = ((visStart.getTime() - dayMidShared.getTime()) / 60_000) - slotMinMin;
+        const endMin = ((visEnd.getTime() - dayMidShared.getTime()) / 60_000) - slotMinMin;
+
+        // Background bands: full-width, behind regular chips, no content.
+        // The eventClassNames hook still runs so the host app can paint a
+        // distinct pattern (hatched, striped, etc.) per band.
+        if (event.display === 'background') {
+          const bgClasses = ['ec-bg-event'];
+          const globalCls = options.eventClassNames;
+          if (typeof globalCls === 'function') {
+            const c = globalCls({ event });
+            if (c) bgClasses.push(...(Array.isArray(c) ? c : [c]));
+          } else if (globalCls) {
+            bgClasses.push(...(Array.isArray(globalCls) ? globalCls : [globalCls]));
+          }
+          if (event.classNames) bgClasses.push(...(Array.isArray(event.classNames) ? event.classNames : [event.classNames]));
+          const bg = createElement('div', bgClasses.filter(Boolean).join(' '), '', [
+            ['data-event-id', event.id],
+          ]);
+          bg.style.position = 'absolute';
+          bg.style.top = `${startMin * pxPerMin}px`;
+          bg.style.height = `${Math.max((endMin - startMin) * pxPerMin, 12)}px`;
+          bg.style.left = '0';
+          bg.style.right = '0';
+          bg.style.zIndex = '0';
+          if (event.backgroundColor) bg.style.background = event.backgroundColor;
+          // eventContent runs for bg events too — TimeGrid bands are tall
+          // enough to display a label (travel km, arrival window, on-call
+          // tag). Day-grid bands don't get this because they paint a
+          // whole-cell background; here a label inside is useful.
+          const contentFn = options.eventContent;
+          if (typeof contentFn === 'function') {
+            const c = contentFn({ event });
+            if (typeof c === 'string') bg.textContent = c;
+            else if (c?.html) bg.innerHTML = c.html;
+            else if (c?.domNodes) c.domNodes.forEach((n) => bg.append(n));
+          }
+          overlay.append(bg);
+          continue;
+        }
 
         const classes = [theme.event];
         if (startsBefore) classes.push('ec-event-continues-from');
@@ -246,11 +295,6 @@ export function renderTimeGridView(container, state) {
           ['data-event-start', event.start.toISOString()],
           ['data-event-end',   event.end.toISOString()],
         ]);
-        const minutesPerSlot = (totalSeconds(options.slotDuration) / 60);
-        const slotMinMin = totalSeconds(slotTimeLimits.min) / 60;
-        const startMin = ((visStart.getTime() - dayMidShared.getTime()) / 60_000) - slotMinMin;
-        const endMin = ((visEnd.getTime() - dayMidShared.getTime()) / 60_000) - slotMinMin;
-        const pxPerMin = options.slotHeight / minutesPerSlot;
         const lane = laneByEvent.get(event) ?? 0;
         chip.style.position = 'absolute';
         chip.style.top = `${startMin * pxPerMin}px`;

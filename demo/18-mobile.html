@@ -768,13 +768,10 @@
     });
 
     // ----- Long-press handlers ------------------------------------
-    // Two distinct gestures share the long-press affordance on touch:
-    //   - long-press an empty slot ⇒ open the create sheet
-    //   - long-press an existing chip ⇒ enter "edit mode" (visible
-    //     circular handles on the right edge that resize start/end)
-    // Both cancel on pointer movement > LP_MOVE_TOLERANCE or on
-    // pointerup before LP_MS, so a regular tap (popover) and a drag
-    // (move / swipe) still flow through unchanged.
+    // Empty-slot long-press opens the create sheet. Existing chips use
+    // the core Interaction plugin's Struth2/iOS-style touch pipeline:
+    // long-press enters edit mode, the same held finger moves the chip,
+    // and edit-mode handles resize duration.
     const LP_MS = 450;
     const LP_MOVE_TOLERANCE = 12;
     let lp = null;
@@ -792,17 +789,11 @@
     //   1. Snapshot lastDownX/Y + body scrollTop for the dateClick
     //      gate that distinguishes scroll/swipe from intentional drag.
     //   2. Set up the long-press state machine.
-    //   3. Block the calendar's attachEventDragHandler from running
-    //      on a chip touch when the chip is NOT in edit mode — the
-    //      user must long-press first to "lift" the chip into a
-    //      movable state. Without this, every touch on a chip
-    //      becomes a potential drag-move, so trying to scroll the
-    //      time-grid or swipe between days picks up whichever chip
-    //      the finger landed on and drags it. Capture phase is the
-    //      ONLY way to intercept this without modifying calendar
-    //      core: rootEl (where the drag handler lives) is a
-    //      descendant of `el`, so a bubble-phase listener on el
-    //      fires AFTER the drag handler has already engaged.
+    //   3. Let the calendar core arm a pending touch drag on chips. It
+    //      stays inert until this long-press flow adds
+    //      .ec-event-editing, so ordinary chip touches still scroll or
+    //      swipe, while a long-pressed chip can move immediately without
+    //      lifting the finger.
     el.addEventListener('pointerdown', (ev) => {
       // (1) Always — touch and mouse.
       lastDownX = ev.clientX; lastDownY = ev.clientY;
@@ -827,15 +818,9 @@
         exitEditMode();
       }
 
-      // (3) Block drag-move on a non-edit-mode chip. Chip click
-      // events are a separate event flow (synthesised after
-      // pointerup), so the tap-to-open-popover path still works.
-      if (chip && !chip.classList.contains('ec-event-editing')) {
-        ev.stopPropagation();
-      }
-
       if (isInteractive) return;
       if (!chip && !onCell) return;
+      if (chip) return;
 
       const startX = ev.clientX, startY = ev.clientY;
       lp = {
@@ -846,26 +831,18 @@
           // scroll without dispatching a cancel (so my pointermove
           // tolerance never fired), bail at timer-fire time.
           if (gestureWasScrollOrSwipe()) return;
-          if (chip) {
-            // CHIP long-press ⇒ enter edit mode (visible handles).
-            suppressNextPopover = true;
-            chip.classList.add('ec-event-editing');
-            if (navigator.vibrate) navigator.vibrate(15);
-          } else {
-            // EMPTY-SLOT long-press ⇒ open the create sheet.
-            const date = api.dateFromPoint(startX, startY);
-            if (!date) return;
-            if (navigator.vibrate) navigator.vibrate(15);
-            const inTimeCol = !!document
-              .elementFromPoint(startX, startY)?.closest('.ec-time-col');
-            const startLocal = calToLocal(date);
-            const endLocal = new Date(startLocal.getTime()
-              + (inTimeCol ? 60 * 60 * 1000 : 24 * 60 * 60 * 1000));
-            openSheet({
-              start: startLocal, end: endLocal,
-              color: palette[counter % palette.length],
-            });
-          }
+          const date = api.dateFromPoint(startX, startY);
+          if (!date) return;
+          if (navigator.vibrate) navigator.vibrate(15);
+          const inTimeCol = !!document
+            .elementFromPoint(startX, startY)?.closest('.ec-time-col');
+          const startLocal = calToLocal(date);
+          const endLocal = new Date(startLocal.getTime()
+            + (inTimeCol ? 60 * 60 * 1000 : 24 * 60 * 60 * 1000));
+          openSheet({
+            start: startLocal, end: endLocal,
+            color: palette[counter % palette.length],
+          });
         }, LP_MS),
       };
     }, true);  // capture — must run before rootEl's drag handler

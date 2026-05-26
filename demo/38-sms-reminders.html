@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>stimulus_calendar — SMS reminders that auto-shift</title>
+  <link rel="stylesheet" href="../src/styles/calendar.css">
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; margin: 1.5rem; color: #0f172a; }
+    h1 { margin: 0 0 0.25rem; font-size: 1.25rem; }
+    .sub { color: #64748b; margin: 0 0 1rem; font-size: 14px; }
+    .ec { width: 100%; }
+
+    /* Reminder chip — small, purple, dotted border. Looks like a system
+       event rather than billable work. */
+    .ec-event.reminder {
+      background: #faf5ff !important;
+      color: #6b21a8 !important;
+      border-left: 3px solid #9333ea !important;
+      border: 1px dashed #c4b5fd !important;
+    }
+    .ec-event.reminder .reminder-chip {
+      display: flex; align-items: center; gap: 4px;
+      font-size: 11px; font-weight: 700; line-height: 1.3;
+      padding: 1px 4px;
+    }
+    .ec-event.reminder .reminder-chip .icon { font-size: 12px; }
+
+    .ec-event .job-chip { display: flex; flex-direction: column; gap: 1px; line-height: 1.2; }
+    .ec-event .job-chip .title { font-weight: 700; font-size: 12px; }
+    .ec-event .job-chip .cust  { font-size: 11px; opacity: 0.85; }
+    .ec-event .job-chip .reminder-tag {
+      align-self: flex-start; font-size: 9px; padding: 0 5px;
+      background: #9333ea; color: #fff;
+      border-radius: 3px; font-weight: 700; letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    /* Toast for "reminder rescheduled" notifications. */
+    .toast-rail {
+      position: fixed; right: 16px; bottom: 16px;
+      display: flex; flex-direction: column; gap: 8px; z-index: 100;
+      pointer-events: none;
+    }
+    .toast {
+      background: #6b21a8; color: #fff; padding: 10px 14px; border-radius: 10px;
+      font-size: 13px; box-shadow: 0 8px 24px -8px rgba(107,33,168,0.4);
+      max-width: 360px; animation: pop-in 200ms ease-out;
+    }
+    @keyframes pop-in { from { transform: translateY(8px); opacity: 0 } to { transform: none; opacity: 1 } }
+
+    .legend {
+      margin: 0 0 12px; padding: 10px 12px; background: #faf5ff;
+      border: 1px solid #d8b4fe; border-radius: 10px; font-size: 13px;
+      color: #581c87;
+    }
+  </style>
+</head>
+<body>
+  <h1>SMS reminders linked to jobs — auto‑shift on move</h1>
+  <p class="sub">
+    Each job carries a child reminder scheduled 24 hours before the start.
+    The reminder is a separate event with
+    <code>extendedProps.kind: 'reminder'</code> and a back‑pointer
+    <code>jobId</code>. When the job moves, an <code>eventDrop</code>
+    handler re‑computes the reminder's time and pushes it through
+    <code>updateEvent</code> — no separate scheduling system needed.
+  </p>
+
+  <div class="legend">
+    Drag a job (the coloured chip). The dashed purple reminder slides with
+    it. A toast notifies the back office that the SMS schedule was updated.
+  </div>
+
+  <div id="cal"
+       data-controller="calendar"
+       data-calendar-plugins-value='["TimeGrid","Interaction"]'
+       data-calendar-view-value="timeGridWeek"
+       data-calendar-options-value='{
+         "editable": true,
+         "scrollTime": "07:00:00",
+         "slotMinTime": "06:00:00",
+         "slotMaxTime": "20:00:00",
+         "nowIndicator": true,
+         "slotHeight": 22,
+         "slotDuration": "00:30:00",
+         "snapDuration": "00:15:00",
+         "headerToolbar": { "start": "title", "center": "", "end": "today prev,next" }
+       }'>
+  </div>
+
+  <div class="toast-rail" id="toasts"></div>
+
+  <style id="status-style"></style>
+
+  <script type="module">
+    import { Application } from '/node_modules/@hotwired/stimulus/dist/stimulus.js';
+    import CalendarController from '/src/controllers/calendar_controller.js';
+    import { makeJobs, STATUS, statusCss, statusClass, wallClock } from './tradie_data.js';
+
+    Application.start().register('calendar', CalendarController);
+    await new Promise((r) => setTimeout(r, 80));
+
+    const el  = document.getElementById('cal');
+    const api = el.calendarApi;
+    document.getElementById('status-style').textContent = statusCss();
+
+    api.setOption('eventClassNames', (info) => {
+      if (info.event.extendedProps?.kind === 'reminder') return ['reminder'];
+      return statusClass(info);
+    });
+    api.setOption('eventContent', ({ event }) => {
+      const ep = event.extendedProps || {};
+      if (ep.kind === 'reminder') {
+        return { html:
+          `<div class="reminder-chip">
+             <span class="icon">📱</span>
+             SMS to ${escapeHtml(ep.customerName)}
+           </div>` };
+      }
+      return { html:
+        `<div class="job-chip">
+           <div class="title">${escapeHtml(event.title)}</div>
+           <div class="cust">${escapeHtml(ep.customer?.name ?? '')}</div>
+           ${ep.reminderId ? '<span class="reminder-tag">↻ SMS 24h prior</span>' : ''}
+         </div>` };
+    });
+
+    // Subset: the next few days' scheduled jobs (skip completed/in-progress).
+    const tomorrow = new Date(); tomorrow.setHours(0,0,0,0);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const jobs = makeJobs()
+      .filter((j) => new Date(j.start) >= tomorrow)
+      .filter((j) => j.extendedProps.status === 'scheduled');
+
+    for (const j of jobs) {
+      // Stamp a reminder back-pointer so the renderer can show the SMS tag.
+      const reminderId = `rem-${j.id}`;
+      j.extendedProps = { ...j.extendedProps, reminderId };
+      api.addEvent(j);
+      addReminderFor(j);
+    }
+
+    function addReminderFor(job) {
+      const reminderId = job.extendedProps.reminderId;
+      const startMs = new Date(job.start).getTime() - 24 * 3600 * 1000;
+      const reminderStart = new Date(startMs);
+      const reminderEnd   = new Date(startMs + 30 * 60000);
+      api.addEvent({
+        id: reminderId,
+        // Same lane as the job (so the dispatcher sees it in context).
+        resourceIds: job.resourceIds,
+        start: wallClock(reminderStart),
+        end:   wallClock(reminderEnd),
+        extendedProps: {
+          kind: 'reminder',
+          jobId: job.id,
+          customerName: job.extendedProps.customer?.name ?? 'customer',
+        },
+      });
+    }
+
+    // ---- Hook: when a job moves, shift its reminder too. ------------------
+    el.addEventListener('calendar:eventDrop', (ev) => {
+      const { event } = ev.detail;
+      const ep = event.extendedProps || {};
+      if (ep.kind === 'reminder') {
+        // The reminder itself was dragged — leave it where the user put it.
+        // (A serious app might re-anchor or revert; we leave it free.)
+        return;
+      }
+      if (!ep.reminderId) return;
+      const reminder = api.getEventById(ep.reminderId);
+      if (!reminder) return;
+
+      // Re-compute reminder times: 24h before the (new) job start.
+      // event.start is the new committed time (post-drop). Convert from
+      // calendar's UTC-mode wall-clock to a local Date.
+      const newJobStart = new Date(
+        event.start.getUTCFullYear(), event.start.getUTCMonth(), event.start.getUTCDate(),
+        event.start.getUTCHours(), event.start.getUTCMinutes());
+      const newRem = new Date(newJobStart.getTime() - 24 * 3600 * 1000);
+      api.updateEvent({
+        id: reminder.id,
+        start: wallClock(newRem),
+        end:   wallClock(new Date(newRem.getTime() + 30 * 60000)),
+      });
+      toast(`📱 Reminder for <strong>${escapeHtml(event.title)}</strong> rescheduled — ` +
+            `SMS will go out at <strong>${fmtDateTime(newRem)}</strong>.`);
+    });
+
+    function fmtDateTime(d) {
+      return new Intl.DateTimeFormat(undefined,
+        { weekday: 'short', hour: 'numeric', minute: '2-digit' }).format(d);
+    }
+    function toast(html, ms = 3500) {
+      const t = document.createElement('div');
+      t.className = 'toast';
+      t.innerHTML = html;
+      document.getElementById('toasts').appendChild(t);
+      setTimeout(() => {
+        t.style.transition = 'opacity 240ms';
+        t.style.opacity = '0';
+        setTimeout(() => t.remove(), 260);
+      }, ms);
+    }
+    function escapeHtml(s = '') {
+      return String(s).replace(/[&<>"']/g, (c) => ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+      }[c]));
+    }
+  </script>
+</body>
+</html>

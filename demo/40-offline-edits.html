@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>stimulus_calendar — offline edit queue</title>
+  <link rel="stylesheet" href="../src/styles/calendar.css">
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; margin: 1.5rem; color: #0f172a; }
+    h1 { margin: 0 0 0.25rem; font-size: 1.25rem; }
+    .sub { color: #64748b; margin: 0 0 1rem; font-size: 14px; }
+
+    .bar {
+      display: flex; align-items: center; gap: 12px;
+      margin: 0 0 14px; padding: 10px 14px;
+      background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px;
+    }
+    .bar .status {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 13px; font-weight: 700;
+    }
+    .bar .status .dot {
+      width: 10px; height: 10px; border-radius: 50%; background: #16a34a;
+      box-shadow: 0 0 0 4px rgba(22,163,74,0.18);
+    }
+    .bar.offline .status { color: #b91c1c; }
+    .bar.offline .status .dot { background: #dc2626; box-shadow: 0 0 0 4px rgba(220,38,38,0.18); }
+
+    .bar .queue {
+      font-size: 12px; color: #475569;
+      background: #fff; border: 1px solid #e2e8f0; border-radius: 999px;
+      padding: 4px 12px; font-weight: 600;
+    }
+    .bar .queue strong { color: #0f172a; font-variant-numeric: tabular-nums; }
+    .bar .queue.pending { background: #fef3c7; border-color: #fde047; color: #78350f; }
+
+    .bar .toggle {
+      margin-left: auto;
+      padding: 8px 14px; border: 0; border-radius: 8px;
+      background: #dc2626; color: #fff; font: inherit; font-weight: 700;
+      cursor: pointer;
+    }
+    .bar .toggle.go-online { background: #16a34a; }
+
+    .ec { width: 100%; }
+    .ec-event .job-chip { display: flex; flex-direction: column; gap: 1px; line-height: 1.2; }
+    .ec-event .job-chip .title { font-weight: 700; font-size: 12px; }
+    .ec-event .job-chip .cust  { font-size: 11px; opacity: 0.85; }
+
+    /* Pending-sync chip: a "↻" badge + dashed border + reduced opacity. */
+    .ec-event.pending-sync {
+      border: 2px dashed #f59e0b !important;
+      animation: pending-pulse 2s ease-in-out infinite;
+    }
+    @keyframes pending-pulse {
+      0%, 100% { opacity: 0.85; }
+      50%      { opacity: 0.55; }
+    }
+    .ec-event .pending-tag {
+      align-self: flex-start; font-size: 9px; padding: 0 5px;
+      background: #f59e0b; color: #fff;
+      border-radius: 3px; font-weight: 700; letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    /* Sync progress overlay during drain. */
+    .progress {
+      margin-top: 14px; padding: 10px 14px;
+      background: #ecfeff; border: 1px solid #67e8f9; border-radius: 10px;
+      font-size: 13px; color: #0e7490;
+    }
+    .progress .bar-track {
+      height: 6px; background: rgba(8, 145, 178, 0.15);
+      border-radius: 3px; overflow: hidden; margin-top: 6px;
+    }
+    .progress .bar-fill {
+      height: 100%; background: #0891b2;
+      width: 0%; transition: width 200ms;
+    }
+
+    .hint {
+      margin: 0 0 12px; color: #475569; font-size: 13px; background: #fefce8;
+      border: 1px solid #fde047; border-radius: 8px; padding: 8px 12px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Offline‑first edits — queue locally, drain on reconnect</h1>
+  <p class="sub">
+    Wraps <code>updateEvent</code> + <code>addEvent</code> behind a
+    queue that respects an <em>online</em> flag. Offline edits apply
+    optimistically with a "pending sync" badge; toggling back online
+    replays the queue with a visible progress strip. A real app
+    swaps the simulated drain for a fetch loop + retry.
+  </p>
+
+  <div class="hint">
+    Go offline → drag a few jobs around → go back online. The
+    pending-sync badges clear as each edit syncs.
+  </div>
+
+  <div class="bar" id="bar">
+    <span class="status"><span class="dot"></span><span id="status-text">Online</span></span>
+    <span class="queue" id="queue">Queue: <strong>0</strong> pending</span>
+    <button class="toggle" id="toggle">Go offline</button>
+  </div>
+
+  <div id="cal"
+       data-controller="calendar"
+       data-calendar-plugins-value='["ResourceTimeGrid","Interaction"]'
+       data-calendar-view-value="resourceTimeGridDay"
+       data-calendar-options-value='{
+         "editable": true,
+         "scrollTime": "07:00:00",
+         "slotMinTime": "06:00:00",
+         "slotMaxTime": "20:00:00",
+         "nowIndicator": true,
+         "slotHeight": 22,
+         "slotDuration": "00:30:00",
+         "snapDuration": "00:15:00",
+         "headerToolbar": { "start": "title", "center": "", "end": "today prev,next" }
+       }'>
+  </div>
+
+  <div class="progress" id="progress" style="display:none">
+    <div class="row"><span id="progress-label"></span></div>
+    <div class="bar-track"><div class="bar-fill" id="progress-fill"></div></div>
+  </div>
+
+  <style id="status-style"></style>
+
+  <script type="module">
+    import { Application } from '/node_modules/@hotwired/stimulus/dist/stimulus.js';
+    import CalendarController from '/src/controllers/calendar_controller.js';
+    import { CREWS, makeJobs, STATUS, statusCss, statusClass } from './tradie_data.js';
+
+    document.getElementById('cal').setAttribute(
+      'data-calendar-resources-value', JSON.stringify(CREWS)
+    );
+
+    Application.start().register('calendar', CalendarController);
+    await new Promise((r) => setTimeout(r, 80));
+
+    const el  = document.getElementById('cal');
+    const api = el.calendarApi;
+    document.getElementById('status-style').textContent = statusCss();
+
+    api.setOption('eventClassNames', (info) => {
+      const cls = statusClass(info);
+      if (pending.has(info.event.id)) cls.push('pending-sync');
+      return cls;
+    });
+    api.setOption('eventContent', ({ event }) => {
+      const ep = event.extendedProps || {};
+      return { html:
+        `<div class="job-chip">
+           <div class="title">${escapeHtml(event.title)}</div>
+           <div class="cust">${escapeHtml(ep.customer?.name ?? '')}</div>
+           ${pending.has(event.id) ? '<span class="pending-tag">↻ pending sync</span>' : ''}
+         </div>` };
+    });
+
+    // Today's jobs.
+    const today = new Date(); today.setHours(0,0,0,0);
+    const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
+    makeJobs().filter((j) => {
+      const d = new Date(j.start);
+      return d >= today && d < tomorrow;
+    }).forEach((j) => api.addEvent(j));
+
+    // ---- Queue + online state --------------------------------------------
+    let online = true;
+    const queue = [];           // [{ kind, payload }] FIFO
+    const pending = new Set();  // event ids whose latest edit hasn't synced
+
+    function enqueue(kind, payload) {
+      queue.push({ kind, payload, at: Date.now() });
+      pending.add(payload.id);
+      renderQueue();
+      // Force a re-render so the new badge appears.
+      api.updateEvent({ id: payload.id });
+    }
+
+    // ---- Intercept eventDrop / eventResize -------------------------------
+    // The interaction plugin auto-commits the move via updateEvent on its
+    // own. We track each drop into our queue iff we're offline; the
+    // commit has already happened locally (so the chip moves visually),
+    // but the "needs sync" flag is what makes it pending.
+    el.addEventListener('calendar:eventDrop', (ev) => {
+      const e = ev.detail.event;
+      if (!online) enqueue('move', { id: e.id });
+    });
+    el.addEventListener('calendar:eventResize', (ev) => {
+      const e = ev.detail.event;
+      if (!online) enqueue('resize', { id: e.id });
+    });
+
+    // ---- Toggle ----------------------------------------------------------
+    document.getElementById('toggle').addEventListener('click', () => {
+      if (online) goOffline();
+      else        goOnline();
+    });
+
+    function goOffline() {
+      online = false;
+      const bar = document.getElementById('bar');
+      bar.classList.add('offline');
+      document.getElementById('status-text').textContent = 'Offline';
+      const btn = document.getElementById('toggle');
+      btn.textContent = 'Go online';
+      btn.classList.add('go-online');
+    }
+
+    async function goOnline() {
+      online = true;
+      const bar = document.getElementById('bar');
+      bar.classList.remove('offline');
+      document.getElementById('status-text').textContent = 'Online · draining queue…';
+      const btn = document.getElementById('toggle');
+      btn.disabled = true;
+
+      // Drain the queue with a fake network delay per item.
+      const total = queue.length;
+      const prog  = document.getElementById('progress');
+      const fill  = document.getElementById('progress-fill');
+      const label = document.getElementById('progress-label');
+      if (total > 0) {
+        prog.style.display = 'block';
+        for (let i = 0; i < total; i++) {
+          const item = queue.shift();
+          label.textContent = `Syncing edit ${i + 1} / ${total} (${item.kind} · ${item.payload.id})`;
+          fill.style.width = `${((i + 1) / total) * 100}%`;
+          await new Promise((r) => setTimeout(r, 350));
+          pending.delete(item.payload.id);
+          // Re-render the chip so the badge disappears.
+          const e = api.getEventById(item.payload.id);
+          if (e) api.updateEvent({ id: e.id });
+          renderQueue();
+        }
+        await new Promise((r) => setTimeout(r, 400));
+        prog.style.display = 'none';
+        fill.style.width = '0%';
+      }
+
+      document.getElementById('status-text').textContent = 'Online · all synced';
+      btn.disabled = false;
+      btn.textContent = 'Go offline';
+      btn.classList.remove('go-online');
+    }
+
+    function renderQueue() {
+      const q = document.getElementById('queue');
+      q.innerHTML = `Queue: <strong>${queue.length}</strong> pending`;
+      q.classList.toggle('pending', queue.length > 0);
+    }
+
+    function escapeHtml(s = '') {
+      return String(s).replace(/[&<>"']/g, (c) => ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+      }[c]));
+    }
+  </script>
+</body>
+</html>

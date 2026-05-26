@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>stimulus_calendar — on-call / after-hours shifts</title>
+  <link rel="stylesheet" href="../src/styles/calendar.css">
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; margin: 1.5rem; color: #0f172a; }
+    h1 { margin: 0 0 0.25rem; font-size: 1.25rem; }
+    .sub { color: #64748b; margin: 0 0 1rem; font-size: 14px; }
+    .ec { width: 100%; }
+
+    /* On-call shift band — display:'background' event rendered as
+       .ec-bg-event by the library. We override the library's
+       translucent default and add a faint red-hatched overlay so the
+       lane reads "after-hours rate, watch call-out fees". */
+    .ec-bg-event.on-call-window {
+      background:
+        repeating-linear-gradient(45deg,
+          rgba(220, 38, 38, 0.26) 0 8px,
+          rgba(220, 38, 38, 0.08) 8px 16px) !important;
+      border-left: 2px dashed #dc2626 !important;
+      opacity: 1 !important;
+    }
+    .ec-bg-event.on-call-window .oc-chip {
+      font-size: 10px; font-weight: 700; color: #7f1d1d;
+      padding: 2px 4px; line-height: 1.3;
+      text-transform: uppercase; letter-spacing: 0.05em;
+    }
+    .ec-bg-event.on-call-window .oc-chip .moon { opacity: 0.7; }
+
+    /* Jobs scheduled inside an on-call window get a red right-border
+       + a small badge so the rate / SLA difference is impossible to miss. */
+    .ec-event.in-on-call {
+      border-right: 4px solid #dc2626 !important;
+    }
+    .ec-event .job-chip { display: flex; flex-direction: column; gap: 1px; line-height: 1.2; }
+    .ec-event .job-chip .title { font-weight: 700; font-size: 12px; }
+    .ec-event .job-chip .cust  { font-size: 11px; opacity: 0.85; }
+    .ec-event .job-chip .oncall-tag {
+      align-self: flex-start; font-size: 9px; padding: 0 5px;
+      background: #dc2626; color: #fff;
+      border-radius: 3px; font-weight: 700; letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .roster {
+      margin: 0 0 12px; padding: 10px 12px; background: #fef2f2;
+      border: 1px solid #fecaca; border-radius: 10px;
+      font-size: 13px;
+    }
+    .roster strong { color: #7f1d1d; }
+  </style>
+</head>
+<body>
+  <h1>On‑call / after‑hours shifts</h1>
+  <p class="sub">
+    Each on‑call shift is a <code>display: 'background'</code> event with
+    class <code>on-call-window</code>. Any job whose start lands inside
+    the window inherits an <code>in-on-call</code> class (via
+    <code>eventClassNames</code>) so the chip clearly bills as
+    after‑hours — useful for the dispatcher's nightly hand‑over.
+  </p>
+
+  <div class="roster" id="roster"></div>
+
+  <div id="cal"
+       data-controller="calendar"
+       data-calendar-plugins-value='["ResourceTimeGrid","Interaction"]'
+       data-calendar-view-value="resourceTimeGridDay"
+       data-calendar-options-value='{
+         "editable": true,
+         "scrollTime": "16:00:00",
+         "slotMinTime": "00:00:00",
+         "slotMaxTime": "24:00:00",
+         "nowIndicator": true,
+         "slotHeight": 18,
+         "slotDuration": "00:30:00",
+         "headerToolbar": { "start": "title", "center": "", "end": "today prev,next" }
+       }'>
+  </div>
+
+  <style id="status-style"></style>
+
+  <script type="module">
+    import { Application } from '/node_modules/@hotwired/stimulus/dist/stimulus.js';
+    import CalendarController from '/src/controllers/calendar_controller.js';
+    import { CREWS, makeJobs, STATUS, statusCss, statusClass, day, wallClock } from './tradie_data.js';
+
+    // Mount-time resources — see 22-dispatch-board.html for the why.
+    document.getElementById('cal').setAttribute(
+      'data-calendar-resources-value', JSON.stringify(CREWS)
+    );
+
+    Application.start().register('calendar', CalendarController);
+    await new Promise((r) => setTimeout(r, 80));
+
+    const el  = document.getElementById('cal');
+    const api = el.calendarApi;
+    document.getElementById('status-style').textContent = statusCss();
+
+    // On-call rota for tonight — three crews on duty in shifts.
+    const ROSTER = [
+      { crew: 'van-1', from: 18, to: 24, name: 'Dan' },     // 6pm–midnight
+      { crew: 'van-1', from: 0,  to: 6,  name: 'Dan' },     // midnight–6am (same person)
+      { crew: 'van-2', from: 20, to: 24, name: 'Priya' },
+      { crew: 'van-3', from: 16, to: 22, name: 'Sam' },
+    ];
+
+    api.setOption('eventClassNames', (info) => {
+      const ep = info.event.extendedProps || {};
+      if (ep.kind === 'on-call') return ['on-call-window'];
+      const cls = statusClass(info);
+      if (isInsideOnCall(info.event)) cls.push('in-on-call');
+      return cls;
+    });
+
+    api.setOption('eventContent', ({ event }) => {
+      const ep = event.extendedProps || {};
+      if (ep.kind === 'on-call') {
+        return { html:
+          `<div class="oc-chip">
+             <span class="moon">🌙</span>
+             ${escapeHtml(ep.name)} — on call ${pad(ep.from)}:00–${pad(ep.to)}:00
+           </div>` };
+      }
+      return { html:
+        `<div class="job-chip">
+           <div class="title">${escapeHtml(event.title)}</div>
+           <div class="cust">${escapeHtml(ep.customer?.name ?? '')}</div>
+           ${isInsideOnCall(event) ? '<span class="oncall-tag">after-hours rate</span>' : ''}
+         </div>` };
+    });
+
+    // Materialise on-call bands.
+    for (const r of ROSTER) {
+      api.addEvent({
+        id: `oncall-${r.crew}-${r.from}`,
+        resourceIds: [r.crew],
+        start: day(0, r.from),
+        end:   day(0, r.to === 24 ? 23 : r.to, r.to === 24 ? 59 : 0),
+        display: 'background',
+        extendedProps: { kind: 'on-call', name: r.name, from: r.from, to: r.to, crew: r.crew },
+      });
+    }
+
+    // Add today's jobs + one explicit after-hours emergency.
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
+    const jobs = makeJobs().filter((j) => {
+      const d = new Date(j.start);
+      return d >= today && d < tomorrow;
+    });
+    jobs.forEach((j) => api.addEvent(j));
+
+    // ---- Roster summary ---------------------------------------------------
+    document.getElementById('roster').innerHTML =
+      '<strong>Tonight\'s roster:</strong> ' +
+      ROSTER.map((r) => `${r.name} ${pad(r.from)}:00–${pad(r.to)}:00`).join(' · ') +
+      ' — any job scheduled into one of these windows shows an "after-hours rate" tag.';
+
+    // ---- helpers ----------------------------------------------------------
+    function isInsideOnCall(ev) {
+      if (ev.extendedProps?.kind === 'on-call') return false;
+      const hour = ev.start.getUTCHours();  // calendar dates are UTC-mode wall-clock
+      const rid = ev.resourceIds?.[0];
+      return ROSTER.some((r) =>
+        r.crew === rid && hour >= r.from && hour < (r.to === 0 ? 24 : r.to));
+    }
+
+    function pad(n) { return String(n).padStart(2, '0'); }
+
+    function escapeHtml(s = '') {
+      return String(s).replace(/[&<>"']/g, (c) => ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+      }[c]));
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>stimulus_calendar — multi-day site work + service calls</title>
+  <link rel="stylesheet" href="../src/styles/calendar.css">
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; margin: 1.5rem; color: #0f172a; }
+    h1 { margin: 0 0 0.25rem; font-size: 1.25rem; }
+    .sub { color: #64748b; margin: 0 0 1rem; font-size: 14px; }
+    .ec { width: 100%; }
+
+    .ec-event .job-chip { display: flex; flex-direction: column; gap: 1px; line-height: 1.2; }
+    .ec-event .job-chip .title { font-weight: 700; font-size: 12px; }
+    .ec-event .job-chip .cust  { font-size: 11px; opacity: 0.85; }
+
+    /* Multi-day site work chips get a building-site stripe so they
+       read as "this crew is parked here for the run". */
+    .ec-event.site-work {
+      background:
+        repeating-linear-gradient(45deg,
+          #92400e 0 8px,
+          #b45309 8px 16px) !important;
+      color: #fffbeb !important;
+      border-left: 0 !important;
+      font-weight: 700;
+    }
+    .ec-event.site-work .site-tag {
+      display: inline-block; background: rgba(255,255,255,0.25);
+      font-size: 9px; padding: 0 4px; border-radius: 3px;
+      letter-spacing: 0.04em; font-weight: 700;
+      margin-bottom: 2px;
+    }
+
+    /* Wrap the timeline so we can measure the available width and
+       feed it back to slotWidth — the timeline view positions chips
+       by pixel * dayIndex, so we have to compute the per-day width
+       up-front rather than overriding the header CSS to flex-fill. */
+    .timeline-wrap { width: 100%; }
+
+    section { margin-top: 22px; }
+    section h2 {
+      margin: 0 0 8px; font-size: 13px;
+      text-transform: uppercase; letter-spacing: 0.06em; color: #475569;
+    }
+  </style>
+</head>
+<body>
+  <h1>Multi‑day site work alongside service calls</h1>
+  <p class="sub">
+    Top: <code>resourceTimelineWeek</code> — site work spans days as a
+    striped banner; one‑hour service calls render as slivers on the same
+    row. Bottom: <code>resourceTimeGridDay</code> with the same dataset —
+    the multi‑day chip becomes a tall block in the builder's lane.
+  </p>
+
+  <section>
+    <h2>Week view — Gantt-style</h2>
+    <p style="margin: 0 0 8px; font-size: 12px; color: #94a3b8">
+      Timeline chips aren't draggable yet — the interaction plugin only
+      hooks <code>.ec-time-col</code> (TimeGrid concept). The day view
+      below IS fully editable.
+    </p>
+    <div class="timeline-wrap" id="timeline-wrap">
+      <div id="timeline"
+           data-controller="calendar"
+           data-calendar-plugins-value='["ResourceTimeline","Interaction"]'
+           data-calendar-view-value="resourceTimelineWeek"
+           data-calendar-options-value='{
+             "editable": true,
+             "headerToolbar": { "start": "title", "center": "", "end": "today prev,next" }
+           }'>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Today — column-per-crew</h2>
+    <div id="day"
+         data-controller="calendar"
+         data-calendar-plugins-value='["ResourceTimeGrid","Interaction"]'
+         data-calendar-view-value="resourceTimeGridDay"
+         data-calendar-options-value='{
+           "editable": true,
+           "scrollTime": "07:00:00",
+           "slotMinTime": "06:00:00",
+           "slotMaxTime": "20:00:00",
+           "nowIndicator": true,
+           "slotHeight": 22,
+           "slotDuration": "00:30:00",
+           "headerToolbar": { "start": "title", "center": "", "end": "today prev,next" }
+         }'>
+    </div>
+  </section>
+
+  <style id="status-style"></style>
+
+  <script type="module">
+    import { Application } from '/node_modules/@hotwired/stimulus/dist/stimulus.js';
+    import CalendarController from '/src/controllers/calendar_controller.js';
+    import { CREWS, makeJobs, STATUS, statusCss, statusClass, dayDate, day, wallClock } from './tradie_data.js';
+
+    // Mount-time resources for BOTH calendars — see 22-dispatch-board.html
+    // for the why. Both data-* attributes are set before Stimulus connects.
+    const resJson = JSON.stringify(CREWS);
+    document.getElementById('timeline').setAttribute('data-calendar-resources-value', resJson);
+    document.getElementById('day').setAttribute('data-calendar-resources-value', resJson);
+
+    // Compute a slotWidth that fills the wrap (so days fill the available
+    // container width). The library positions chips by pixel offsets, so
+    // we feed it a pre-computed pixel value via the options attribute
+    // (string-merging into the existing data-calendar-options-value JSON).
+    const RESOURCE_COL = 160;        // matches .ec-timeline grid-template-columns
+    const DAYS_IN_WEEK = 7;
+    const initialSlot = Math.max(60, Math.floor(
+      (document.getElementById('timeline-wrap').clientWidth - RESOURCE_COL) / DAYS_IN_WEEK
+    ));
+    const timelineEl = document.getElementById('timeline');
+    const existingOpts = JSON.parse(timelineEl.getAttribute('data-calendar-options-value') || '{}');
+    timelineEl.setAttribute('data-calendar-options-value',
+      JSON.stringify({ ...existingOpts, slotWidth: initialSlot }));
+
+    const app = Application.start();
+    app.register('calendar', CalendarController);
+    await new Promise((r) => setTimeout(r, 80));
+
+    // On resize, recompute slotWidth and push it through setOption. The
+    // timeline view re-renders on any options change (its state.onAny
+    // watcher includes 'options'), so chips re-position correctly.
+    let resizeTimer = null;
+    const recomputeSlotWidth = () => {
+      const w = Math.max(60, Math.floor(
+        (document.getElementById('timeline-wrap').clientWidth - RESOURCE_COL) / DAYS_IN_WEEK
+      ));
+      document.getElementById('timeline').calendarApi.setOption('slotWidth', w);
+    };
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(recomputeSlotWidth, 120);
+    });
+
+    const timeline = document.getElementById('timeline');
+    const dayEl    = document.getElementById('day');
+    document.getElementById('status-style').textContent = statusCss();
+
+    for (const el of [timeline, dayEl]) {
+      const api = el.calendarApi;
+      api.setOption('eventClassNames', (info) => {
+        const cls = statusClass(info);
+        if (info.event.extendedProps?.kind === 'site-work') cls.push('site-work');
+        return cls;
+      });
+      api.setOption('eventContent', ({ event }) => {
+        const ep = event.extendedProps || {};
+        if (ep.kind === 'site-work') {
+          return { html:
+            `<div class="job-chip">
+               <span class="site-tag">Site · day ${ep.dayOfRun}/${ep.totalDays}</span>
+               <div class="title">${escapeHtml(event.title)}</div>
+               <div class="cust">${escapeHtml(ep.customer?.name ?? '')} · ${escapeHtml(ep.address?.suburb ?? '')}</div>
+             </div>` };
+        }
+        return { html:
+          `<div class="job-chip">
+             <div class="title">${escapeHtml(event.title)}</div>
+             <div class="cust">${escapeHtml(ep.customer?.name ?? '')}</div>
+           </div>` };
+      });
+    }
+
+    // Inject the standard week of jobs.
+    const jobs = makeJobs();
+    for (const j of jobs) {
+      timeline.calendarApi.addEvent(j);
+    }
+
+    // Add a 3-day all-day site-work banner on the timeline that overlays
+    // the three 'Deck framing' day jobs. The day jobs stay (they hold the
+    // time-of-day for the day view); the banner provides the at-a-glance
+    // "the builder is locked in for these 3 days" view.
+    timeline.calendarApi.addEvent({
+      id: 'site-deck-1',
+      resourceIds: ['van-4'],
+      title: 'Deck framing — multi-day site',
+      start: dayDate(0),
+      end:   dayDate(3),    // exclusive
+      allDay: true,
+      extendedProps: {
+        kind: 'site-work', dayOfRun: '1–3', totalDays: 3,
+        customer: { name: 'Aiyana T.' },
+        address: { suburb: 'Newtown' },
+      },
+    });
+
+    // Day view: just today's jobs.
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
+    for (const j of jobs) {
+      const d = new Date(j.start);
+      if (d >= today && d < tomorrow) dayEl.calendarApi.addEvent(j);
+    }
+
+    function escapeHtml(s = '') {
+      return String(s).replace(/[&<>"']/g, (c) => ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+      }[c]));
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>stimulus_calendar — find me a slot</title>
+  <link rel="stylesheet" href="../src/styles/calendar.css">
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; margin: 1.5rem; color: #0f172a; }
+    h1 { margin: 0 0 0.25rem; font-size: 1.25rem; }
+    .sub { color: #64748b; margin: 0 0 1rem; font-size: 14px; }
+
+    .form {
+      display: grid; grid-template-columns: repeat(4, 1fr) auto; gap: 8px;
+      margin: 0 0 14px; padding: 12px; background: #f8fafc;
+      border: 1px solid #e2e8f0; border-radius: 10px;
+      align-items: end;
+    }
+    .form label { display: flex; flex-direction: column; gap: 4px;
+                  font-size: 12px; font-weight: 600; color: #475569; }
+    .form input, .form select {
+      padding: 8px 10px; border: 1px solid #e2e8f0; border-radius: 8px;
+      font: inherit; font-size: 14px; background: #fff;
+    }
+    .form button {
+      padding: 10px 16px; border: 0; background: #0ea5e9; color: #fff;
+      border-radius: 8px; font: inherit; font-weight: 700; cursor: pointer;
+    }
+    .form button:hover { background: #0284c7; }
+
+    .results {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+      margin-bottom: 18px;
+    }
+    @media (max-width: 900px) { .results { grid-template-columns: 1fr; } }
+    .slot-card {
+      padding: 14px; background: #fff; border: 1px solid #e2e8f0; border-radius: 10px;
+      cursor: pointer; transition: box-shadow 120ms, transform 60ms;
+    }
+    .slot-card:hover { box-shadow: 0 8px 20px -6px rgba(15,23,42,0.18); transform: translateY(-1px); }
+    .slot-card.best { border-color: #16a34a; box-shadow: 0 0 0 3px rgba(22,163,74,0.15); }
+    .slot-card .rank {
+      display: inline-block; font-size: 10px; padding: 1px 7px;
+      background: #f1f5f9; color: #475569; border-radius: 999px;
+      font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+    }
+    .slot-card.best .rank { background: #dcfce7; color: #166534; }
+    .slot-card .crew { margin-top: 8px; font-size: 14px; font-weight: 700; }
+    .slot-card .when { margin-top: 4px; font-size: 13px; color: #0f172a; font-variant-numeric: tabular-nums; }
+    .slot-card .meta {
+      margin-top: 8px; padding-top: 8px; border-top: 1px dashed #e2e8f0;
+      font-size: 12px; color: #475569; line-height: 1.6;
+    }
+    .slot-card .meta .lbl { color: #64748b; }
+    .slot-card .meta .val { font-weight: 700; color: #0f172a; }
+
+    /* Highlight a proposed slot on the grid by overlaying a translucent
+       block. We do this with a background event that gets cleared on
+       a new search. */
+    .ec-event.proposed-slot {
+      background: rgba(22, 163, 74, 0.18) !important;
+      border: 2px dashed #16a34a !important;
+      box-shadow: 0 0 0 3px rgba(22,163,74,0.10);
+    }
+    .ec-event.proposed-slot .slot-tag {
+      font-size: 10px; font-weight: 700; color: #166534;
+      padding: 2px 4px; letter-spacing: 0.04em; text-transform: uppercase;
+    }
+
+    .ec-event .job-chip { display: flex; flex-direction: column; gap: 1px; line-height: 1.2; }
+    .ec-event .job-chip .title { font-weight: 700; font-size: 12px; }
+    .ec-event .job-chip .cust  { font-size: 11px; opacity: 0.85; }
+
+    .empty {
+      padding: 16px; text-align: center; color: #94a3b8; font-style: italic;
+      border: 1px dashed #cbd5e1; border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Find me a slot</h1>
+  <p class="sub">
+    Give me a duration + suburb, return the three best places to slot
+    the new job in. Score is a mix of: <strong>earliest start</strong>
+    (lower = better), <strong>distance</strong> from existing jobs in
+    that lane (closer = better), and <strong>crew match</strong>
+    (skill ↔ job type). Pure host‑app logic over
+    <code>api.getEvents()</code> + the resource list.
+  </p>
+
+  <form class="form" id="form">
+    <label>Duration
+      <select name="duration">
+        <option value="30">30 min</option>
+        <option value="60" selected>1 hour</option>
+        <option value="90">1.5 hours</option>
+        <option value="120">2 hours</option>
+        <option value="180">3 hours</option>
+      </select>
+    </label>
+    <label>Suburb
+      <select name="suburb"></select>
+    </label>
+    <label>Role
+      <select name="role">
+        <option value="">any</option>
+        <option value="plumber">plumber</option>
+        <option value="electrician">electrician</option>
+        <option value="hvac">HVAC</option>
+        <option value="carpenter">carpenter</option>
+        <option value="tiler">tiler</option>
+      </select>
+    </label>
+    <label>Search window
+      <select name="window">
+        <option value="3">next 3 days</option>
+        <option value="7" selected>next 7 days</option>
+      </select>
+    </label>
+    <button type="submit">Find slots</button>
+  </form>
+
+  <div class="results" id="results"></div>
+
+  <div id="cal"
+       data-controller="calendar"
+       data-calendar-plugins-value='["ResourceTimeGrid","Interaction"]'
+       data-calendar-view-value="resourceTimeGridDay"
+       data-calendar-options-value='{
+         "editable": false,
+         "scrollTime": "07:00:00",
+         "slotMinTime": "06:00:00",
+         "slotMaxTime": "20:00:00",
+         "nowIndicator": true,
+         "slotHeight": 22,
+         "slotDuration": "00:30:00",
+         "headerToolbar": { "start": "title", "center": "", "end": "today prev,next" }
+       }'>
+  </div>
+
+  <style id="status-style"></style>
+
+  <script type="module">
+    import { Application } from '/node_modules/@hotwired/stimulus/dist/stimulus.js';
+    import CalendarController from '/src/controllers/calendar_controller.js';
+    import {
+      CREWS, ADDRESSES, makeJobs, STATUS, statusCss, statusClass,
+      distanceKm, wallClock,
+    } from './tradie_data.js';
+
+    // Mount-time resources — see 22-dispatch-board.html.
+    document.getElementById('cal').setAttribute(
+      'data-calendar-resources-value', JSON.stringify(CREWS)
+    );
+
+    Application.start().register('calendar', CalendarController);
+    await new Promise((r) => setTimeout(r, 80));
+
+    const cal = document.getElementById('cal');
+    const api = cal.calendarApi;
+    document.getElementById('status-style').textContent = statusCss();
+
+    api.setOption('eventClassNames', (info) => {
+      if (info.event.extendedProps?.kind === 'proposed') return ['proposed-slot'];
+      return statusClass(info);
+    });
+    api.setOption('eventContent', ({ event }) => {
+      const ep = event.extendedProps || {};
+      if (ep.kind === 'proposed') {
+        return { html: `<div class="slot-tag">✦ proposed slot #${ep.rank}</div>` };
+      }
+      return { html:
+        `<div class="job-chip">
+           <div class="title">${escapeHtml(event.title)}</div>
+           <div class="cust">${escapeHtml(ep.customer?.name ?? '')}</div>
+         </div>` };
+    });
+
+    makeJobs().forEach((j) => api.addEvent(j));
+
+    // Populate the suburb picker from the unique set of address suburbs.
+    const suburbs = [...new Set(ADDRESSES.map((a) => a.suburb))].sort();
+    const suburbSel = document.querySelector('select[name=suburb]');
+    suburbSel.innerHTML = suburbs.map((s) => `<option value="${s}">${s}</option>`).join('');
+    suburbSel.value = 'Bondi Beach';
+
+    document.getElementById('form').addEventListener('submit', (ev) => {
+      ev.preventDefault();
+      const fd  = new FormData(ev.currentTarget);
+      const dur = Number(fd.get('duration'));
+      const sub = fd.get('suburb');
+      const role = fd.get('role') || null;
+      const days = Number(fd.get('window'));
+      runSearch(dur, sub, role, days);
+    });
+
+    function runSearch(durationMin, suburb, role, days) {
+      // Pick the address record matching the suburb (for distance scoring).
+      const target = ADDRESSES.find((a) => a.suburb === suburb);
+
+      // Candidate crews: role filter + skip those with no working hours.
+      const candidates = CREWS.filter((c) =>
+        !role || c.extendedProps.role === role);
+
+      const slots = [];
+      const today = new Date(); today.setHours(0,0,0,0);
+      for (let d = 0; d < days; d++) {
+        const day = new Date(today); day.setDate(today.getDate() + d);
+        for (const crew of candidates) {
+          const gaps = findGapsForCrewDay(crew, day, durationMin);
+          for (const g of gaps) {
+            slots.push({
+              crew, day, start: g.start, end: g.end,
+              // Score: earlier date = better, less travel = better.
+              ageDays: d,
+              nearestKm: g.nearestKm,
+            });
+          }
+        }
+      }
+
+      // Composite score: prefer earlier date, then closer to target suburb.
+      slots.forEach((s) => {
+        s.score =
+            s.ageDays * 10            // each day later = 10 penalty
+          + (s.nearestKm ?? 10);      // each km away = 1 penalty
+      });
+      slots.sort((a, b) => a.score - b.score);
+
+      renderResults(slots.slice(0, 3), { durationMin, suburb, target });
+    }
+
+    function findGapsForCrewDay(crew, day, durationMin) {
+      const [sh, sm] = crew.extendedProps.workingHours.start.split(':').map(Number);
+      const [eh, em] = crew.extendedProps.workingHours.end.split(':').map(Number);
+      const dayStart = new Date(day); dayStart.setHours(sh, sm, 0, 0);
+      const dayEnd   = new Date(day); dayEnd  .setHours(eh, em, 0, 0);
+
+      // This crew's day, sorted.
+      const dayMs = +day, dayMs2 = +day + 86400000;
+      const todayJobs = api.getEvents()
+        .filter((e) => e.resourceIds?.includes(crew.id))
+        .filter((e) => e.extendedProps?.kind !== 'proposed')
+        .filter((e) => {
+          const localStart = +new Date(
+            e.start.getUTCFullYear(), e.start.getUTCMonth(), e.start.getUTCDate());
+          return localStart === dayMs;
+        })
+        .sort((a, b) => a.start - b.start);
+
+      const gaps = [];
+      let cursor = dayStart;
+      for (const j of todayJobs) {
+        const jobStart = new Date(
+          j.start.getUTCFullYear(), j.start.getUTCMonth(), j.start.getUTCDate(),
+          j.start.getUTCHours(), j.start.getUTCMinutes());
+        const jobEnd = new Date(
+          j.end.getUTCFullYear(), j.end.getUTCMonth(), j.end.getUTCDate(),
+          j.end.getUTCHours(), j.end.getUTCMinutes());
+        if (jobStart - cursor >= durationMin * 60000) {
+          gaps.push({
+            start: new Date(cursor),
+            end: new Date(cursor.getTime() + durationMin * 60000),
+            nearestKm: nearestKm(crew, jobStart, todayJobs),
+          });
+        }
+        if (jobEnd > cursor) cursor = jobEnd;
+      }
+      if (dayEnd - cursor >= durationMin * 60000) {
+        gaps.push({
+          start: new Date(cursor),
+          end: new Date(cursor.getTime() + durationMin * 60000),
+          nearestKm: nearestKm(crew, dayEnd, todayJobs),
+        });
+      }
+      return gaps;
+    }
+
+    function nearestKm(crew, refDate, dayJobs) {
+      const target = ADDRESSES.find((a) => a.suburb === document.querySelector('select[name=suburb]').value);
+      if (!target) return null;
+      // Distance from any of this day's jobs (or crew's homeBase if no jobs).
+      const refs = dayJobs.length
+        ? dayJobs.map((j) => j.extendedProps?.address).filter(Boolean)
+        : [crew.extendedProps.homeBase];
+      let best = Infinity;
+      for (const r of refs) {
+        const km = distanceKm(r, target);
+        if (km != null && km < best) best = km;
+      }
+      return Number.isFinite(best) ? best : null;
+    }
+
+    function renderResults(slots, { durationMin, suburb }) {
+      // Clear previous proposed-slot events.
+      api.getEvents()
+        .filter((e) => e.extendedProps?.kind === 'proposed')
+        .forEach((e) => api.removeEventById(e.id));
+
+      const root = document.getElementById('results');
+      if (slots.length === 0) {
+        root.innerHTML = '<div class="empty">No gap fits a ' + durationMin + ' min job in this window. Try a longer search window.</div>';
+        return;
+      }
+      root.innerHTML = slots.map((s, i) => {
+        const date = new Intl.DateTimeFormat(undefined,
+          { weekday: 'short', month: 'short', day: 'numeric' }).format(s.day);
+        const tStart = fmtT(s.start), tEnd = fmtT(s.end);
+        return `<div class="slot-card ${i === 0 ? 'best' : ''}" data-rank="${i}">
+          <span class="rank">${i === 0 ? '★ Best fit' : '#' + (i+1)}</span>
+          <div class="crew">${escapeHtml(s.crew.title)}</div>
+          <div class="when">${date} · ${tStart} – ${tEnd}</div>
+          <div class="meta">
+            <div><span class="lbl">Nearest existing job</span>
+              <span class="val">${s.nearestKm != null ? s.nearestKm.toFixed(1) + ' km' : 'n/a'}</span></div>
+            <div><span class="lbl">Days out</span>
+              <span class="val">${s.ageDays === 0 ? 'today' : s.ageDays + 'd'}</span></div>
+            <div><span class="lbl">Score</span>
+              <span class="val">${s.score.toFixed(1)}</span></div>
+          </div>
+        </div>`;
+      }).join('');
+
+      // Materialise proposed slots on the grid (top 3).
+      slots.forEach((s, i) => {
+        api.addEvent({
+          id: `proposed-${i}`,
+          resourceIds: [s.crew.id],
+          start: wallClock(s.start),
+          end:   wallClock(s.end),
+          extendedProps: { kind: 'proposed', rank: i + 1 },
+        });
+      });
+
+      // Jump the grid to the best fit's day.
+      api.gotoDate(slots[0].day);
+    }
+
+    function fmtT(d) {
+      return new Intl.DateTimeFormat(undefined,
+        { hour: 'numeric', minute: '2-digit' }).format(d);
+    }
+    function escapeHtml(s = '') {
+      return String(s).replace(/[&<>"']/g, (c) => ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+      }[c]));
+    }
+  </script>
+</body>
+</html>

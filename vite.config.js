@@ -26,6 +26,23 @@ export default defineConfig({
     port: 5173,
     open: false,
     strictPort: false,
+    host: true,
+    allowedHosts: ['cal.schappi.cloud', '.schappi.cloud', 'localhost'],
     fs: { allow: [resolve(__dirname, '.')] },
   },
+  plugins: [
+    {
+      name: 'redirect-root-to-demo',
+      configureServer(server) {
+        server.middlewares.use((req, res, next) => {
+          if (req.url === '/' || req.url === '') {
+            res.writeHead(302, { Location: '/demo/' });
+            res.end();
+            return;
+          }
+          next();
+        });
+      },
+    },
+  ],
 });

@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>stimulus_calendar — customer confirm / reschedule</title>
+  <link rel="stylesheet" href="../src/styles/calendar.css">
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; margin: 1.5rem; color: #0f172a; }
+    h1 { margin: 0 0 0.25rem; font-size: 1.25rem; }
+    .sub { color: #64748b; margin: 0 0 1rem; font-size: 14px; }
+
+    .layout { display: grid; grid-template-columns: 1fr 380px; gap: 16px; align-items: start; }
+    @media (max-width: 1100px) { .layout { grid-template-columns: 1fr; } }
+
+    .ec { width: 100%; }
+    .ec-event .job-chip { display: flex; flex-direction: column; gap: 1px; line-height: 1.2; }
+    .ec-event .job-chip .title { font-weight: 700; font-size: 12px; }
+    .ec-event .job-chip .cust  { font-size: 11px; opacity: 0.85; }
+    .ec-event.confirmed-by-customer {
+      box-shadow: inset 0 0 0 2px #16a34a;
+    }
+    .ec-event .confirmed-tag {
+      align-self: flex-start; font-size: 9px; padding: 0 5px;
+      background: #16a34a; color: #fff;
+      border-radius: 3px; font-weight: 700; letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    /* "Customer-facing" pane — masquerading as a public booking page. */
+    .customer-pane {
+      background: linear-gradient(180deg, #f0fdf4 0%, #fff 100%);
+      border: 1px solid #bbf7d0; border-radius: 14px;
+      padding: 18px; position: sticky; top: 12px;
+      box-shadow: 0 6px 20px -6px rgba(15,23,42,0.08);
+    }
+    .customer-pane .brand {
+      font-size: 11px; font-weight: 700; color: #16a34a;
+      text-transform: uppercase; letter-spacing: 0.08em;
+    }
+    .customer-pane h2 { margin: 4px 0 14px; font-size: 18px; }
+    .customer-pane .greet { font-size: 14px; color: #166534; margin-bottom: 14px; }
+
+    .booking {
+      background: #fff; border: 1px solid #d1fae5; border-radius: 10px;
+      padding: 14px; margin-bottom: 14px;
+    }
+    .booking .when {
+      font-size: 18px; font-weight: 800; line-height: 1.2;
+      font-variant-numeric: tabular-nums;
+    }
+    .booking .when small { font-size: 12px; color: #64748b; font-weight: 600; }
+    .booking .what { font-size: 14px; color: #0f172a; margin-top: 4px; }
+    .booking .who  { font-size: 12px; color: #475569; margin-top: 6px; }
+
+    .actions {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+    }
+    .actions button {
+      min-height: 48px; padding: 0 12px;
+      border: 0; border-radius: 10px;
+      font: inherit; font-size: 14px; font-weight: 700;
+      cursor: pointer;
+    }
+    .actions .confirm { background: #16a34a; color: #fff; }
+    .actions .resched { background: #fff; color: #16a34a; border: 1px solid #16a34a; }
+
+    .confirmed-state {
+      padding: 16px; background: #dcfce7; border-radius: 10px;
+      text-align: center; font-size: 14px;
+      color: #166534; font-weight: 600;
+    }
+    .confirmed-state .icon { font-size: 28px; display: block; }
+
+    /* Reschedule alternatives modal. */
+    .alts { margin-top: 12px; display: none; }
+    .alts.open { display: block; }
+    .alts h3 {
+      font-size: 12px; color: #475569; text-transform: uppercase;
+      letter-spacing: 0.06em; margin: 0 0 8px;
+    }
+    .alts .opt {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 10px 12px; background: #fff; border: 1px solid #e2e8f0;
+      border-radius: 8px; cursor: pointer; margin-bottom: 6px;
+    }
+    .alts .opt:hover { border-color: #16a34a; background: #f0fdf4; }
+    .alts .opt strong { font-weight: 700; }
+
+    .toast {
+      position: fixed; right: 16px; bottom: 16px;
+      max-width: 360px;
+      background: #166534; color: #fff; padding: 10px 14px; border-radius: 10px;
+      font-size: 13px; box-shadow: 0 8px 24px -8px rgba(22,101,52,0.5);
+      animation: pop-in 200ms ease-out;
+    }
+    @keyframes pop-in { from { transform: translateY(8px); opacity: 0 } to { transform: none; opacity: 1 } }
+  </style>
+</head>
+<body>
+  <h1>Customer confirm / reschedule (self‑serve)</h1>
+  <p class="sub">
+    Left: the dispatcher's view. Right: the same job, but as the customer
+    would see it via a magic link. Confirming or rescheduling on the
+    right round‑trips into the dispatcher's grid through a shared
+    in‑memory store — in production this is a webhook + Turbo Stream
+    broadcast.
+  </p>
+
+  <div class="layout">
+    <div id="cal"
+         data-controller="calendar"
+         data-calendar-plugins-value='["ResourceTimeGrid","Interaction"]'
+         data-calendar-view-value="resourceTimeGridDay"
+         data-calendar-options-value='{
+           "editable": false,
+           "scrollTime": "07:00:00",
+           "slotMinTime": "06:00:00",
+           "slotMaxTime": "20:00:00",
+           "nowIndicator": true,
+           "slotHeight": 22,
+           "slotDuration": "00:30:00",
+           "headerToolbar": { "start": "title", "center": "", "end": "today prev,next" }
+         }'>
+    </div>
+
+    <aside class="customer-pane">
+      <div class="brand">Schappi Plumbing</div>
+      <h2>Hi <span id="cust-name"></span> — please confirm your booking</h2>
+      <p class="greet">We've reserved this time for you. Tap <strong>Confirm</strong> to lock it in,
+        or <strong>Reschedule</strong> to pick a different slot.</p>
+
+      <div class="booking">
+        <div class="when" id="cust-when">—</div>
+        <div class="what" id="cust-what">—</div>
+        <div class="who"  id="cust-who">—</div>
+      </div>
+
+      <div class="actions" id="cust-actions">
+        <button class="confirm" id="btn-confirm">✓ Confirm</button>
+        <button class="resched" id="btn-resched">Reschedule</button>
+      </div>
+
+      <div class="alts" id="alts">
+        <h3>Pick another time</h3>
+      </div>
+    </aside>
+  </div>
+
+  <style id="status-style"></style>
+
+  <script type="module">
+    import { Application } from '/node_modules/@hotwired/stimulus/dist/stimulus.js';
+    import CalendarController from '/src/controllers/calendar_controller.js';
+    import { CREWS, makeJobs, STATUS, statusCss, statusClass, day, wallClock } from './tradie_data.js';
+
+    document.getElementById('cal').setAttribute(
+      'data-calendar-resources-value', JSON.stringify(CREWS)
+    );
+
+    Application.start().register('calendar', CalendarController);
+    await new Promise((r) => setTimeout(r, 80));
+
+    const cal = document.getElementById('cal');
+    const api = cal.calendarApi;
+    document.getElementById('status-style').textContent = statusCss();
+
+    api.setOption('eventClassNames', (info) => {
+      const cls = statusClass(info);
+      if (info.event.extendedProps?.confirmedByCustomer) cls.push('confirmed-by-customer');
+      return cls;
+    });
+    api.setOption('eventContent', ({ event }) => {
+      const ep = event.extendedProps || {};
+      return { html:
+        `<div class="job-chip">
+           <div class="title">${escapeHtml(event.title)}</div>
+           <div class="cust">${escapeHtml(ep.customer?.name ?? '')}</div>
+           ${ep.confirmedByCustomer ? '<span class="confirmed-tag">✓ confirmed</span>' : ''}
+         </div>` };
+    });
+
+    // Seed today's jobs.
+    const today = new Date(); today.setHours(0,0,0,0);
+    const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
+    makeJobs().filter((j) => {
+      const d = new Date(j.start);
+      return d >= today && d < tomorrow;
+    }).forEach((j) => api.addEvent(j));
+
+    // Pick "the customer's job" — the next not-yet-completed scheduled job.
+    let activeJobId = api.getEvents()
+      .filter((e) => e.extendedProps?.status === 'scheduled')
+      .sort((a, b) => a.start - b.start)[0]?.id;
+    renderCustomerPane();
+
+    function renderCustomerPane() {
+      const ev = api.getEventById(activeJobId);
+      if (!ev) return;
+      const ep = ev.extendedProps;
+      const dayName = new Intl.DateTimeFormat(undefined,
+        { weekday: 'long', month: 'long', day: 'numeric' }).format(ev.start);
+      const start = fmtTime(ev.start), end = fmtTime(ev.end);
+      const crew = CREWS.find((c) => c.id === ev.resourceIds?.[0]);
+      document.getElementById('cust-name').textContent = ep.customer?.name?.split(' ')[0] ?? 'there';
+      document.getElementById('cust-when').innerHTML =
+        `${dayName}<br><small>${start} – ${end}</small>`;
+      document.getElementById('cust-what').textContent = ev.title;
+      document.getElementById('cust-who').textContent =
+        `Tech: ${crew?.title?.split(' — ')[0]} (${crew?.extendedProps?.role})`;
+
+      const actions = document.getElementById('cust-actions');
+      const alts    = document.getElementById('alts');
+      if (ep.confirmedByCustomer) {
+        actions.outerHTML = `
+          <div class="confirmed-state" id="cust-actions">
+            <span class="icon">✓</span>
+            Booking confirmed. We'll see you ${dayName}, ${start}.
+          </div>`;
+        alts.classList.remove('open');
+      } else {
+        // Make sure the action row is the buttons, not the confirmed banner
+        // (in case we re-rendered after a previous confirm).
+        if (!document.getElementById('btn-confirm')) {
+          actions.outerHTML = `
+            <div class="actions" id="cust-actions">
+              <button class="confirm" id="btn-confirm">✓ Confirm</button>
+              <button class="resched" id="btn-resched">Reschedule</button>
+            </div>`;
+          wireActions();
+        }
+      }
+    }
+
+    function wireActions() {
+      document.getElementById('btn-confirm').addEventListener('click', confirmBooking);
+      document.getElementById('btn-resched').addEventListener('click', openAlts);
+    }
+    wireActions();
+
+    function confirmBooking() {
+      const ev = api.getEventById(activeJobId);
+      api.updateEvent({
+        id: activeJobId,
+        extendedProps: { ...ev.extendedProps, confirmedByCustomer: true },
+      });
+      toast(`<strong>${escapeHtml(ev.extendedProps.customer?.name)}</strong> confirmed ` +
+            `<strong>${escapeHtml(ev.title)}</strong> for ${fmtTime(ev.start)}.`);
+      renderCustomerPane();
+    }
+
+    function openAlts() {
+      const ev = api.getEventById(activeJobId);
+      // Generate 3 alternative slots from the same crew over the next 5 days
+      // (just earliest open gaps, naive but illustrative).
+      const alts = pickAlternatives(ev, 3);
+      const root = document.getElementById('alts');
+      root.classList.add('open');
+      root.innerHTML = `
+        <h3>Pick another time</h3>
+        ${alts.length === 0
+          ? '<div style="color:#94a3b8;font-style:italic;text-align:center">No openings in the next 5 days.</div>'
+          : alts.map((a, i) => {
+              const dn = new Intl.DateTimeFormat(undefined,
+                { weekday: 'short', month: 'short', day: 'numeric' }).format(a.start);
+              return `<div class="opt" data-alt="${i}">
+                <span><strong>${dn}</strong> · ${fmtTime(a.start)}</span>
+                <span style="color:#16a34a">Choose →</span>
+              </div>`;
+            }).join('')}
+      `;
+      root.querySelectorAll('.opt').forEach((el, i) =>
+        el.addEventListener('click', () => acceptAlt(alts[i])));
+    }
+
+    function pickAlternatives(ev, n) {
+      const result = [];
+      const crewId = ev.resourceIds[0];
+      const today = new Date(); today.setHours(0,0,0,0);
+      const dur = (ev.end - ev.start) / 60000;
+      for (let d = 1; d < 6 && result.length < n; d++) {
+        // Walk 8am to 4pm in 1h candidates.
+        for (let h = 8; h < 16 && result.length < n; h++) {
+          const start = new Date(today); start.setDate(today.getDate() + d); start.setHours(h, 0, 0, 0);
+          const end   = new Date(start.getTime() + dur * 60000);
+          const conflicts = api.getEvents()
+            .filter((e) => e.resourceIds?.includes(crewId) && e.id !== ev.id)
+            .some((e) => {
+              const es = new Date(
+                e.start.getUTCFullYear(), e.start.getUTCMonth(), e.start.getUTCDate(),
+                e.start.getUTCHours(), e.start.getUTCMinutes());
+              const ee = new Date(
+                e.end.getUTCFullYear(), e.end.getUTCMonth(), e.end.getUTCDate(),
+                e.end.getUTCHours(), e.end.getUTCMinutes());
+              return es < end && ee > start;
+            });
+          if (!conflicts) result.push({ start, end });
+        }
+      }
+      return result;
+    }
+
+    function acceptAlt(alt) {
+      const ev = api.getEventById(activeJobId);
+      api.updateEvent({
+        id: activeJobId,
+        start: wallClock(alt.start),
+        end:   wallClock(alt.end),
+        extendedProps: { ...ev.extendedProps, confirmedByCustomer: true },
+      });
+      // Jump the dispatcher view to the new day.
+      api.gotoDate(alt.start);
+      toast(`<strong>${escapeHtml(ev.extendedProps.customer?.name)}</strong> rescheduled ` +
+            `<strong>${escapeHtml(ev.title)}</strong> → ` +
+            `${new Intl.DateTimeFormat(undefined, { weekday: 'short' }).format(alt.start)} ${fmtTime(alt.start)}.`);
+      renderCustomerPane();
+      document.getElementById('alts').classList.remove('open');
+    }
+
+    function fmtTime(d) {
+      return new Intl.DateTimeFormat(undefined,
+        { hour: 'numeric', minute: '2-digit', timeZone: 'UTC' }).format(d);
+    }
+    function toast(html, ms = 3500) {
+      document.querySelectorAll('.toast').forEach((t) => t.remove());
+      const t = document.createElement('div');
+      t.className = 'toast';
+      t.innerHTML = html;
+      document.body.appendChild(t);
+      setTimeout(() => {
+        t.style.transition = 'opacity 240ms';
+        t.style.opacity = '0';
+        setTimeout(() => t.remove(), 260);
+      }, ms);
+    }
+    function escapeHtml(s = '') {
+      return String(s).replace(/[&<>"']/g, (c) => ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+      }[c]));
+    }
+  </script>
+</body>
+</html>

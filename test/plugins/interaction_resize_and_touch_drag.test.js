@@ -30,6 +30,14 @@ function fire(target, type, init = {}) {
   return ev;
 }
 
+function fireTouch(target, type, touches, changedTouches = touches) {
+  const ev = new Event(type, { bubbles: true, cancelable: true });
+  Object.defineProperty(ev, 'touches', { value: touches });
+  Object.defineProperty(ev, 'changedTouches', { value: changedTouches });
+  target.dispatchEvent(ev);
+  return ev;
+}
+
 describe('Interaction — resize handle', () => {
   beforeEach(() => { document.body.innerHTML = ''; });
   afterEach(() => { app?.stop(); app = null; vi.restoreAllMocks(); });
@@ -96,6 +104,55 @@ describe('Interaction — resize handle', () => {
     expect(onResize).toHaveBeenCalled();
     const moved = el.calendarApi.getEventById('r1');
     expect(moved.end.toISOString().substring(11, 16)).toBe('10:30');
+  });
+
+  it('touch starting on a resize handle outside edit mode does not start a resize gesture', async () => {
+    const onResize = vi.fn();
+    const el = mount(`<div data-controller="calendar"
+                            data-calendar-plugins-value='["TimeGrid","Interaction"]'
+                            data-calendar-date-value="2026-05-25"
+                            data-calendar-options-value='{"editable":true}'></div>`);
+    await tick(2);
+    el.calendarApi.setOption('eventResize', onResize);
+    el.calendarApi.addEvent({ id: 'rt1', title: 'Scroll past handle', start: '2026-05-25T09:00', end: '2026-05-25T10:00' });
+    await tick();
+
+    const chip = el.querySelector('[data-event-id="rt1"]');
+    const handle = chip.querySelector('.ec-resizer');
+    fire(handle, 'pointerdown', { pointerType: 'touch', clientY: 100 });
+    fire(document, 'pointermove', { pointerType: 'touch', clientY: 180 });
+    fire(document, 'pointerup',   { pointerType: 'touch', clientY: 180 });
+
+    expect(onResize).not.toHaveBeenCalled();
+    const event = el.calendarApi.getEventById('rt1');
+    expect(event.end.toISOString().substring(11, 16)).toBe('10:00');
+  });
+
+  it('touch dragging an edit-mode resize handle changes duration and locks scroll', async () => {
+    const onResize = vi.fn();
+    const el = mount(`<div data-controller="calendar"
+                            data-calendar-plugins-value='["TimeGrid","Interaction"]'
+                            data-calendar-date-value="2026-05-25"
+                            data-calendar-options-value='{"editable":true}'></div>`);
+    await tick(2);
+    el.calendarApi.setOption('eventResize', onResize);
+    el.calendarApi.addEvent({ id: 'rt-edit', title: 'Resize by touch', start: '2026-05-25T09:00', end: '2026-05-25T10:00' });
+    await tick();
+
+    const chip = el.querySelector('[data-event-id="rt-edit"]');
+    const handle = chip.querySelector('.ec-resizer');
+    chip.classList.add('ec-event-editing');
+    chip.style.top = '0px';
+    chip.style.height = '44px';
+
+    fire(handle, 'pointerdown', { pointerType: 'touch', clientY: 100 });
+    const move = fireTouch(document, 'touchmove', [{ identifier: 1, clientX: 50, clientY: 122 }]);
+    fireTouch(document, 'touchend', [], [{ identifier: 1, clientX: 50, clientY: 122 }]);
+
+    expect(move.defaultPrevented).toBe(true);
+    expect(onResize).toHaveBeenCalled();
+    const event = el.calendarApi.getEventById('rt-edit');
+    expect(event.end.toISOString().substring(11, 16)).toBe('10:30');
   });
 
   it('only renders the end-resizer on the last segment of a multi-day timed event', async () => {

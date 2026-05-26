@@ -70,8 +70,11 @@ export const InteractionPlugin = {
 
 // Attach a delegated click handler that finds the cell under the pointer
 // and fires options.dateClick. This is the minimum-viable interaction —
-// drag/resize wire up similarly when a touch/mouse-down lands on an event
+// drag/resize wire up similarly when a mouse/pen down lands on an event
 // with data-event-id (and editable is on).
+const DEFAULT_EVENT_LONG_PRESS_MS = 240;
+const PRESS_MOVE_TOLERANCE = 8;
+
 // Attach pointer-driven event drag (move). Hit-tests on pointermove to
 // figure out which calendar cell the pointer is over; on pointerup, if
 // the cell differs from the source, fires options.eventDrop +
@@ -82,7 +85,9 @@ export const InteractionPlugin = {
 // the same primitives in follow-up work. Touch + keyboard hooks land
 // alongside the accessibility pass.
 function attachEventDragHandler(rootEl, state) {
-  let drag = null;   // { event, sourceChip, ghost, startX, startY, sourceDateStr, timeCol }
+  let drag = null;   // { event, sourceChip, ghost, startX, startY, sourceDateStr, timeCol, touch }
+  let press = null;
+  const suppressedClicks = new WeakMap();
 
   const findEventChip = (target) => target.closest?.('[data-event-id]');
   const cellAtPoint = (x, y) => {
@@ -112,6 +117,11 @@ function attachEventDragHandler(rootEl, state) {
     if (jsEvent.target.closest?.('.ec-resizer')) return;
     const chip = findEventChip(jsEvent.target);
     if (!chip) return;
+    // On touch devices, ordinary event chips must not trap vertical
+    // timeline scrolling or horizontal pager swipes. We still arm a
+    // pending drag so the same touch can become a drag immediately after
+    // the long-press path marks the chip with .ec-event-editing.
+    const isTouch = jsEvent.pointerType === 'touch';
     const id = chip.getAttribute('data-event-id');
     const event = (state.get('filteredEvents') ?? []).find((e) => e.id === id);
     if (!event) return;
@@ -134,24 +144,78 @@ function attachEventDragHandler(rootEl, state) {
       chipHeight: chipRect.height,
       startX: jsEvent.clientX,
       startY: jsEvent.clientY,
+      lastX: jsEvent.clientX,
+      lastY: jsEvent.clientY,
+      pointerId: jsEvent.pointerId,
+      touch: isTouch,
+      captured: false,
       ghost: null,
       moved: false,
     };
     // Capture pointer so subsequent move/up land on the same element.
-    if (chip.setPointerCapture && jsEvent.pointerId !== undefined) {
+    // For touch, wait until the chip is actually in edit mode; capturing
+    // before that would make regular scroll/swipe gestures feel owned by
+    // the event.
+    if (!isTouch && chip.setPointerCapture && jsEvent.pointerId !== undefined) {
       try { chip.setPointerCapture(jsEvent.pointerId); } catch { /* ignore */ }
+      drag.captured = true;
+    }
+    if (isTouch) {
+      addTouchDragListeners();
+      armTouchLongPress(jsEvent, chip);
+      if (chip.classList.contains('ec-event-editing')) {
+        document.body.classList.add('ec-dragging');
+      }
     }
   };
 
   const onPointerMove = (jsEvent) => {
     if (!drag) return;
-    const dx = jsEvent.clientX - drag.startX;
-    const dy = jsEvent.clientY - drag.startY;
+    if (drag.touch) updateTouchLongPressMove(jsEvent.clientX, jsEvent.clientY);
+    updateDragMove(jsEvent, jsEvent.clientX, jsEvent.clientY);
+  };
+
+  const onTouchMove = (jsEvent) => {
+    if (!drag?.touch) return;
+    const touch = activeTouch(jsEvent);
+    if (!touch) return;
+    updateDragMove(jsEvent, touch.clientX, touch.clientY);
+  };
+
+  const onTouchStartCapture = (jsEvent) => {
+    const chip = findEventChip(jsEvent.target);
+    if (!chip?.classList.contains('ec-event-editing')) return;
+    if (jsEvent.cancelable) jsEvent.preventDefault();
+    jsEvent.stopPropagation?.();
+    jsEvent.stopImmediatePropagation?.();
+  };
+
+  function updateDragMove(jsEvent, clientX, clientY) {
+    if (!drag) return;
+    const touchEditing = drag.touch && drag.sourceChip.classList.contains('ec-event-editing');
+    if (touchEditing) {
+      // Once the long-press has promoted the chip into edit mode, this
+      // contact belongs to the event gesture. Lock page/timeline scroll
+      // immediately, even before the drag threshold is crossed.
+      if (jsEvent.cancelable) jsEvent.preventDefault();
+      jsEvent.stopPropagation?.();
+      jsEvent.stopImmediatePropagation?.();
+      document.body.classList.add('ec-dragging');
+    }
+    if (drag.touch && !touchEditing) return;
+    drag.lastX = clientX;
+    drag.lastY = clientY;
+    const dx = clientX - drag.startX;
+    const dy = clientY - drag.startY;
     const options = state.get('options');
     const minDist = options.eventDragMinDistance ?? 5;
     if (!drag.moved && (dx * dx + dy * dy) < minDist * minDist) return;
     if (!drag.moved) {
+      clearTouchLongPress();
       drag.moved = true;
+      if (drag.touch && !drag.captured && drag.sourceChip.setPointerCapture && drag.pointerId !== undefined) {
+        try { drag.sourceChip.setPointerCapture(drag.pointerId); drag.captured = true; } catch { /* ignore */ }
+      }
       state.get('fire')?.('eventDragStart', {
         event: drag.event, jsEvent, view: state.get('view'),
       });
@@ -181,37 +245,59 @@ function attachEventDragHandler(rootEl, state) {
       ghost.style.bottom = 'auto';
       ghost.style.width  = `${drag.chipWidth}px`;
       ghost.style.height = `${drag.chipHeight}px`;
-      ghost.style.left   = `${jsEvent.clientX - drag.grabOffsetX}px`;
-      ghost.style.top    = `${jsEvent.clientY - drag.grabOffsetY}px`;
+      ghost.style.left   = `${clientX - drag.grabOffsetX}px`;
+      ghost.style.top    = `${clientY - drag.grabOffsetY}px`;
       drag.ghost = ghost;
       document.body.appendChild(ghost);
       drag.sourceChip.style.opacity = '0.4';
       document.body.classList.add('ec-dragging');
     }
+    syncVerticalAutoScroll(drag, clientY, () => {
+      updateDragMove({
+        cancelable: false,
+        preventDefault() {},
+        stopPropagation() {},
+        stopImmediatePropagation() {},
+      }, drag.lastX, drag.lastY);
+    });
     if (drag.ghost) {
       // 1:1 cursor following — the grab offset (where on the chip the
       // user grabbed) stays fixed for the duration of the drag, so the
       // ghost feels glued to the cursor. The drop logic in onPointerUp
       // still snaps to slot + day; only the preview is free-form.
-      drag.ghost.style.left = `${jsEvent.clientX - drag.grabOffsetX}px`;
-      drag.ghost.style.top  = `${jsEvent.clientY - drag.grabOffsetY}px`;
+      drag.ghost.style.left = `${clientX - drag.grabOffsetX}px`;
+      drag.ghost.style.top  = `${clientY - drag.grabOffsetY}px`;
     }
     // Preventing default while actively dragging stops the browser from
     // hijacking touch gestures (e.g. iOS swipe-back, page rubber-band).
     if (jsEvent.cancelable) jsEvent.preventDefault();
-  };
+  }
 
   const onPointerUp = (jsEvent) => {
+    if (drag?.touch && jsEvent.type === 'pointercancel') return;
+    finishDrag(jsEvent, jsEvent.clientX, jsEvent.clientY);
+  };
+
+  const onTouchEnd = (jsEvent) => {
+    if (!drag?.touch) return;
+    const touch = activeChangedTouch(jsEvent);
+    finishDrag(jsEvent, touch?.clientX ?? drag.lastX, touch?.clientY ?? drag.lastY);
+  };
+
+  function finishDrag(jsEvent, clientX, clientY) {
     if (!drag) return;
     const d = drag; drag = null;
+    clearTouchLongPress();
+    removeTouchDragListeners();
+    stopVerticalAutoScroll(d);
     document.body.classList.remove('ec-dragging');
     if (d.ghost) d.ghost.remove();
     if (d.sourceChip) d.sourceChip.style.opacity = '';
     if (!d.moved) return;     // tap, not a drag
 
-    const targetCell = cellAtPoint(jsEvent.clientX, jsEvent.clientY);
+    const targetCell = cellAtPoint(clientX, clientY);
     const targetDateStr = targetCell?.getAttribute('data-date');
-    const targetTimeCol = timeColAtPoint(jsEvent.clientX, jsEvent.clientY);
+    const targetTimeCol = timeColAtPoint(clientX, clientY);
     state.get('fire')?.('eventDragStop', {
       event: d.event, jsEvent, view: state.get('view'),
     });
@@ -234,7 +320,7 @@ function attachEventDragHandler(rootEl, state) {
       // target column, snapped to slotDuration.
       const colRect = targetTimeCol.getBoundingClientRect();
       const sourceColRect = d.sourceTimeCol.getBoundingClientRect();
-      const yInTargetCol = jsEvent.clientY - colRect.top;
+      const yInTargetCol = clientY - colRect.top;
       const yInSourceCol = d.startY - sourceColRect.top;
       const minOffset = (yInTargetCol - yInSourceCol) / pxPerMin;
       const snappedMin = Math.round(minOffset / snapMins) * snapMins;
@@ -272,20 +358,162 @@ function attachEventDragHandler(rootEl, state) {
       start: newStart.toISOString(),
       end:   newEnd.toISOString(),
     });
-  };
+  }
+
+  let touchDragListening = false;
+  function addTouchDragListeners() {
+    if (touchDragListening) return;
+    touchDragListening = true;
+    document.addEventListener('touchmove', onTouchMove, { passive: false, capture: true });
+    document.addEventListener('touchend', onTouchEnd, { passive: false, capture: true });
+    document.addEventListener('touchcancel', onTouchEnd, { passive: false, capture: true });
+  }
+
+  function removeTouchDragListeners() {
+    if (!touchDragListening) return;
+    touchDragListening = false;
+    document.removeEventListener('touchmove', onTouchMove, true);
+    document.removeEventListener('touchend', onTouchEnd, true);
+    document.removeEventListener('touchcancel', onTouchEnd, true);
+  }
+
+  function armTouchLongPress(jsEvent, chip) {
+    clearTouchLongPress();
+    const options = state.get('options');
+    const delay = options.eventLongPressDelay ?? DEFAULT_EVENT_LONG_PRESS_MS;
+    press = {
+      chip,
+      startX: jsEvent.clientX,
+      startY: jsEvent.clientY,
+      moved: false,
+      timer: setTimeout(() => {
+        if (!press || press.chip !== chip || press.moved || !drag || drag.sourceChip !== chip) return;
+        press = null;
+        enterEditMode(chip);
+        suppressChipClick(chip);
+        document.body.classList.add('ec-dragging');
+        if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(15);
+      }, delay),
+    };
+  }
+
+  function clearTouchLongPress() {
+    if (!press) return;
+    clearTimeout(press.timer);
+    press = null;
+  }
+
+  function updateTouchLongPressMove(clientX, clientY) {
+    if (!press) return;
+    const dx = clientX - press.startX;
+    const dy = clientY - press.startY;
+    if (dx * dx + dy * dy > PRESS_MOVE_TOLERANCE * PRESS_MOVE_TOLERANCE) {
+      press.moved = true;
+      clearTouchLongPress();
+    }
+  }
+
+  function enterEditMode(chip) {
+    rootEl.querySelectorAll?.('.ec-event.ec-event-editing')
+      .forEach((el) => { if (el !== chip) el.classList.remove('ec-event-editing'); });
+    chip.classList.add('ec-event-editing');
+  }
+
+  function suppressChipClick(chip) {
+    suppressedClicks.set(chip, Date.now() + 800);
+  }
+
+  function onClickCapture(jsEvent) {
+    const chip = findEventChip(jsEvent.target);
+    if (!chip) return;
+    const until = suppressedClicks.get(chip) || 0;
+    if (until && Date.now() <= until) {
+      jsEvent.preventDefault();
+      jsEvent.stopImmediatePropagation?.();
+      jsEvent.stopPropagation?.();
+      return;
+    }
+    if (until) suppressedClicks.delete(chip);
+  }
+
+  function activeTouch(jsEvent) {
+    const touch = jsEvent.touches?.[0] ?? null;
+    if (touch) updateTouchLongPressMove(touch.clientX, touch.clientY);
+    return jsEvent.touches?.[0] ?? null;
+  }
+
+  function activeChangedTouch(jsEvent) {
+    return jsEvent.changedTouches?.[0] ?? null;
+  }
 
   rootEl.addEventListener('pointerdown', onPointerDown);
+  rootEl.addEventListener('touchstart', onTouchStartCapture, { passive: false, capture: true });
+  rootEl.addEventListener('click', onClickCapture, true);
   document.addEventListener('pointermove', onPointerMove, { passive: false });
   document.addEventListener('pointerup',   onPointerUp);
   document.addEventListener('pointercancel', onPointerUp);
 
   return () => {
     rootEl.removeEventListener('pointerdown', onPointerDown);
+    rootEl.removeEventListener('touchstart', onTouchStartCapture, true);
+    rootEl.removeEventListener('click', onClickCapture, true);
     document.removeEventListener('pointermove', onPointerMove);
     document.removeEventListener('pointerup',   onPointerUp);
     document.removeEventListener('pointercancel', onPointerUp);
+    removeTouchDragListeners();
+    clearTouchLongPress();
     if (drag?.ghost) drag.ghost.remove();
+    stopVerticalAutoScroll(drag);
   };
+}
+
+function syncVerticalAutoScroll(gesture, clientY, onScroll) {
+  const scrollEl = gesture.scrollEl
+    ?? gesture.sourceChip?.closest?.('[data-row="body"]')
+    ?? gesture.chip?.closest?.('[data-row="body"]')
+    ?? null;
+  if (!scrollEl) return;
+  gesture.scrollEl = scrollEl;
+
+  const rect = scrollEl.getBoundingClientRect();
+  const edge = 36;
+  const maxSpeed = 14;
+  let speed = 0;
+  if (clientY < rect.top + edge) {
+    const depth = Math.min(1, (rect.top + edge - clientY) / edge);
+    speed = -Math.max(2, Math.round(depth * maxSpeed));
+  } else if (clientY > rect.bottom - edge) {
+    const depth = Math.min(1, (clientY - (rect.bottom - edge)) / edge);
+    speed = Math.max(2, Math.round(depth * maxSpeed));
+  }
+  gesture.autoScrollSpeed = speed;
+  if (!speed || gesture.autoScrollRaf) return;
+
+  const tick = () => {
+    if (!gesture.autoScrollSpeed || !gesture.scrollEl) {
+      gesture.autoScrollRaf = null;
+      return;
+    }
+    const el = gesture.scrollEl;
+    const before = el.scrollTop;
+    const max = Math.max(0, el.scrollHeight - el.clientHeight);
+    const next = Math.max(0, Math.min(max, before + gesture.autoScrollSpeed));
+    el.scrollTop = next;
+    const delta = next - before;
+    if (delta) {
+      gesture.startY -= delta;
+      onScroll?.(delta);
+    }
+    gesture.autoScrollRaf = requestAnimationFrame(tick);
+  };
+  gesture.autoScrollRaf = requestAnimationFrame(tick);
+}
+
+function stopVerticalAutoScroll(gesture) {
+  if (!gesture) return;
+  if (gesture.autoScrollRaf) cancelAnimationFrame(gesture.autoScrollRaf);
+  gesture.autoScrollRaf = null;
+  gesture.autoScrollSpeed = 0;
 }
 
 // Resize handles — dragging the chip's bottom (or top, when
@@ -303,6 +531,8 @@ function attachEventResizeHandler(rootEl, state) {
     if (!handle || !rootEl.contains(handle)) return;
     const chip = handle.closest('[data-event-id]');
     if (!chip) return;
+    const isTouch = jsEvent.pointerType === 'touch';
+    if (isTouch && !chip.classList.contains('ec-event-editing')) return;
     const id = chip.getAttribute('data-event-id');
     const event = (state.get('filteredEvents') ?? []).find((e) => e.id === id);
     if (!event) return;
@@ -339,6 +569,10 @@ function attachEventResizeHandler(rootEl, state) {
       sourceCol: chip.closest('.ec-time-col'),
       previewChips: [],
       segments,
+      touch: isTouch,
+      pointerId: jsEvent.pointerId,
+      lastX: jsEvent.clientX,
+      lastY: jsEvent.clientY,
     };
     chip.classList.add('ec-resizing-y');
     chip.classList.add('ec-resizing');
@@ -348,6 +582,7 @@ function attachEventResizeHandler(rootEl, state) {
     if (handle.setPointerCapture && jsEvent.pointerId !== undefined) {
       try { handle.setPointerCapture(jsEvent.pointerId); } catch { /* ignore */ }
     }
+    if (isTouch) addTouchResizeListeners();
     state.get('fire')?.('eventResizeStart', { event, jsEvent, view: state.get('view') });
     if (jsEvent.cancelable) jsEvent.preventDefault();
     jsEvent.stopPropagation();
@@ -355,14 +590,31 @@ function attachEventResizeHandler(rootEl, state) {
 
   const onPointerMove = (jsEvent) => {
     if (!rs) return;
-    const dy = jsEvent.clientY - rs.startY;
+    updateResizeMove(jsEvent, jsEvent.clientX, jsEvent.clientY);
+  };
+
+  const onTouchMove = (jsEvent) => {
+    if (!rs?.touch) return;
+    const touch = activeResizeTouch(jsEvent);
+    if (!touch) return;
+    if (jsEvent.cancelable) jsEvent.preventDefault();
+    jsEvent.stopPropagation?.();
+    jsEvent.stopImmediatePropagation?.();
+    updateResizeMove(jsEvent, touch.clientX, touch.clientY);
+  };
+
+  function updateResizeMove(jsEvent, clientX, clientY) {
+    if (!rs) return;
+    rs.lastX = clientX;
+    rs.lastY = clientY;
+    const dy = clientY - rs.startY;
     const deltaMin = Math.round((dy / rs.pxPerMin) / rs.snapMins) * rs.snapMins;
     if (deltaMin !== 0) rs.moved = true;
 
     // Detect the time-col currently under the pointer.
     let targetCol = null;
     const els = (typeof document !== 'undefined' && document.elementsFromPoint)
-      ? document.elementsFromPoint(jsEvent.clientX, jsEvent.clientY) : [];
+      ? document.elementsFromPoint(clientX, clientY) : [];
     for (const el of els) {
       const col = el.closest?.('.ec-time-col');
       if (col && rootEl.contains(col)) { targetCol = col; break; }
@@ -401,7 +653,7 @@ function attachEventResizeHandler(rootEl, state) {
           seg.el.style.display = 'none';
         } else {
           const rect = targetCol.getBoundingClientRect();
-          const yIn = jsEvent.clientY - rect.top;
+          const yIn = clientY - rect.top;
           const snappedY = Math.round((yIn / rs.pxPerMin) / rs.snapMins) * rs.snapMins * rs.pxPerMin;
           const minBottom = seg.originalTop + rs.snapMins * rs.pxPerMin;
           const newBottom = Math.max(minBottom, snappedY);
@@ -423,7 +675,7 @@ function attachEventResizeHandler(rootEl, state) {
         }
         const rect = targetCol.getBoundingClientRect();
         const yIn = Math.max(rs.snapMins * rs.pxPerMin,
-          Math.round(((jsEvent.clientY - rect.top) / rs.pxPerMin) / rs.snapMins) * rs.snapMins * rs.pxPerMin);
+          Math.round(((clientY - rect.top) / rs.pxPerMin) / rs.snapMins) * rs.snapMins * rs.pxPerMin);
         rs.previewChips.push(makePreview(targetCol, 0, yIn, rs));
       }
     } else if (rs.handleSide === 'end') {
@@ -438,8 +690,16 @@ function attachEventResizeHandler(rootEl, state) {
       rs.chip.style.top = `${rs.originalTopPx + shift}px`;
       rs.chip.style.height = `${rs.originalHeightPx - shift}px`;
     }
+    syncVerticalAutoScroll(rs, clientY, () => {
+      updateResizeMove({
+        cancelable: false,
+        preventDefault() {},
+        stopPropagation() {},
+        stopImmediatePropagation() {},
+      }, rs.lastX, rs.lastY);
+    });
     if (jsEvent.cancelable) jsEvent.preventDefault();
-  };
+  }
 
   // Build a translucent preview chip that mirrors the source chip's
   // styling, anchored to the given column at top..top+height.
@@ -463,8 +723,24 @@ function attachEventResizeHandler(rootEl, state) {
   }
 
   const onPointerUp = (jsEvent) => {
+    if (rs?.touch && jsEvent.type === 'pointercancel') return;
+    finishResize(jsEvent, jsEvent.clientX, jsEvent.clientY);
+  };
+
+  const onTouchEnd = (jsEvent) => {
+    if (!rs?.touch) return;
+    const touch = activeChangedResizeTouch(jsEvent);
+    if (jsEvent.cancelable) jsEvent.preventDefault();
+    jsEvent.stopPropagation?.();
+    jsEvent.stopImmediatePropagation?.();
+    finishResize(jsEvent, touch?.clientX ?? rs.lastX, touch?.clientY ?? rs.lastY);
+  };
+
+  function finishResize(jsEvent, clientX, clientY) {
     if (!rs) return;
     const r = rs; rs = null;
+    removeTouchResizeListeners();
+    stopVerticalAutoScroll(r);
     r.chip.classList.remove('ec-resizing-y');
     r.chip.classList.remove('ec-resizing');
     document.body.classList.remove('ec-resizing-active');
@@ -484,7 +760,7 @@ function attachEventResizeHandler(rootEl, state) {
       state.get('fire')?.('eventResizeStop', { event: r.event, jsEvent, view: state.get('view') });
       return;
     }
-    const dy = jsEvent.clientY - r.startY;
+    const dy = clientY - r.startY;
     const deltaMin = Math.round((dy / r.pxPerMin) / r.snapMins) * r.snapMins;
     const deltaMs = deltaMin * 60_000;
 
@@ -497,7 +773,7 @@ function attachEventResizeHandler(rootEl, state) {
     // across multiple days in the week view to extend the event.
     const targetTimeCol = (() => {
       const els = (typeof document !== 'undefined' && document.elementsFromPoint)
-        ? document.elementsFromPoint(jsEvent.clientX, jsEvent.clientY) : [];
+        ? document.elementsFromPoint(clientX, clientY) : [];
       for (const el of els) {
         const col = el.closest?.('.ec-time-col');
         if (col && rootEl.contains(col)) return col;
@@ -512,7 +788,7 @@ function attachEventResizeHandler(rootEl, state) {
       const options = state.get('options');
       const slotMinMin = totalSecondsOfDuration(options.slotMinTime) / 60 || 0;
       const rect = targetTimeCol.getBoundingClientRect();
-      const yIn = jsEvent.clientY - rect.top;
+      const yIn = clientY - rect.top;
       const minsFromColTop = Math.max(0, Math.round((yIn / r.pxPerMin) / r.snapMins) * r.snapMins);
       const totalMins = minsFromColTop + slotMinMin;
       if (r.handleSide === 'end') {
@@ -559,7 +835,32 @@ function attachEventResizeHandler(rootEl, state) {
       start: newStart.toISOString(),
       end:   newEnd.toISOString(),
     });
-  };
+  }
+
+  let touchResizeListening = false;
+  function addTouchResizeListeners() {
+    if (touchResizeListening) return;
+    touchResizeListening = true;
+    document.addEventListener('touchmove', onTouchMove, { passive: false, capture: true });
+    document.addEventListener('touchend', onTouchEnd, { passive: false, capture: true });
+    document.addEventListener('touchcancel', onTouchEnd, { passive: false, capture: true });
+  }
+
+  function removeTouchResizeListeners() {
+    if (!touchResizeListening) return;
+    touchResizeListening = false;
+    document.removeEventListener('touchmove', onTouchMove, true);
+    document.removeEventListener('touchend', onTouchEnd, true);
+    document.removeEventListener('touchcancel', onTouchEnd, true);
+  }
+
+  function activeResizeTouch(jsEvent) {
+    return jsEvent.touches?.[0] ?? null;
+  }
+
+  function activeChangedResizeTouch(jsEvent) {
+    return jsEvent.changedTouches?.[0] ?? null;
+  }
 
   rootEl.addEventListener('pointerdown', onPointerDown);
   document.addEventListener('pointermove', onPointerMove, { passive: false });
@@ -571,6 +872,8 @@ function attachEventResizeHandler(rootEl, state) {
     document.removeEventListener('pointermove', onPointerMove);
     document.removeEventListener('pointerup', onPointerUp);
     document.removeEventListener('pointercancel', onPointerUp);
+    removeTouchResizeListeners();
+    stopVerticalAutoScroll(rs);
   };
 }
 

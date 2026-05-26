@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>stimulus_calendar — recurring maintenance with per-occurrence skip</title>
+  <link rel="stylesheet" href="../src/styles/calendar.css">
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; margin: 1.5rem; color: #0f172a; }
+    h1 { margin: 0 0 0.25rem; font-size: 1.25rem; }
+    .sub { color: #64748b; margin: 0 0 1rem; font-size: 14px; }
+
+    .layout { display: grid; grid-template-columns: 280px 1fr; gap: 16px; align-items: start; }
+    @media (max-width: 1000px) { .layout { grid-template-columns: 1fr; } }
+
+    .ec { width: 100%; }
+
+    /* Series sidebar — shows the active maintenance contracts + their
+       cadences so the dispatcher can see what's driving the events. */
+    .series {
+      background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px;
+      padding: 10px;
+    }
+    .series h2 {
+      margin: 0 0 8px; font-size: 12px; text-transform: uppercase;
+      letter-spacing: 0.06em; color: #475569; font-weight: 700;
+    }
+    .series-card {
+      background: #fff; border: 1px solid #e2e8f0; border-radius: 8px;
+      padding: 8px 10px; margin-bottom: 8px;
+    }
+    .series-card .title { font-weight: 700; font-size: 13px; }
+    .series-card .meta { font-size: 11px; color: #475569; margin-top: 2px; }
+    .series-card .cadence {
+      display: inline-block; background: #ecfeff; color: #0e7490;
+      font-size: 10px; padding: 1px 6px; border-radius: 4px;
+      font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+    }
+
+    /* Recurring chip — a small "↻" badge so it reads as part of a series. */
+    .ec-event .job-chip .series-tag {
+      display: inline-flex; align-items: center; gap: 3px;
+      background: rgba(255,255,255,0.45); color: inherit;
+      font-size: 10px; padding: 0 4px; border-radius: 3px;
+      font-weight: 700;
+    }
+    .ec-event .job-chip { display: flex; flex-direction: column; gap: 2px; line-height: 1.2; }
+    .ec-event .job-chip .title { font-weight: 700; font-size: 12px; }
+    .ec-event .job-chip .meta  { font-size: 11px; opacity: 0.85; }
+    .ec-event.is-skipped {
+      opacity: 0.35;
+      text-decoration: line-through;
+    }
+
+    /* Popover for occurrence actions. */
+    .occ-popover {
+      position: fixed; z-index: 1000; background: #fff;
+      border: 1px solid #e2e8f0; border-radius: 10px;
+      box-shadow: 0 10px 30px -8px rgba(15,23,42,0.25);
+      padding: 12px; min-width: 240px; font-size: 13px;
+    }
+    .occ-popover h3 { margin: 0 0 4px; font-size: 13px; }
+    .occ-popover p  { margin: 0 0 8px; color: #475569; font-size: 12px; }
+    .occ-popover button {
+      display: block; width: 100%; text-align: left;
+      padding: 8px 10px; margin-top: 4px;
+      background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px;
+      font: inherit; cursor: pointer;
+    }
+    .occ-popover button:hover { background: #f1f5f9; }
+    .occ-popover button.danger { color: #b91c1c; }
+  </style>
+</head>
+<body>
+  <h1>Recurring maintenance — per‑occurrence skip / reschedule</h1>
+  <p class="sub">
+    The library doesn't expand RRULE — the host app does it and pushes
+    one event per occurrence. Each occurrence carries
+    <code>extendedProps.series.id</code>, so a click on a recurring
+    chip can offer "skip this one" or "reschedule this one"
+    without affecting the rest of the series.
+  </p>
+
+  <div class="layout">
+    <aside class="series" id="series-pane"></aside>
+
+    <div id="cal"
+         data-controller="calendar"
+         data-calendar-plugins-value='["DayGrid","Interaction"]'
+         data-calendar-view-value="dayGridMonth"
+         data-calendar-options-value='{
+           "editable": true,
+           "dayMaxEvents": 4,
+           "headerToolbar": { "start": "title", "center": "", "end": "today prev,next" }
+         }'>
+    </div>
+  </div>
+
+  <style id="status-style"></style>
+
+  <script type="module">
+    import { Application } from '/node_modules/@hotwired/stimulus/dist/stimulus.js';
+    import CalendarController from '/src/controllers/calendar_controller.js';
+    import { CREWS, STATUS, statusCss, statusClass, dayOnly, wallClock, day } from './tradie_data.js';
+
+    Application.start().register('calendar', CalendarController);
+    await new Promise((r) => setTimeout(r, 80));
+
+    const el  = document.getElementById('cal');
+    const api = el.calendarApi;
+    document.getElementById('status-style').textContent = statusCss();
+
+    api.setOption('eventClassNames', (info) => {
+      const cls = statusClass(info);
+      if (info.event.extendedProps?.skipped) cls.push('is-skipped');
+      return cls;
+    });
+    api.setOption('eventContent', ({ event }) => {
+      const ep = event.extendedProps || {};
+      return { html:
+        `<div class="job-chip">
+           <div class="title">${escapeHtml(event.title)}</div>
+           ${ep.series
+             ? `<span class="series-tag">↻ ${ep.series.id.split('-')[1] ?? 'series'} · ${ep.series.cadence}</span>`
+             : ''}
+         </div>` };
+    });
+
+    // ---- Two maintenance contracts ---------------------------------------
+    const SERIES = [
+      {
+        id: 'maint-acme',
+        title: 'Acme Pty — quarterly plumbing service',
+        crew: 'van-1',
+        customer: 'Acme Pty Ltd',
+        cadence: 'every 13 weeks',
+        timeOfDay: { h: 9, m: 0, dur: 120 },
+        firstOffset: -90, // days from today
+        count: 6,
+        intervalDays: 91, // 13 weeks
+      },
+      {
+        id: 'maint-bowen',
+        title: 'Bowen Pharmacy — annual test & tag',
+        crew: 'van-2',
+        customer: 'Bowen Pharmacy',
+        cadence: 'every 52 weeks',
+        timeOfDay: { h: 14, m: 0, dur: 180 },
+        firstOffset: -120,
+        count: 3,
+        intervalDays: 364,
+      },
+      {
+        id: 'maint-koru',
+        title: 'Koru Cafe — monthly HVAC filter',
+        crew: 'van-3',
+        customer: 'Koru Cafe',
+        cadence: 'monthly',
+        timeOfDay: { h: 7, m: 30, dur: 60 },
+        firstOffset: -30,
+        count: 6,
+        intervalDays: 28,
+      },
+    ];
+
+    // Expand each series. Each occurrence gets a deterministic id so the
+    // "skip" action can remove just one instance.
+    for (const s of SERIES) {
+      for (let i = 0; i < s.count; i++) {
+        const offset = s.firstOffset + i * s.intervalDays;
+        api.addEvent({
+          id: `${s.id}-${i}`,
+          resourceIds: [s.crew],
+          title: s.title.split(' — ')[1] ?? s.title,
+          start: day(offset, s.timeOfDay.h, s.timeOfDay.m),
+          end:   day(offset, s.timeOfDay.h + Math.floor(s.timeOfDay.dur / 60),
+                              s.timeOfDay.m + (s.timeOfDay.dur % 60)),
+          extendedProps: {
+            status: 'scheduled',
+            customer: { name: s.customer },
+            series: { id: s.id, instance: i + 1, cadence: s.cadence },
+          },
+        });
+      }
+    }
+
+    // Anchor calendar on this month so the recurring events are visible.
+    api.gotoDate(new Date());
+
+    renderSeriesPane();
+
+    // ---- Occurrence popover -----------------------------------------------
+    el.addEventListener('calendar:eventClick', (ev) => {
+      const e = ev.detail.event;
+      if (!e.extendedProps?.series) return;
+      ev.detail.jsEvent.preventDefault();
+      openOccPopover(e, ev.detail.jsEvent);
+    });
+
+    let pop = null;
+    function openOccPopover(event, jsEvent) {
+      closeOccPopover();
+      const series = SERIES.find((s) => s.id === event.extendedProps.series.id);
+      pop = document.createElement('div');
+      pop.className = 'occ-popover';
+      const date = event.start;
+      const dStr = new Intl.DateTimeFormat(undefined,
+        { dateStyle: 'medium', timeZone: 'UTC' }).format(date);
+      pop.innerHTML = `
+        <h3>${escapeHtml(event.title)}</h3>
+        <p>
+          Occurrence ${event.extendedProps.series.instance} of ${series.count}<br>
+          ${escapeHtml(dStr)} · ${series.cadence}
+        </p>
+        <button data-act="skip">Skip just this occurrence</button>
+        <button data-act="resched">Reschedule this one to next week</button>
+        <button data-act="cancel-series" class="danger">Cancel whole series</button>
+      `;
+      pop.style.left = `${jsEvent.clientX + 8}px`;
+      pop.style.top  = `${jsEvent.clientY + 8}px`;
+      document.body.appendChild(pop);
+      pop.addEventListener('click', (ev) => {
+        const btn = ev.target.closest('button');
+        if (!btn) return;
+        const act = btn.dataset.act;
+        if (act === 'skip') {
+          api.updateEvent({
+            id: event.id,
+            extendedProps: { ...event.extendedProps, skipped: true, status: 'cancelled' },
+          });
+        } else if (act === 'resched') {
+          const newStart = new Date(event.start.getTime() + 7 * 86400000);
+          const newEnd   = new Date(event.end.getTime()   + 7 * 86400000);
+          api.updateEvent({
+            id: event.id,
+            start: localFromCal(newStart),
+            end:   localFromCal(newEnd),
+          });
+        } else if (act === 'cancel-series') {
+          if (!confirm(`Cancel the entire "${series.title}" series?`)) return;
+          for (const e of api.getEvents()) {
+            if (e.extendedProps?.series?.id === series.id) {
+              api.removeEventById(e.id);
+            }
+          }
+          renderSeriesPane();
+        }
+        closeOccPopover();
+      });
+    }
+    function closeOccPopover() { pop?.remove(); pop = null; }
+    document.addEventListener('click', (ev) => {
+      if (!pop) return;
+      if (pop.contains(ev.target)) return;
+      if (ev.target.closest('.ec-event')) return;
+      closeOccPopover();
+    });
+
+    function renderSeriesPane() {
+      const pane = document.getElementById('series-pane');
+      pane.innerHTML = '<h2>Active maintenance contracts</h2>' + SERIES
+        .filter((s) => api.getEvents().some((e) => e.extendedProps?.series?.id === s.id))
+        .map((s) => {
+          const remaining = api.getEvents()
+            .filter((e) => e.extendedProps?.series?.id === s.id
+                        && !e.extendedProps.skipped
+                        && e.start > new Date()).length;
+          return `<div class="series-card">
+            <div class="title">${escapeHtml(s.title)}</div>
+            <div class="meta">
+              <span class="cadence">${s.cadence}</span> ·
+              ${CREWS.find((c) => c.id === s.crew)?.title?.split(' — ')[0]}<br>
+              ${remaining} upcoming
+            </div>
+          </div>`;
+        }).join('');
+    }
+
+    function localFromCal(d) {
+      const local = new Date(
+        d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(),
+        d.getUTCHours(), d.getUTCMinutes()
+      );
+      return wallClock(local);
+    }
+
+    function escapeHtml(s = '') {
+      return String(s).replace(/[&<>"']/g, (c) => ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+      }[c]));
+    }
+  </script>
+</body>
+</html>

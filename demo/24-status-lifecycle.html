@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>stimulus_calendar — job status lifecycle</title>
+  <link rel="stylesheet" href="../src/styles/calendar.css">
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; margin: 1.5rem; color: #0f172a; }
+    h1 { margin: 0 0 0.25rem; font-size: 1.25rem; }
+    .sub { color: #64748b; margin: 0 0 1rem; font-size: 14px; }
+
+    /* Pipeline header — shows the five canonical statuses + arrow flow. */
+    .pipeline {
+      display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+      margin: 0 0 14px; padding: 10px 12px;
+      background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px;
+    }
+    .pipeline .step {
+      padding: 4px 12px; border-radius: 999px;
+      font-size: 12px; font-weight: 700; letter-spacing: 0.02em;
+      border: 1px solid; line-height: 1.4;
+    }
+    .pipeline .arrow { color: #94a3b8; font-size: 14px; }
+    .pipeline .count {
+      display: inline-block; margin-left: 6px;
+      background: rgba(15,23,42,0.12); border-radius: 6px;
+      font-size: 11px; padding: 0 5px; font-variant-numeric: tabular-nums;
+    }
+
+    .ec { width: 100%; }
+
+    /* Chip layout — title + customer + clickable status pill */
+    .ec-event .job-chip { display: flex; flex-direction: column; gap: 1px; line-height: 1.2; }
+    .ec-event .job-chip .title { font-weight: 700; font-size: 12px; }
+    .ec-event .job-chip .cust  { font-size: 11px; opacity: 0.85; }
+    .ec-event .job-chip .pill {
+      align-self: flex-start;
+      font-size: 9px; padding: 1px 6px; border-radius: 4px;
+      text-transform: uppercase; letter-spacing: 0.04em; font-weight: 700;
+      background: rgba(255,255,255,0.45);
+      cursor: pointer;
+    }
+    .ec-event .job-chip .pill:hover { background: rgba(255,255,255,0.7); }
+
+    .hint {
+      margin: 0 0 12px; color: #475569; font-size: 13px; background: #fefce8;
+      border: 1px solid #fde047; border-radius: 8px; padding: 8px 12px;
+    }
+    .hint kbd {
+      background: #fff; border: 1px solid #e5e7eb; border-bottom-width: 2px;
+      border-radius: 4px; padding: 1px 6px; font-size: 11px; font-family: ui-monospace, monospace;
+    }
+  </style>
+</head>
+<body>
+  <h1>Status lifecycle — quoted → scheduled → in‑progress → completed → invoiced</h1>
+  <p class="sub">
+    Click a chip's <strong>status pill</strong> to advance the job to the
+    next stage. The chip background + border are computed from
+    <code>extendedProps.status</code> via <code>eventClassNames</code>;
+    the pipeline header above re‑counts on every change.
+  </p>
+
+  <div class="hint">
+    Click any status pill on a chip to advance. <kbd>Shift</kbd>+click to mark
+    cancelled. The pipeline above re‑counts live.
+  </div>
+
+  <div class="pipeline" id="pipeline"></div>
+
+  <div id="cal"
+       data-controller="calendar"
+       data-calendar-plugins-value='["ResourceTimeGrid","Interaction"]'
+       data-calendar-view-value="resourceTimeGridDay"
+       data-calendar-options-value='{
+         "editable": true,
+         "scrollTime": "07:00:00",
+         "slotMinTime": "06:00:00",
+         "slotMaxTime": "20:00:00",
+         "nowIndicator": true,
+         "slotHeight": 22,
+         "slotDuration": "00:30:00",
+         "headerToolbar": { "start": "title", "center": "", "end": "today prev,next" }
+       }'>
+  </div>
+
+  <style id="status-style"></style>
+
+  <script type="module">
+    import { Application } from '/node_modules/@hotwired/stimulus/dist/stimulus.js';
+    import CalendarController from '/src/controllers/calendar_controller.js';
+    import {
+      CREWS, makeJobs, STATUS, STATUS_ORDER, nextStatus,
+      statusCss, statusClass,
+    } from './tradie_data.js';
+
+    // Mount-time resources — see 22-dispatch-board.html for the why.
+    document.getElementById('cal').setAttribute(
+      'data-calendar-resources-value', JSON.stringify(CREWS)
+    );
+
+    Application.start().register('calendar', CalendarController);
+    await new Promise((r) => setTimeout(r, 80));
+
+    const el  = document.getElementById('cal');
+    const api = el.calendarApi;
+    document.getElementById('status-style').textContent = statusCss();
+    api.setOption('eventClassNames', statusClass);
+    api.setOption('eventContent', ({ event }) => {
+      const ep   = event.extendedProps || {};
+      const stat = STATUS[ep.status] ?? STATUS.scheduled;
+      return { html:
+        `<div class="job-chip">
+           <div class="title">${escapeHtml(event.title)}</div>
+           <div class="cust">${escapeHtml(ep.customer?.name ?? '')}</div>
+           <span class="pill" data-action="advance">${stat.label}</span>
+         </div>` };
+    });
+
+    // Seed today's jobs.
+    const todayJobs = makeJobs().filter((j) =>
+      new Date(j.start).toDateString() === new Date().toDateString()
+    );
+    todayJobs.forEach((j) => api.addEvent(j));
+
+    renderPipeline();
+
+    // ---- Click pill to advance status ------------------------------------
+    // calendar:eventClick fires before the calendar's own popover. We
+    // detect a click on the status pill specifically (via data-action)
+    // and advance. Shift-click cancels instead.
+    el.addEventListener('calendar:eventClick', (ev) => {
+      const { event, jsEvent } = ev.detail;
+      if (!jsEvent.target.matches('[data-action="advance"]')) return;
+      jsEvent.stopPropagation();
+      const cur = event.extendedProps?.status ?? 'scheduled';
+      const next = jsEvent.shiftKey ? 'cancelled' : nextStatus(cur);
+      api.updateEvent({
+        id: event.id,
+        extendedProps: { ...event.extendedProps, status: next },
+      });
+      renderPipeline();
+    });
+
+    // ---- Pipeline header counts ------------------------------------------
+    function renderPipeline() {
+      const counts = Object.fromEntries(STATUS_ORDER.map((s) => [s, 0]));
+      counts.cancelled = 0;
+      for (const e of api.getEvents()) {
+        const s = e.extendedProps?.status;
+        if (s in counts) counts[s]++;
+      }
+      const steps = STATUS_ORDER.map((k, i) => {
+        const v = STATUS[k];
+        return `<span class="step" style="background:${v.bg};color:${v.fg};border-color:${v.border}">
+          ${v.label}<span class="count">${counts[k]}</span>
+        </span>` + (i < STATUS_ORDER.length - 1
+          ? '<span class="arrow">›</span>'
+          : '');
+      }).join('');
+      const cancelled = STATUS.cancelled;
+      const cancelChip =
+        '<span class="arrow">·</span>' +
+        `<span class="step" style="background:${cancelled.bg};color:${cancelled.fg};border-color:${cancelled.border}">
+           Cancelled<span class="count">${counts.cancelled}</span>
+         </span>`;
+      document.getElementById('pipeline').innerHTML = steps + cancelChip;
+    }
+
+    function escapeHtml(s = '') {
+      return String(s).replace(/[&<>"']/g, (c) => ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+      }[c]));
+    }
+  </script>
+</body>
+</html>

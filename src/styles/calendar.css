@@ -263,9 +263,9 @@
   line-height: 1.25;
   overflow: hidden;
   cursor: default;
-  /* Touch drags on the chip itself drive the Interaction plugin's drag
-   * pipeline — don't let the browser intercept them for native scroll. */
-  touch-action: none;
+  /* Touch starts on chips should still allow vertical page/timeline
+   * scrolling. Horizontal motion is handled by the pager. */
+  touch-action: pan-y;
 }
 
 .ec-day-grid .ec-event .ec-event-dot {
@@ -383,23 +383,11 @@
 
 .ec-time-grid .ec-all-day-cell:last-child { border-right: none; }
 
-/* body — sidebar + day columns in a single scroll container.
- *
- * Earlier attempts split this into a clip-path'd rail + a separate
- * cols-scroll so the sidebar could counter-translate against the
- * pager's swipe transform without being clipped by overflow:auto.
- * That worked for the swipe but forced a JS scroll-sync between the
- * cols-scroll and the sidebar's transform, which on iOS Safari is
- * intrinsically ~1 frame behind native scroll — the gutter visibly
- * jitters and lags during a finger drag.
- *
- * Putting everything back inside ONE scroll container means the
- * sidebar and day cols share the same scroll layer and the browser
- * paints them together every frame: true 1:1 pixel-perfect Y sync,
- * no JS in the loop. The tradeoff is the gutter slides with the slot
- * during a horizontal swipe — but each pager slot renders its own
- * gutter with identical hour labels, so visually it stays continuous
- * (this matches iOS Calendar). */
+/* body — sidebar + day columns in a single scroll container. The pager
+ * counter-translates this scroll container during horizontal swipes, then
+ * translates only the day columns back with the page. That keeps the time
+ * axis pinned like macOS Calendar while preserving native 1:1 vertical
+ * scrolling for the labels and events. */
 .ec-time-grid [data-row="body"] {
   display: grid;
   grid-template-columns: var(--ec-sidebar-width) 1fr;
@@ -412,6 +400,13 @@
   flex-direction: column;
   border-right: 1px solid var(--ec-border-color);
   background: var(--ec-bg-color);
+  /* Stay pinned to the left of whichever ancestor scrolls horizontally
+     (the page viewport for narrow screens, or a container that adds
+     overflow-x:auto for wide column counts). Keeps the time axis
+     visible while the user scans columns to the right. */
+  position: sticky;
+  left: 0;
+  z-index: 2;
 }
 
 .ec-time-grid .ec-sidebar .ec-slot {
@@ -448,6 +443,18 @@
   grid-template-columns: repeat(var(--ec-cols, 7), minmax(0, 1fr));
 }
 
+.ec-pager-page-current .ec-time-grid [data-row="body"] {
+  transform: translate3d(calc(-1 * var(--ec-pager-px, 0px)), 0, 0);
+  transition: var(--ec-pager-transition, none);
+  will-change: transform;
+}
+
+.ec-pager-page-current .ec-time-grid [data-row="body"] > .ec-days {
+  transform: translate3d(var(--ec-pager-px, 0px), 0, 0);
+  transition: var(--ec-pager-transition, none);
+  will-change: transform;
+}
+
 .ec-time-grid .ec-time-col {
   border-right: 1px solid var(--ec-border-color);
   position: relative;
@@ -462,6 +469,11 @@
 
 /* time-grid event chips */
 .ec-time-grid .ec-event-overlay { position: absolute; inset: 0; }
+
+.ec-time-grid .ec-event-overlay > .ec-event {
+  margin-left: 3px;
+  margin-right: 3px;
+}
 
 .ec-time-grid .ec-event {
   /* --ec-event-color is set inline per-chip from event.backgroundColor;
@@ -478,11 +490,20 @@
   font-size: 0.75rem;
   line-height: 1.2;
   overflow: visible;     /* allow .ec-resizer to extend past the bottom edge */
-  touch-action: none;
+  touch-action: pan-y;
   display: flex;
   flex-direction: column;
   gap: 1px;
   min-height: 0;
+}
+
+.ec-event.ec-event-editing {
+  touch-action: none;
+  z-index: 20;
+}
+
+.ec-event.ec-event-editing .ec-resizer {
+  touch-action: none;
 }
 
 .ec-time-grid .ec-event .ec-event-title {
@@ -936,6 +957,7 @@
    * intercept the horizontal portion of any swipe. Vertical scrolling
    * inside scrollable view regions (e.g. TimeGrid body) still works. */
   touch-action: pan-y;
+  overscroll-behavior-x: contain;
   outline: none;
 }
 
@@ -1003,15 +1025,8 @@
   visibility: visible;
 }
 
-/* The corner spacer and all-day sidebar still counter-translate during
- * a swipe — they sit outside the body's scroll container, so they're
- * not affected by the body's overflow:auto, and there's no JS sync
- * involved (they never scroll vertically). The body sidebar (hour
- * labels) intentionally does NOT counter-translate: it lives inside
- * the same scroll container as the day cols and slides with the slot,
- * which means the browser handles its Y position natively in lockstep
- * with the events (no JS scroll-sync lag). Each pager slot renders
- * its own identical body gutter, so the slide reads as continuous. */
+/* Keep fixed time-axis pieces pinned while the day columns slide under
+ * them during a pager swipe. */
 .ec-pager-page-current .ec-time-grid .ec-corner,
 .ec-pager-page-current .ec-time-grid .ec-all-day > .ec-sidebar {
   position: relative;
@@ -1027,7 +1042,9 @@
 .ec-pager-page-prev .ec-time-grid .ec-corner,
 .ec-pager-page-prev .ec-time-grid .ec-all-day > .ec-sidebar,
 .ec-pager-page-next .ec-time-grid .ec-corner,
-.ec-pager-page-next .ec-time-grid .ec-all-day > .ec-sidebar {
+.ec-pager-page-next .ec-time-grid .ec-all-day > .ec-sidebar,
+.ec-pager-page-prev .ec-time-grid [data-row="body"] > .ec-sidebar,
+.ec-pager-page-next .ec-time-grid [data-row="body"] > .ec-sidebar {
   visibility: hidden;
 }
 
@@ -1056,8 +1073,20 @@
   bottom: -4px;
   cursor: ns-resize;
   /* Bigger target on touch devices — sticks out a few px to grab. */
-  touch-action: none;
+  touch-action: pan-y;
   z-index: 2;
+}
+
+@media (hover: none), (pointer: coarse) {
+  .ec-event .ec-resizer {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .ec-event.ec-event-editing .ec-resizer {
+    opacity: 1;
+    pointer-events: auto;
+  }
 }
 
 .ec-event .ec-resizer.ec-resizer-start {
@@ -1087,6 +1116,7 @@ body.ec-dragging,
 body.ec-dragging * {
   cursor: grabbing !important;
   user-select: none !important;
+  touch-action: none !important;
 }
 
 /* During a resize the cursor should stay as ns-resize even when the
@@ -1096,6 +1126,7 @@ body.ec-resizing-active,
 body.ec-resizing-active * {
   cursor: ns-resize !important;
   user-select: none !important;
+  touch-action: none !important;
 }
 
 /* -------------------------------------------------------------------------
@@ -1266,7 +1297,7 @@ body.ec-resizing-active * {
   font-size: 0.72rem;
   line-height: 1.3;
   overflow: hidden;
-  touch-action: none;
+  touch-action: pan-y;
 }
 
 .ec-month-scroller-cell .ec-event .ec-event-dot {
