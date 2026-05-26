@@ -100,7 +100,16 @@ export function renderResourceTimelineView(container, state) {
         if (startDayIdx === -1) continue;
         const endDayIdx = days.findIndex((d) => d >= event.end);
         const endIdx = endDayIdx === -1 ? days.length : endDayIdx;
-        const chip = createElement('div', theme.event, event.title || '', [
+        const chipClasses = [theme.event];
+        const globalCls = options.eventClassNames;
+        if (typeof globalCls === 'function') {
+          const c = globalCls({ event });
+          if (c) chipClasses.push(...(Array.isArray(c) ? c : [c]));
+        } else if (globalCls) {
+          chipClasses.push(...(Array.isArray(globalCls) ? globalCls : [globalCls]));
+        }
+        if (event.classNames) chipClasses.push(...(Array.isArray(event.classNames) ? event.classNames : [event.classNames]));
+        const chip = createElement('div', chipClasses.filter(Boolean).join(' '), event.title || '', [
           ['data-event-id', event.id],
         ]);
         chip.style.position = 'absolute';

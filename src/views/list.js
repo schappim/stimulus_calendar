@@ -40,7 +40,16 @@ export function renderListView(container, state) {
       root.append(header);
 
       for (const event of dayEvents) {
-        const row = createElement('div', theme.event, '', [
+        const rowClasses = [theme.event];
+        const globalCls = options.eventClassNames;
+        if (typeof globalCls === 'function') {
+          const c = globalCls({ event });
+          if (c) rowClasses.push(...(Array.isArray(c) ? c : [c]));
+        } else if (globalCls) {
+          rowClasses.push(...(Array.isArray(globalCls) ? globalCls : [globalCls]));
+        }
+        if (event.classNames) rowClasses.push(...(Array.isArray(event.classNames) ? event.classNames : [event.classNames]));
+        const row = createElement('div', rowClasses.filter(Boolean).join(' '), '', [
           ['data-event-id', event.id],
         ]);
         if (event.backgroundColor) {

@@ -167,7 +167,16 @@ export function renderResourceTimeGridView(container, state) {
             continue;
           }
 
-          const chip = createElement('div', theme.event, '', [
+          const chipClasses = [theme.event];
+          const globalCls2 = options.eventClassNames;
+          if (typeof globalCls2 === 'function') {
+            const c = globalCls2({ event });
+            if (c) chipClasses.push(...(Array.isArray(c) ? c : [c]));
+          } else if (globalCls2) {
+            chipClasses.push(...(Array.isArray(globalCls2) ? globalCls2 : [globalCls2]));
+          }
+          if (event.classNames) chipClasses.push(...(Array.isArray(event.classNames) ? event.classNames : [event.classNames]));
+          const chip = createElement('div', chipClasses.filter(Boolean).join(' '), '', [
             ['data-event-id', event.id],
           ]);
           const lane = laneMap.get(event) ?? 0;

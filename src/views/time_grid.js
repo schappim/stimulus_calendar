@@ -290,6 +290,14 @@ export function renderTimeGridView(container, state) {
         const classes = [theme.event];
         if (startsBefore) classes.push('ec-event-continues-from');
         if (endsAfter) classes.push('ec-event-continues-to');
+        const globalCls = options.eventClassNames;
+        if (typeof globalCls === 'function') {
+          const c = globalCls({ event });
+          if (c) classes.push(...(Array.isArray(c) ? c : [c]));
+        } else if (globalCls) {
+          classes.push(...(Array.isArray(globalCls) ? globalCls : [globalCls]));
+        }
+        if (event.classNames) classes.push(...(Array.isArray(event.classNames) ? event.classNames : [event.classNames]));
         const chip = createElement('div', classes.filter(Boolean).join(' '), '', [
           ['data-event-id', event.id],
           ['data-event-start', event.start.toISOString()],
