@@ -971,6 +971,27 @@
   gap: 6px;
 }
 
+/* Tail/arrow pointing back at the event chip. A small rotated square
+   peeking out from the side of the popover — solid colour (the
+   translucent material doesn't carry through a separate stacking
+   context), positioned by the --popover-arrow-top variable set in JS. */
+.ec-event-popover::before {
+  content: '';
+  position: absolute;
+  top: var(--popover-arrow-top, 24px);
+  width: 16px;
+  height: 16px;
+  margin-top: -8px;
+  background: #f4f4f7;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  transform: rotate(45deg);
+  pointer-events: none;
+  z-index: -1;
+}
+
+.ec-event-popover[data-popover-side="right"]::before { left: -8px; }
+.ec-event-popover[data-popover-side="left"]::before  { right: -8px; }
+
 .ec-event-popover-card {
   position: relative;
   background: #ffffff;

@@ -178,10 +178,19 @@ function positionAtAnchor(el, anchor) {
   if (top + popRect.height + margin > window.innerHeight) {
     top = Math.max(margin, window.innerHeight - popRect.height - margin);
   }
+  const finalLeft = Math.max(margin, left);
+  const finalTop  = Math.max(margin, top);
   el.style.position = 'fixed';
-  el.style.left = `${Math.max(margin, left)}px`;
-  el.style.top  = `${Math.max(margin, top)}px`;
+  el.style.left = `${finalLeft}px`;
+  el.style.top  = `${finalTop}px`;
   el.setAttribute('data-popover-side', side);
+  // Centre the tail vertically on the anchor (clamped to within the popover).
+  const anchorMidY = rect.top + rect.height / 2;
+  const rawArrowY = anchorMidY - finalTop;
+  const minY = 14;
+  const maxY = popRect.height - 14;
+  const arrowY = Math.max(minY, Math.min(maxY, rawArrowY));
+  el.style.setProperty('--popover-arrow-top', `${arrowY}px`);
 }
 
 // ----- formatting ----------------------------------------------------------
