@@ -27,6 +27,13 @@ export function renderTimeGridView(container, state) {
     const root = createElement('div', `${theme.grid} ec-time-grid`, '', [
       ['data-grid', 'time-grid'],
     ]);
+    // Drive every child grid (header, all-day, body's .ec-days) off the
+    // SAME column count so a non-7-day view (e.g. duration:{days:3})
+    // doesn't leave the header laid out as if it were a 7-day week with
+    // 3 cells crammed into the first 3 slots of 7. The header's CSS
+    // grid-template-columns falls back to 7 when --ec-cols is unset, so
+    // setting it on the root lets it cascade.
+    root.style.setProperty('--ec-cols', String(days.length));
 
     // Day-of-week header row (with leading spacer aligned to sidebar).
     const header = createElement('div', `${theme.colHead}`, '', [
