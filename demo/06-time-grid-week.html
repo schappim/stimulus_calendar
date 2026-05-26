@@ -25,12 +25,13 @@
     app.register('calendar', CalendarController);
     await new Promise((r) => setTimeout(r, 50));
     const el = document.querySelector('[data-controller="calendar"]');
-    el.calendarApi.addEvent({ id:'1', title:'Standup',      start:'2026-05-25T09:00', end:'2026-05-25T09:30' });
-    el.calendarApi.addEvent({ id:'2', title:'1:1 Alex',     start:'2026-05-25T11:00', end:'2026-05-25T11:30' });
-    el.calendarApi.addEvent({ id:'3', title:'Design crit',  start:'2026-05-26T14:00', end:'2026-05-26T15:30' });
-    el.calendarApi.addEvent({ id:'4', title:'Lunch & learn',start:'2026-05-27T12:00', end:'2026-05-27T13:00' });
-    el.calendarApi.addEvent({ id:'5', title:'Demo day',     start:'2026-05-28T15:00', end:'2026-05-28T16:00' });
-    el.calendarApi.addEvent({ id:'6', title:'Release',      start:'2026-05-29T17:00', end:'2026-05-29T18:00' });
+    // className picks the per-type accent (.ec-appt-meeting / .ec-appt-quote-visit / …)
+    el.calendarApi.addEvent({ id:'1', title:'Standup',           start:'2026-05-25T09:00', end:'2026-05-25T09:30', className:'ec-appt-meeting' });
+    el.calendarApi.addEvent({ id:'2', title:'1:1 Alex',          start:'2026-05-25T11:00', end:'2026-05-25T11:30', className:'ec-appt-meeting' });
+    el.calendarApi.addEvent({ id:'3', title:'Design crit',       start:'2026-05-26T14:00', end:'2026-05-26T15:30', className:'ec-appt-meeting' });
+    el.calendarApi.addEvent({ id:'4', title:'Quote walkthrough', start:'2026-05-27T12:00', end:'2026-05-27T13:00', className:'ec-appt-quote-visit' });
+    el.calendarApi.addEvent({ id:'5', title:'Site inspection',   start:'2026-05-28T15:00', end:'2026-05-28T16:00', className:'ec-appt-site-visit' });
+    el.calendarApi.addEvent({ id:'6', title:'Release',           start:'2026-05-29T17:00', end:'2026-05-29T18:00', className:'ec-appt-service-call' });
   </script>
 </body>
 </html>
