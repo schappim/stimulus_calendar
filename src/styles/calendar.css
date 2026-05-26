@@ -270,8 +270,13 @@
  *   Meeting      #0d9488   teal-600     (bg #f0fdfa, border #99f6e4)
  *   Service Call #2563eb   blue-600     (bg #eff6ff, border #bfdbfe)
  *   General      #6b7280   gray-500     (bg #f3f4f6, border #e5e7eb)
+ *
+ * The default accent is declared here once on `.ec-event` (specificity 0,1,0)
+ * so the per-type modifiers (specificity 0,2,0) win naturally — view-scoped
+ * rules below intentionally do NOT re-declare --ec-event-accent.
  * ----------------------------------------------------------------------- */
 
+.ec-event                      { --ec-event-accent: var(--ec-event-color, var(--ec-event-bg-color)); }
 .ec-event.ec-appt-job          { --ec-event-accent: #d97706; }
 .ec-event.ec-appt-quote-visit  { --ec-event-accent: #4f46e5; }
 .ec-event.ec-appt-site-visit   { --ec-event-accent: #7c3aed; }
@@ -290,7 +295,6 @@
 }
 
 .ec-day-grid .ec-event {
-  --ec-event-accent: var(--ec-event-color, var(--ec-event-bg-color));
   display: flex;
   align-items: center;
   gap: 0.3rem;
@@ -527,10 +531,10 @@
 .ec-time-grid .ec-event {
   /* --ec-event-color is the legacy hook still set inline from
    * event.backgroundColor by the view (see time_grid.js); --ec-event-accent
-   * is the modern token, settable via the per-type modifier classes. The
-   * accent inherits from the inline colour unless a modifier overrides it,
-   * so existing callers that only set event.backgroundColor keep working. */
-  --ec-event-accent: var(--ec-event-color, var(--ec-event-bg-color));
+   * is the modern token (declared above on .ec-event), settable via the
+   * per-type modifier classes. The accent inherits from the inline colour
+   * unless a modifier overrides it, so callers that only set
+   * event.backgroundColor keep working. */
   position: absolute;
   left: 1px;
   right: 1px;
@@ -748,7 +752,6 @@
 }
 
 .ec-timeline .ec-event {
-  --ec-event-accent: var(--ec-event-color, var(--ec-event-bg-color));
   position: absolute;
   top: 4px;
   bottom: 4px;
@@ -798,7 +801,6 @@
 }
 
 .ec-list .ec-event {
-  --ec-event-accent: var(--ec-event-color, var(--ec-event-bg-color));
   display: grid;
   grid-template-columns: 12px 100px 1fr;
   align-items: center;
