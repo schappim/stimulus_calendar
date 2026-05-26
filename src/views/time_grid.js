@@ -4,7 +4,7 @@
 // + slot rendering; subsequent commits add allDay, options, now indicator.
 
 import { createElement } from '../lib/dom.js';
-import { cloneDate, addDay, setMidnight, datesEqual, toISOString, addDuration } from '../lib/date.js';
+import { cloneDate, addDay, setMidnight, datesEqual, toISOString, addDuration, createDate } from '../lib/date.js';
 import { createSlots, createSlotTimeLimits } from '../lib/slots.js';
 import { viewDates as viewDatesHelper } from '../lib/derived.js';
 import { assignOverlapLanes } from '../lib/events.js';
@@ -369,7 +369,14 @@ export function renderTimeGridView(container, state) {
       // today column. Suppressed unless options.nowIndicator is true.
       if (options.nowIndicator) {
         const now = new Date();
-        const today = setMidnight(new Date());
+        // `day` is stored as the LOCAL calendar date encoded as UTC midnight
+        // (createDate(new Date()) → _fromLocalDate). Computing "today" as
+        // setMidnight(new Date()) would zero out UTC hours instead, which
+        // lands on the wrong UTC date whenever local time is on the opposite
+        // side of midnight UTC — and the indicator would never render. Run
+        // the same local→UTC-encoded conversion so the compare is apples to
+        // apples.
+        const today = setMidnight(createDate(new Date()));
         const isToday = datesEqual(today, setMidnight(cloneDate(day)));
         if (isToday) {
           const nowLine = createElement('div', theme.nowIndicator, '', [
