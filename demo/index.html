@@ -7,20 +7,50 @@
   <style>
     body {
       font-family: system-ui, -apple-system, sans-serif;
-      max-width: 760px;
+      max-width: 820px;
       margin: 40px auto;
       padding: 0 20px;
       color: #1f2937;
       line-height: 1.5;
     }
     h1 { margin-bottom: 4px; }
+    h2 {
+      margin-top: 2rem;
+      margin-bottom: 0.25rem;
+      font-size: 1.05rem;
+      color: #0f172a;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
     .sub { color: #6b7280; margin-top: 0; }
-    ul { padding-left: 0; list-style: none; }
-    li { padding: 6px 0; border-bottom: 1px solid #f3f4f6; }
-    li.todo { color: #9ca3af; }
+    ul { padding-left: 0; list-style: none; margin: 0.5rem 0 0; }
+    li {
+      padding: 8px 0;
+      border-bottom: 1px solid #f3f4f6;
+      display: flex;
+      gap: 0.75rem;
+      align-items: baseline;
+    }
+    li a {
+      flex: 0 0 auto;
+      font-weight: 600;
+      min-width: 14rem;
+    }
+    li .desc { color: #4b5563; }
     a { color: #2563eb; text-decoration: none; }
     a:hover { text-decoration: underline; }
     code { background: #f3f4f6; padding: 1px 4px; border-radius: 3px; font-size: 0.9em; }
+    .pill {
+      display: inline-block;
+      font-size: 0.7rem;
+      padding: 1px 6px;
+      border-radius: 999px;
+      background: #ecfeff;
+      color: #0e7490;
+      font-weight: 600;
+      vertical-align: middle;
+      margin-left: 0.4rem;
+    }
   </style>
 </head>
 <body>
@@ -31,18 +61,62 @@
     plus live multi-user sync over Turbo Streams.
   </p>
   <p class="sub">
-    Migration is in progress &mdash; see <a href="../PLAN.md"><code>PLAN.md</code></a> for the per-feature checklist.
+    See <a href="../PLAN.md"><code>PLAN.md</code></a> for the per-feature checklist
+    and <a href="../README.md"><code>README.md</code></a> for the full option/method reference.
   </p>
 
-  <h2>Demos</h2>
+  <h2>DayGrid</h2>
   <ul>
-    <li class="todo">01 &mdash; Basic <code>dayGridMonth</code> &mdash; <em>pending</em></li>
-    <li class="todo">02 &mdash; <code>timeGridWeek</code> with slot options &mdash; <em>pending</em></li>
-    <li class="todo">03 &mdash; List views &mdash; <em>pending</em></li>
-    <li class="todo">04 &mdash; Resources (resource-time-grid) &mdash; <em>pending</em></li>
-    <li class="todo">05 &mdash; Resource timeline &mdash; <em>pending</em></li>
-    <li class="todo">06 &mdash; Drag, drop, resize, selection &mdash; <em>pending</em></li>
-    <li class="todo">07 &mdash; Turbo Streams: two windows synced live &mdash; <em>pending</em></li>
+    <li><a href="05-day-grid-month.html">Month view</a>
+      <span class="desc">Classic <code>dayGridMonth</code> with week numbers and toolbar.</span></li>
+    <li><a href="05-day-grid-week.html">Week view</a>
+      <span class="desc"><code>dayGridWeek</code> — one row of seven day-cells.</span></li>
+    <li><a href="05-day-grid-day.html">Day view</a>
+      <span class="desc"><code>dayGridDay</code> — single-day all-day grid.</span></li>
+    <li><a href="05-day-grid-popover.html">Day popover</a>
+      <span class="desc">Click <code>+N more</code> in a month cell to fan out the day's events.</span></li>
+  </ul>
+
+  <h2>TimeGrid</h2>
+  <ul>
+    <li><a href="06-time-grid-week.html">Week view</a>
+      <span class="desc"><code>timeGridWeek</code> with hour-slot rendering and scrollTime.</span></li>
+    <li><a href="06-time-grid-3day.html">3-day view <span class="pill">new</span></a>
+      <span class="desc">Same component as the week view but with <code>duration: { days: 3 }</code>.</span></li>
+    <li><a href="06-time-grid-day.html">Day view</a>
+      <span class="desc"><code>timeGridDay</code> — single day-column with time axis.</span></li>
+  </ul>
+
+  <h2>List &amp; Resource views</h2>
+  <ul>
+    <li><a href="07-list-week.html">List week</a>
+      <span class="desc"><code>listWeek</code> — flat agenda of the week's events.</span></li>
+    <li><a href="09-resource-timeline.html">Resource timeline (week)</a>
+      <span class="desc">Rows = resources, columns = days — horizontal Gantt-ish layout.</span></li>
+    <li><a href="15-nested-resources.html">Nested resources</a>
+      <span class="desc"><code>resourceTimelineWeek</code> with expandable parent/child resources.</span></li>
+  </ul>
+
+  <h2>Interaction</h2>
+  <ul>
+    <li><a href="10-drag.html">Drag, drop &amp; resize</a>
+      <span class="desc">Pointer-driven event move + bottom-edge resize inside <code>timeGridWeek</code>.</span></li>
+    <li><a href="17-swipe-navigation.html">Swipe navigation</a>
+      <span class="desc">Trackpad swipe, finger swipe, keyboard arrows; click-to-create + add-event.</span></li>
+    <li><a href="16-event-popover.html">Event popover</a>
+      <span class="desc">Double-click any chip for an edit/delete popover.</span></li>
+  </ul>
+
+  <h2>Data &amp; sync</h2>
+  <ul>
+    <li><a href="11-broadcast.html">Turbo Streams live sync</a>
+      <span class="desc">Two windows synchronised in real time via the broadcast channel.</span></li>
+    <li><a href="12-overview.html">Overview</a>
+      <span class="desc">Smoke-test page seeded with a mix of timed and all-day events.</span></li>
+    <li><a href="13-filters.html">Category filters</a>
+      <span class="desc"><code>eventFilter</code> — toggle event categories on/off live.</span></li>
+    <li><a href="14-search.html">Event search</a>
+      <span class="desc">Filter events by title with a search input bound to <code>eventFilter</code>.</span></li>
   </ul>
 </body>
 </html>

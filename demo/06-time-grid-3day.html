@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>stimulus_calendar — TimeGrid 3-day view</title>
+  <link rel="stylesheet" href="../src/styles/calendar.css">
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; margin: 2rem; }
+    .ec { width: 720px; }
+    .hint { color: #6b7280; font-size: 0.875rem; margin-top: 0.5rem; }
+  </style>
+</head>
+<body>
+  <h1>TimeGrid 3-day view</h1>
+  <p>Same component as <code>timeGridWeek</code>, but with
+     <code>duration: { days: 3 }</code> — so the view renders three day-columns
+     and prev/next steps by 3 days at a time.</p>
+
+  <!-- Anchor on Mon 2026-05-25 so the visible range is Mon/Tue/Wed.
+       Note duration is layered on top of timeGridWeek's defaults — the
+       pager/`next()` step uses `dateIncrement ?? duration`, so navigation
+       moves in 3-day jumps automatically. -->
+  <div data-controller="calendar"
+       data-calendar-plugins-value='["TimeGrid","Interaction"]'
+       data-calendar-view-value="timeGridWeek"
+       data-calendar-date-value="2026-05-25"
+       data-calendar-options-value='{"duration":{"days":3},"scrollTime":"08:00:00","editable":true,"snapDuration":"00:15:00"}'
+       data-calendar-header-toolbar-value='{"start":"today","center":"title","end":"prev,next"}'>
+  </div>
+
+  <p class="hint">
+    Trackpad swipe, finger swipe, <kbd>←</kbd>/<kbd>→</kbd>, or the toolbar
+    arrows all step the calendar by 3 days. Drag events to move; drag the
+    bottom edge of an event chip to resize.
+  </p>
+
+  <script type="module">
+    import { Application } from '/node_modules/@hotwired/stimulus/dist/stimulus.js';
+    import CalendarController from '/src/controllers/calendar_controller.js';
+    const app = Application.start();
+    app.register('calendar', CalendarController);
+    await new Promise((r) => setTimeout(r, 50));
+    const el = document.querySelector('[data-controller="calendar"]');
+    el.calendarApi.addEvent({ id:'1', title:'Standup',       start:'2026-05-25T09:00', end:'2026-05-25T09:30' });
+    el.calendarApi.addEvent({ id:'2', title:'1:1 Alex',      start:'2026-05-25T11:00', end:'2026-05-25T11:30' });
+    el.calendarApi.addEvent({ id:'3', title:'Lunch & learn', start:'2026-05-25T12:00', end:'2026-05-25T13:00', backgroundColor:'#16a34a' });
+    el.calendarApi.addEvent({ id:'4', title:'Design crit',   start:'2026-05-26T14:00', end:'2026-05-26T15:30', backgroundColor:'#dc2626' });
+    el.calendarApi.addEvent({ id:'5', title:'Sprint plan',   start:'2026-05-27T10:00', end:'2026-05-27T11:00', backgroundColor:'#9333ea' });
+    el.calendarApi.addEvent({ id:'6', title:'Demo prep',     start:'2026-05-27T15:00', end:'2026-05-27T16:30' });
+  </script>
+</body>
+</html>
