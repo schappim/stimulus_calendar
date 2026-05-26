@@ -942,133 +942,193 @@
  * Appended to <body>, so the same out-of-cascade rules as .ec-popup apply.
  * ----------------------------------------------------------------------- */
 
+/* macOS Calendar.app-inspired event popover: a soft translucent
+   container holding a vertical stack of small white "cards" (title,
+   when, attendees, notes, props). Edit / Delete buttons live in a
+   subtle footer below the cards. */
+
 .ec-event-popover {
   position: fixed;
   z-index: 60;
-  min-width: 260px;
-  max-width: 320px;
-  background: #ffffff;
-  color: #1f2937;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  min-width: 320px;
+  max-width: 380px;
+  background: rgba(244, 244, 247, 0.94);
+  -webkit-backdrop-filter: blur(40px) saturate(150%);
+  backdrop-filter: blur(40px) saturate(150%);
+  color: #1c1c1e;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter",
+               system-ui, "Segoe UI", Roboto, sans-serif;
   font-size: 13px;
   line-height: 1.4;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
   box-shadow:
-    0 10px 25px -5px rgba(15, 23, 42, 0.25),
-    0 4px 6px -4px rgba(15, 23, 42, 0.1);
-  overflow: hidden;
-}
-
-.ec-event-popover-header {
+    0 18px 44px -10px rgba(15, 23, 42, 0.22),
+    0 6px 14px -6px rgba(15, 23, 42, 0.12);
+  padding: 6px;
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.625rem 0.75rem;
-  border-bottom: 1px solid #e2e8f0;
-  background: #f8fafc;
+  flex-direction: column;
+  gap: 6px;
 }
 
-.ec-event-popover-swatch {
-  display: inline-block;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: #2563eb;
-  flex: 0 0 auto;
+.ec-event-popover-card {
+  position: relative;
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+/* Title card — bigger heading, swatch on the right, close button
+   absolute-positioned in the corner so it can hover over the title. */
+.ec-event-popover-card-title { padding-right: 36px; }
+
+.ec-event-popover-title-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
 }
 
 .ec-event-popover-title {
   flex: 1;
+  font-size: 16px;
   font-weight: 600;
-  font-size: 0.9rem;
+  color: #1c1c1e;
+  letter-spacing: -0.005em;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.ec-event-popover-close {
+.ec-event-popover-swatch {
   flex: 0 0 auto;
-  background: none;
-  border: 0;
-  cursor: pointer;
-  font-size: 1.125rem;
-  line-height: 1;
-  color: #64748b;
-  padding: 0 0.25rem;
+  width: 12px;
+  height: 12px;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: #2563eb;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06);
 }
 
-.ec-event-popover-close:hover { color: #1f2937; }
+.ec-event-popover-location {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  font-size: 13px;
+  color: #1c1c1e;
+}
 
-.ec-event-popover-body {
-  padding: 0.75rem;
+.ec-event-popover-close {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 22px;
+  height: 22px;
   display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #8a8a8e;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0;
+  transition: background 0.12s, color 0.12s;
 }
 
+.ec-event-popover-close:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: #1c1c1e;
+}
+
+/* When card — date + time, with a quieter meta sub-line. */
 .ec-event-popover-when {
-  font-size: 0.8125rem;
-  color: #475569;
+  font-size: 13px;
+  color: #1c1c1e;
   font-variant-numeric: tabular-nums;
+}
+
+.ec-event-popover-when-meta {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #6e6e73;
+}
+
+/* Generic labelled card (Invitees, Notes). The label sits above the
+   value as a small, quiet caption. */
+.ec-event-popover-card-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #8a8a8e;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 4px;
+}
+
+.ec-event-popover-card-value {
+  font-size: 13px;
+  color: #1c1c1e;
 }
 
 .ec-event-popover-desc {
   margin: 0;
-  font-size: 0.8125rem;
-  color: #334155;
+  font-size: 13px;
+  color: #1c1c1e;
+  line-height: 1.45;
   white-space: pre-wrap;
 }
 
+/* Remaining extendedProps rendered as a compact two-column dl. */
 .ec-event-popover-props {
   display: grid;
   grid-template-columns: max-content 1fr;
-  gap: 0.25rem 0.625rem;
+  gap: 4px 12px;
   margin: 0;
-  font-size: 0.75rem;
+  font-size: 12px;
 }
 
 .ec-event-popover-props dt {
-  color: #64748b;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  font-weight: 600;
+  color: #6e6e73;
+  font-weight: 500;
 }
 
 .ec-event-popover-props dd {
   margin: 0;
-  color: #1f2937;
+  color: #1c1c1e;
 }
 
+/* Footer — subtle macOS-style pill buttons, sits flush at the bottom
+   without a divider so it reads as part of the translucent container. */
 .ec-event-popover-footer {
   display: flex;
   justify-content: flex-end;
-  gap: 0.375rem;
-  padding: 0.5rem 0.75rem;
-  border-top: 1px solid #e2e8f0;
-  background: #f8fafc;
+  gap: 6px;
+  padding: 2px 4px 2px;
 }
 
 .ec-event-popover-action {
-  background: #ffffff;
-  color: #1f2937;
-  border: 1px solid #cbd5e1;
-  border-radius: 4px;
-  padding: 0.25rem 0.625rem;
+  background: rgba(255, 255, 255, 0.85);
+  color: #1c1c1e;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 6px;
+  padding: 4px 12px;
   font: inherit;
-  font-size: 0.8125rem;
+  font-size: 12px;
+  font-weight: 500;
   cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
 }
 
-.ec-event-popover-action:hover { background: #f1f5f9; }
+.ec-event-popover-action:hover { background: #ffffff; }
 
 .ec-event-popover-action.ec-event-popover-danger {
-  color: #b91c1c;
-  border-color: #fca5a5;
+  color: #d70015;
 }
 
 .ec-event-popover-action.ec-event-popover-danger:hover {
-  background: #fef2f2;
+  background: #fff5f5;
+  border-color: rgba(215, 0, 21, 0.3);
 }
 
 /* -------------------------------------------------------------------------
