@@ -989,15 +989,34 @@
  * determines the pager height, so swiping to an adjacent page can never
  * jitter the calendar's vertical footprint. Prev/next pages are
  * absolutely positioned just off the viewport on either side and ride
- * the track's transform together with the current page. */
+ * the track's transform together with the current page.
+ *
+ * The current page gets an explicit z-index so its whole sub-tree
+ * (notably the counter-translated time gutter, which the snapshot
+ * pages also render but hide) sits ABOVE the prev/next snapshots
+ * during a swipe — without this the pager's three slots are
+ * z-index:auto and paint in DOM order, but liveIdx rotates which
+ * slot is "current" so depending on rotation the current page
+ * could land DOM-before the snapshots and the snapshots would
+ * paint over the gutter. */
 .ec-pager-page-current {
   position: relative;
+  z-index: 1;
 }
 
 .ec-pager-page-prev,
 .ec-pager-page-next {
   position: absolute;
   top: 0;
+  bottom: 0;
+  z-index: 0;
+  /* Stretch absolute snapshots to the full track height so the
+   * time-grid's body (display:flex with min-height:0) doesn't collapse
+   * to 0 in the snapshot. Without this the day columns never paint —
+   * the snapshot's only visible parts are the header + all-day row,
+   * and the area between the current page's counter-translated
+   * gutter and its cols-scroll lands on the pager's background
+   * instead of the prev/next day's content. */
 }
 
 .ec-pager-page-prev { right: 100%; }

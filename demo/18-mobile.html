@@ -176,7 +176,15 @@
       display: flex;
       flex-direction: column;
     }
-    #cal .ec-pager-page-current {
+    /* Apply to every pager slot — current sits in flex flow (gets the
+       flex: 1 1 0 sizing), prev/next are position:absolute siblings
+       stretched to the track height by the library (top:0; bottom:0)
+       and need the same flex container layout so their inner
+       time-grid (flex: 1 1 0) fills properly. Without this the
+       snapshot's body collapses to 0 and the day columns never paint —
+       the gutter ends up flanked by empty white space during a swipe
+       instead of the prev/next day's events. */
+    #cal .ec-pager-page {
       flex: 1 1 0;
       min-height: 0;
       width: 100%;
