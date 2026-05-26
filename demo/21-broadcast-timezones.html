@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>stimulus_calendar — cross-timezone live sync</title>
+  <link rel="stylesheet" href="../src/styles/calendar.css">
+  <style>
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+      margin: 0; padding: 2rem 1.5rem 4rem;
+      max-width: 1280px; margin-inline: auto;
+      color: #0f172a; background: #f8fafc;
+    }
+    h1 { margin-bottom: 4px; }
+    .sub { color: #6b7280; margin-top: 0; max-width: 70ch; line-height: 1.55; }
+    .crumb {
+      display: inline-block; font-size: 0.75rem;
+      padding: 1px 8px; border-radius: 999px;
+      background: #ecfeff; color: #0e7490; font-weight: 600;
+      margin-left: 0.4rem; vertical-align: middle;
+    }
+    code { background: #e2e8f0; padding: 1px 6px; border-radius: 4px; font-size: 0.85em; }
+
+    .windows {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;
+      margin-top: 1.5rem;
+    }
+    .window {
+      border: 1px solid #cbd5e1; border-radius: 12px; padding: 1rem;
+      background: #ffffff; box-shadow: 0 4px 12px -2px rgba(15,23,42,0.08);
+      display: flex; flex-direction: column;
+    }
+    .window-chrome {
+      display: flex; gap: 0.25rem; margin-bottom: 0.75rem;
+      align-items: center;
+    }
+    .window-chrome .dot { width: 10px; height: 10px; border-radius: 50%; }
+    .window-chrome .red { background: #ef4444; }
+    .window-chrome .yel { background: #f59e0b; }
+    .window-chrome .grn { background: #10b981; }
+    .window-chrome b {
+      margin-left: 0.5rem; font-size: 0.85rem;
+      color: #0f172a; font-weight: 600;
+    }
+    .live-badge {
+      display: inline-flex; align-items: center; gap: 0.375rem;
+      font-size: 0.72rem; padding: 2px 0.5rem; border-radius: 999px;
+      background: #ecfdf5; color: #047857; font-weight: 500;
+      margin-left: auto;
+    }
+    .live-badge::before {
+      content: ''; flex: 0 0 auto;
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #10b981; box-shadow: 0 0 0 3px #d1fae5;
+      animation: live-pulse 1.6s ease-out infinite;
+    }
+    @keyframes live-pulse {
+      0%, 100% { box-shadow: 0 0 0 3px #d1fae5; }
+      50%      { box-shadow: 0 0 0 5px rgba(16, 185, 129, 0.15); }
+    }
+
+    .tz-row {
+      display: flex; flex-wrap: wrap; align-items: center;
+      gap: 0.5rem 0.75rem; margin-bottom: 0.75rem;
+      padding: 0.5rem 0.6rem; background: #f8fafc;
+      border: 1px solid #e2e8f0; border-radius: 8px;
+    }
+    .tz-row label {
+      font-size: 0.8rem; color: #475569; font-weight: 500;
+      display: inline-flex; align-items: center; gap: 0.4rem;
+    }
+    .tz-row select {
+      font: inherit; padding: 0.3rem 0.5rem;
+      border: 1px solid #cbd5e1; border-radius: 6px; background: #fff;
+      min-width: 12rem;
+    }
+    .tz-offset {
+      font: 0.72rem ui-monospace, SFMono-Regular, Menlo, monospace;
+      color: #0e7490; background: #ecfeff;
+      padding: 2px 7px; border-radius: 999px;
+      margin-left: auto;
+    }
+
+    .ec { width: 100%; }
+    .ec-time-grid [data-row="body"] { max-height: 360px; }
+
+    .log {
+      margin-top: 0.75rem; padding: 0.5rem 0.75rem; background: #f8fafc;
+      border: 1px solid #e2e8f0; border-radius: 6px;
+      font: 0.72rem/1.55 ui-monospace, SFMono-Regular, Menlo, monospace;
+      max-height: 100px; overflow-y: auto; color: #334155;
+    }
+    .log .out { color: #1d4ed8; }
+    .log .in  { color: #047857; }
+    .log .none { color: #94a3b8; font-style: italic; }
+  </style>
+</head>
+<body>
+  <h1>Cross-timezone live sync <span class="crumb">new</span></h1>
+  <p class="sub">
+    Two calendars share a <code>BroadcastChannel</code> but live in
+    different IANA zones. Drag an event in either window — the same
+    <em>UTC instant</em> arrives in the other window and renders at its
+    own local wall-clock. The wire format is
+    <code>YYYY-MM-DDTHH:MM:SS±HH:MM</code> so the receiver knows what
+    offset the wall-clock was relative to and re-anchors accordingly.
+    Change each panel's timezone live from its dropdown.
+  </p>
+
+  <div class="windows">
+    <div class="window">
+      <div class="window-chrome">
+        <span class="dot red"></span><span class="dot yel"></span><span class="dot grn"></span>
+        <b>Alex — Sydney office</b>
+        <span class="live-badge">live</span>
+      </div>
+      <div class="tz-row">
+        <label>Timezone
+          <select data-tz-picker-for="cal-a"></select>
+        </label>
+        <span class="tz-offset" data-tz-offset-for="cal-a">…</span>
+      </div>
+      <div id="cal-a"
+           data-controller="calendar"
+           data-calendar-plugins-value='["TimeGrid","Interaction"]'
+           data-calendar-view-value="timeGridWeek"
+           data-calendar-date-value="2026-05-25"
+           data-calendar-time-zone-value="Australia/Sydney"
+           data-calendar-options-value='{"scrollTime":"08:00:00","editable":true,"eventDurationEditable":true,"snapDuration":"00:15:00"}'
+           data-calendar-broadcast-value="broadcast-channel"
+           data-calendar-broadcast-channel-value="cross-tz-demo"
+           data-calendar-header-toolbar-value='{"start":"today","center":"title","end":"prev,next"}'>
+      </div>
+      <div class="log" id="log-a"><span class="none">no traffic yet — drag a chip to publish</span></div>
+    </div>
+
+    <div class="window">
+      <div class="window-chrome">
+        <span class="dot red"></span><span class="dot yel"></span><span class="dot grn"></span>
+        <b>Sam — New York office</b>
+        <span class="live-badge">live</span>
+      </div>
+      <div class="tz-row">
+        <label>Timezone
+          <select data-tz-picker-for="cal-b"></select>
+        </label>
+        <span class="tz-offset" data-tz-offset-for="cal-b">…</span>
+      </div>
+      <div id="cal-b"
+           data-controller="calendar"
+           data-calendar-plugins-value='["TimeGrid","Interaction"]'
+           data-calendar-view-value="timeGridWeek"
+           data-calendar-date-value="2026-05-25"
+           data-calendar-time-zone-value="America/New_York"
+           data-calendar-options-value='{"scrollTime":"08:00:00","editable":true,"eventDurationEditable":true,"snapDuration":"00:15:00"}'
+           data-calendar-broadcast-value="broadcast-channel"
+           data-calendar-broadcast-channel-value="cross-tz-demo"
+           data-calendar-header-toolbar-value='{"start":"today","center":"title","end":"prev,next"}'>
+      </div>
+      <div class="log" id="log-b"><span class="none">no traffic yet — drag a chip to publish</span></div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { Application } from '/node_modules/@hotwired/stimulus/dist/stimulus.js';
+    import CalendarController from '/src/controllers/calendar_controller.js';
+    import { ianaOffset, commonTimeZones } from '/src/lib/tz.js';
+
+    const app = Application.start();
+    app.register('calendar', CalendarController);
+
+    await new Promise((r) => setTimeout(r, 100));
+    const a = document.getElementById('cal-a');
+    const b = document.getElementById('cal-b');
+
+    // Seed both windows with the same set of fixed-instant events. Each
+    // event carries an explicit offset, so the receiver shifts to its
+    // own local wall-clock for the same UTC moment.
+    //
+    // We only add to A; the broadcast bus carries them to B. (Adding to
+    // both would duplicate add events on B as it receives A's add + then
+    // sees its own.)
+    const seed = [
+      { id:'1', title:'Standup',     start:'2026-05-25T09:00:00+10:00', end:'2026-05-25T09:30:00+10:00' },
+      { id:'2', title:'1:1 Sam',     start:'2026-05-25T14:00:00+10:00', end:'2026-05-25T14:30:00+10:00', backgroundColor:'#dc2626' },
+      { id:'3', title:'Design crit', start:'2026-05-26T22:00:00+10:00', end:'2026-05-26T23:30:00+10:00', backgroundColor:'#7c3aed' },
+      { id:'4', title:'Lunch',       start:'2026-05-27T12:00:00+10:00', end:'2026-05-27T13:00:00+10:00', backgroundColor:'#16a34a' },
+      { id:'5', title:'Release',     start:'2026-05-29T17:00:00+10:00', end:'2026-05-29T18:00:00+10:00', backgroundColor:'#9333ea' },
+    ];
+    for (const ev of seed) a.calendarApi.addEvent(ev);
+
+    // ----- traffic log -----
+    const tail = (logEl, kind, msg) => {
+      const placeholder = logEl.querySelector('.none');
+      if (placeholder) placeholder.remove();
+      const line = document.createElement('div');
+      line.className = kind;
+      const stamp = new Date().toLocaleTimeString([], { hour12: false });
+      const op = msg.op ?? '?';
+      const id = msg.event?.id ?? '';
+      const start = msg.event?.start ?? '';
+      line.textContent = `${stamp}  ${kind === 'out' ? '→' : '←'} ${op} #${id} ${start}`;
+      logEl.prepend(line);
+      while (logEl.childElementCount > 14) logEl.lastElementChild.remove();
+    };
+    const wire = (el, logEl) => {
+      el.addEventListener('calendar:broadcast:out', (e) => tail(logEl, 'out', e.detail.message));
+      el.addEventListener('calendar:broadcast:in',  (e) => tail(logEl, 'in',  e.detail.message));
+    };
+    wire(a, document.getElementById('log-a'));
+    wire(b, document.getElementById('log-b'));
+
+    // ----- per-panel timezone picker -----
+    const FEATURED = [
+      'Australia/Sydney', 'Australia/Perth', 'Asia/Tokyo', 'Asia/Singapore',
+      'Asia/Kolkata', 'Asia/Dubai',
+      'Europe/London', 'Europe/Paris', 'Europe/Berlin',
+      'UTC',
+      'America/Sao_Paulo', 'America/New_York', 'America/Chicago',
+      'America/Denver', 'America/Los_Angeles', 'Pacific/Honolulu',
+    ];
+    const all = commonTimeZones();
+    const featuredSet = new Set(FEATURED);
+    const rest = all.filter((z) => !featuredSet.has(z) && z !== 'UTC');
+
+    function fillPicker(picker) {
+      const optg1 = document.createElement('optgroup');
+      optg1.label = 'Featured';
+      for (const tz of FEATURED) {
+        const o = document.createElement('option'); o.value = tz; o.textContent = tz;
+        optg1.append(o);
+      }
+      const optg2 = document.createElement('optgroup');
+      optg2.label = 'All zones';
+      for (const tz of rest) {
+        const o = document.createElement('option'); o.value = tz; o.textContent = tz;
+        optg2.append(o);
+      }
+      picker.append(optg1, optg2);
+    }
+
+    function fmtOff(minutes) {
+      if (minutes == null) return '?';
+      const sign = minutes >= 0 ? '+' : '-';
+      const abs = Math.abs(minutes);
+      const hh = String(Math.floor(abs / 60)).padStart(2, '0');
+      const mm = String(abs % 60).padStart(2, '0');
+      return `${sign}${hh}:${mm}`;
+    }
+
+    function wirePicker(calEl, defaultTz) {
+      const picker = document.querySelector(`[data-tz-picker-for="${calEl.id}"]`);
+      const offEl  = document.querySelector(`[data-tz-offset-for="${calEl.id}"]`);
+      fillPicker(picker);
+      picker.value = defaultTz;
+      const refresh = () => {
+        const tz = calEl.calendarApi.getOption('timeZone');
+        const anchor = calEl.calendarApi.getOption('date') ?? new Date();
+        const off = tz === 'UTC' ? 0 : ianaOffset(tz, anchor);
+        offEl.textContent = `${tz} → ${fmtOff(off ?? 0)}`;
+      };
+      refresh();
+      picker.addEventListener('change', () => {
+        calEl.calendarApi.setOption('timeZone', picker.value);
+        refresh();
+      });
+    }
+
+    wirePicker(a, 'Australia/Sydney');
+    wirePicker(b, 'America/New_York');
+  </script>
+</body>
+</html>
