@@ -94,6 +94,55 @@
     .day-weather-badge .lo { color: #94a3b8; }
     .has-forecast .ec-day-grid .ec-day.ec-other-month .day-weather-badge { opacity: 0.45; }
     .has-forecast .ec-day-grid .ec-day.ec-other-month .ec-day-num-text { color: #94a3b8; }
+
+    /* ---- TimeGrid header weather ----
+     * TimeGrid has no dayCellContent hook — the day-head elements are
+     * plain text nodes. We re-shape the header into a vertical stack so
+     * the weather chip can hang underneath the weekday label without
+     * fighting the existing padding. */
+    .has-forecast .ec-time-grid .ec-day-head {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.25rem;
+      padding-top: 0.45rem;
+      padding-bottom: 0.5rem;
+      min-height: 3rem;
+    }
+    .has-forecast .ec-time-grid .day-head-weather {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      font-size: 0.72rem;
+      color: #475569;
+      font-weight: 600;
+      text-transform: none;
+      letter-spacing: 0;
+    }
+    .has-forecast .ec-time-grid .day-head-weather .ec-weather-icon { width: 18px; height: 18px; }
+    .has-forecast .ec-time-grid .day-head-weather .hi { color: #0f172a; }
+    .has-forecast .ec-time-grid .day-head-weather .lo { color: #94a3b8; }
+
+    /* ---- List view header weather ----
+     * Append weather as a third child of .ec-list .ec-day-head — flex
+     * space-between then renders as [name | date | weather]. */
+    .has-forecast .ec-list .day-head-weather-list {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      font-size: 0.8125rem;
+      color: #475569;
+      font-weight: 600;
+    }
+    .has-forecast .ec-list .day-head-weather-list .ec-weather-icon { width: 20px; height: 20px; }
+    .has-forecast .ec-list .day-head-weather-list .hi { color: #0f172a; }
+    .has-forecast .ec-list .day-head-weather-list .lo { color: #94a3b8; }
+    .has-forecast .ec-list .day-head-weather-list .cond {
+      margin-left: 0.4rem;
+      color: #6b7280;
+      font-weight: 500;
+    }
   </style>
 </head>
 <body>
@@ -142,10 +191,9 @@
     });
 
     // ----- forecast strip above the calendar -----
-    // Driven by calendar:datesSet so it stays in sync with prev/next nav.
     // For ranges > 7 days (month view) we show the upcoming week starting
-    // from today (clamped into the visible range); otherwise we show every
-    // visible day so the strip mirrors what the calendar itself is showing.
+    // from today (clamped into the visible range); otherwise we mirror
+    // the visible range one tile at a time.
     const strip = document.getElementById('forecast-strip');
     const nameFmt = new Intl.DateTimeFormat(undefined, { timeZone: 'UTC', weekday: 'short' });
     const dateFmt = new Intl.DateTimeFormat(undefined, { timeZone: 'UTC', day: 'numeric', month: 'short' });
@@ -179,7 +227,67 @@
       }
       strip.replaceChildren(...tiles);
     }
-    el.addEventListener('calendar:datesSet', (e) => renderStrip(e.detail.start, e.detail.end));
+
+    // ----- in-calendar header injection (TimeGrid + List) -----
+    // DayGrid views already get per-cell weather via dayCellContent. The
+    // other views don't expose a hook, so we inject into the rendered DOM:
+    //   - TimeGrid: pair each .ec-day-head with the .ec-time-col[data-date]
+    //     in the same column index — the column carries the ISO date the
+    //     header doesn't.
+    //   - List: each [data-row="day-header"] already carries data-date,
+    //     so we just append a weather chip as a third flex child.
+    // Each injection is idempotent (checks for an existing child) so the
+    // MutationObserver below can fire freely without duplicating chips.
+    function injectInlineWeather() {
+      const headerCells = el.querySelectorAll('.ec-time-grid [data-row="header"] .ec-day-head');
+      const colCells    = el.querySelectorAll('.ec-time-grid .ec-time-col[data-date]');
+      if (headerCells.length && headerCells.length === colCells.length) {
+        headerCells.forEach((head, i) => {
+          if (head.querySelector('.day-head-weather')) return;
+          const f = getForecast(colCells[i].dataset.date);
+          const w = document.createElement('div');
+          w.className = 'day-head-weather';
+          w.title = f.label;
+          w.innerHTML =
+            `${f.icon}` +
+            `<span class="hi">${f.highC}°</span>` +
+            `<span class="lo">${f.lowC}°</span>`;
+          head.appendChild(w);
+        });
+      }
+      const listHeads = el.querySelectorAll('.ec-list [data-row="day-header"][data-date]');
+      listHeads.forEach((h) => {
+        if (h.querySelector('.day-head-weather-list')) return;
+        const f = getForecast(h.dataset.date);
+        const w = document.createElement('span');
+        w.className = 'day-head-weather-list';
+        w.title = f.label;
+        w.innerHTML =
+          `${f.icon}` +
+          `<span class="hi">${f.highC}°</span>` +
+          `<span class="lo">${f.lowC}°</span>` +
+          `<span class="cond">${f.label}</span>`;
+        h.appendChild(w);
+      });
+    }
+
+    // Single rAF-debounced refresh that re-renders the strip + injects
+    // inline weather. Driven by a MutationObserver so it survives every
+    // re-render path (nav, view switch, addEvent, etc.) without us having
+    // to enumerate them.
+    let rafScheduled = false;
+    function scheduleRefresh() {
+      if (rafScheduled) return;
+      rafScheduled = true;
+      requestAnimationFrame(() => {
+        rafScheduled = false;
+        const view = el.calendarApi.getView();
+        if (view) renderStrip(view.activeStart, view.activeEnd);
+        injectInlineWeather();
+      });
+    }
+    new MutationObserver(scheduleRefresh).observe(el, { childList: true, subtree: true });
+    scheduleRefresh();
 
     // Sample events so the calendar isn't empty.
     el.calendarApi.addEvent({ id:'a', title:'Conference',   start:'2026-05-04', end:'2026-05-07', allDay:true,  backgroundColor:'#0ea5e9' });
