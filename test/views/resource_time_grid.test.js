@@ -49,6 +49,28 @@ describe('view: resourceTimeGrid', () => {
     expect(cols.length).toBe(1);
   });
 
+  it('--ec-cols on the root spans (days × resources) so header columns align with the body day columns', async () => {
+    // Five resources × one day = five columns in the body. The header's
+    // grid-template-columns falls back to 7 when --ec-cols is unset on an
+    // ancestor — that left the 5 resource-name cells laid out as 5-of-7
+    // tracks (~71% of the row), while the body filled the full width with
+    // 5 tracks. Setting --ec-cols on the root cascades to both.
+    const resources = ['r1','r2','r3','r4','r5'].map(
+      (id) => ({ id, title: id.toUpperCase() })
+    );
+    const el = await mount(`<div data-controller="calendar"
+      data-calendar-plugins-value='["ResourceTimeGrid"]'
+      data-calendar-view-value="resourceTimeGridDay"
+      data-calendar-date-value="2026-05-25"
+      data-calendar-resources-value='${JSON.stringify(resources)}'>
+    </div>`);
+    const root = el.querySelector('[data-grid="resource-time-grid"]');
+    expect(root.style.getPropertyValue('--ec-cols')).toBe('5');
+    const heads = root.querySelectorAll('[data-row="header"] [data-resource-id]');
+    const cols  = root.querySelectorAll('[data-row="body"] .ec-time-col');
+    expect(heads.length).toBe(cols.length);
+  });
+
   it('resourceLabelContent override applies the custom label', async () => {
     const el = await mount(`<div data-controller="calendar"
       data-calendar-plugins-value='["ResourceTimeGrid"]'

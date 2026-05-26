@@ -35,6 +35,13 @@ export function renderResourceTimeGridView(container, state) {
     const root = createElement('div', `${theme.grid} ec-resource ec-time-grid`, '', [
       ['data-grid', 'resource-time-grid'],
     ]);
+    // Drive every child grid (header, body's .ec-days) off the SAME column
+    // count — (days × resources) — so the resource-header cells line up
+    // with their day columns below. The header's CSS grid-template-columns
+    // falls back to 7 when --ec-cols is unset; without this, a 1-day × 5-
+    // resource board renders the header as 7 equal slots filled with 5
+    // cells, while the body renders 5 equal day columns — misaligned.
+    root.style.setProperty('--ec-cols', String(days.length * visibleResources.length));
 
     // Header: resource columns per day (or days then resources if
     // datesAboveResources is true).
