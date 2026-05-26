@@ -298,7 +298,11 @@ export function renderTimeGridView(container, state) {
         const lane = laneByEvent.get(event) ?? 0;
         chip.style.position = 'absolute';
         chip.style.top = `${startMin * pxPerMin}px`;
-        chip.style.height = `${Math.max((endMin - startMin) * pxPerMin, 12)}px`;
+        const chipHeightPx = Math.max((endMin - startMin) * pxPerMin, 12);
+        chip.style.height = `${chipHeightPx}px`;
+        // Below ~36px the chip can't fit both the title and the time row
+        // without clipping; drop the time and keep the title legible.
+        if (chipHeightPx < 36) chip.classList.add('ec-event-compact');
         chip.style.left = lane === 0 ? '0' : `${lane * LANE_OFFSET_PX}px`;
         chip.style.right = '0';
         if (lane > 0) chip.style.zIndex = String(lane + 1);

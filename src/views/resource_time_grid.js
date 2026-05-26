@@ -166,7 +166,9 @@ export function renderResourceTimeGridView(container, state) {
           const lane = laneMap.get(event) ?? 0;
           chip.style.position = 'absolute';
           chip.style.top = `${startMin * pxPerMin}px`;
-          chip.style.height = `${Math.max((endMin - startMin) * pxPerMin, 12)}px`;
+          const chipHeightPx = Math.max((endMin - startMin) * pxPerMin, 12);
+          chip.style.height = `${chipHeightPx}px`;
+          if (chipHeightPx < 36) chip.classList.add('ec-event-compact');
           chip.style.left = lane === 0 ? '0' : `${lane * LANE_OFFSET_PX}px`;
           chip.style.right = '0';
           if (lane > 0) chip.style.zIndex = String(lane + 1);

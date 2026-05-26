@@ -535,6 +535,18 @@
   stroke-width: 1.3;
 }
 
+/* Short chips (< ~36px) can't fit the title + time without clipping —
+   drop the time row so the title stays readable. JS adds the class
+   when the chip's pixel height falls below the threshold. */
+.ec-time-grid .ec-event.ec-event-compact .ec-event-time,
+.ec-timeline .ec-event.ec-event-compact .ec-event-time {
+  display: none;
+}
+.ec-time-grid .ec-event.ec-event-compact .ec-event-title {
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+}
+
 /* Multi-day timed events render one chip per day-column they span.
  * Square off the connecting edges so the run looks like a continued
  * event rather than two separate ones. */
