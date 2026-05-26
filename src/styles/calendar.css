@@ -38,6 +38,18 @@
   --ec-event-bg-color:           #2563eb;
   --ec-event-text-color:         #ffffff;
   --ec-event-border-color:       rgba(0, 0, 0, 0.08);
+  /* Chip "accent" — the saturated swatch used for the left bar, type label,
+   * time text, and as the seed for the chip's wash + border. Set per-chip
+   * inline via .ec-event { --ec-event-accent: <hex>; } or via a modifier
+   * class (.ec-appt-job, .ec-appt-quote-visit, .ec-appt-site-visit,
+   * .ec-appt-meeting, .ec-appt-service-call, .ec-appt-general). The chip
+   * derives its fill (-50-like) and stroke (-200-like) from this token via
+   * color-mix so any accent — palette or arbitrary — renders coherently. */
+  --ec-event-accent:             #6b7280;
+  /* Dark text — title/customer name — fixed regardless of accent for legibility. */
+  --ec-event-title-color:        #1c1917;
+  /* Subtle text — subtitle, location, crew — fixed near-black at low opacity. */
+  --ec-event-subtle-color:       rgba(0, 0, 0, 0.65);
   --ec-bg-event-color:           #94a3b8;
   --ec-bg-event-opacity:         0.25;
   --ec-now-indicator-color:      #dc2626;
@@ -240,6 +252,32 @@
 .ec-day-grid:not(:has([data-row="days"]:nth-of-type(3))) .ec-day {
   min-height: 12rem;
 }
+
+/* -------------------------------------------------------------------------
+ * Event chip palette — per-appointment-type accent swatches.
+ *
+ * Drop one of these modifier classes onto an event (via `className` on the
+ * event object, or via the `eventClassNames` hook) and every chip — across
+ * day-grid, time-grid, resource-time-grid, resource-timeline, and list —
+ * picks up the matching accent. The chip's wash and stroke are derived from
+ * --ec-event-accent via color-mix, so this works equally well with an
+ * arbitrary inline accent (e.g. set from event.backgroundColor).
+ *
+ * Accent values match the design source-of-truth:
+ *   Job          #d97706   amber-600    (bg #fffbeb, border #fde68a)
+ *   Quote Visit  #4f46e5   indigo-600   (bg #eef2ff, border #c7d2fe)
+ *   Site Visit   #7c3aed   violet-600   (bg #f5f3ff, border #ddd6fe)
+ *   Meeting      #0d9488   teal-600     (bg #f0fdfa, border #99f6e4)
+ *   Service Call #2563eb   blue-600     (bg #eff6ff, border #bfdbfe)
+ *   General      #6b7280   gray-500     (bg #f3f4f6, border #e5e7eb)
+ * ----------------------------------------------------------------------- */
+
+.ec-event.ec-appt-job          { --ec-event-accent: #d97706; }
+.ec-event.ec-appt-quote-visit  { --ec-event-accent: #4f46e5; }
+.ec-event.ec-appt-site-visit   { --ec-event-accent: #7c3aed; }
+.ec-event.ec-appt-meeting      { --ec-event-accent: #0d9488; }
+.ec-event.ec-appt-service-call { --ec-event-accent: #2563eb; }
+.ec-event.ec-appt-general      { --ec-event-accent: #6b7280; }
 
 /* -------------------------------------------------------------------------
  * Day-grid events
