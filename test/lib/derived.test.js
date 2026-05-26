@@ -152,6 +152,20 @@ describe('lib/derived', () => {
     it("returns a number for 'local'", () => {
       expect(typeof offset('local')).toBe('number');
     });
+    it('resolves IANA names DST-aware via the atDate anchor', () => {
+      const jan = new Date(Date.UTC(2026, 0, 15));
+      const jul = new Date(Date.UTC(2026, 6, 15));
+      // Sydney: AEDT +11:00 in S-summer, AEST +10:00 in S-winter.
+      expect(offset('Australia/Sydney', jan)).toBe(660);
+      expect(offset('Australia/Sydney', jul)).toBe(600);
+      // New York: EST -05:00 in winter, EDT -04:00 in summer.
+      expect(offset('America/New_York', jan)).toBe(-300);
+      expect(offset('America/New_York', jul)).toBe(-240);
+    });
+    it('falls back to local for unknown timezone names', () => {
+      // Should not throw — must produce a number even when the name is bogus.
+      expect(typeof offset('Not/A/Zone')).toBe('number');
+    });
   });
 
   describe('view', () => {

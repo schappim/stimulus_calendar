@@ -11,6 +11,7 @@ import {
 import { createView, toViewWithLocalDates } from './view.js';
 import { toEventWithLocalDates } from './events.js';
 import { isFunction, tzOffset } from './utils.js';
+import { ianaOffset } from './tz.js';
 
 // Effective Intl format helpers around an Intl.DateTimeFormat (or a
 // user-supplied function). Each returns an object exposing the format
@@ -153,14 +154,19 @@ export function filteredEvents(events, view, opts) {
   return result;
 }
 
-// offset: resolve timeZone → minutes-east-of-UTC. 'local' uses the runtime
-// tzOffset(), 'UTC' is 0, anything else is parseOffset()-able (e.g.
-// '+10:00') with a fallback to local for IANA-only names that
-// parseOffset can't handle yet.
-export function offset(timeZone) {
-  if (timeZone === 'local') return tzOffset();
+// offset: resolve timeZone → minutes-east-of-UTC for the given instant.
+// 'local' uses the runtime tzOffset() (which now respects DST around
+// atDate), 'UTC' is 0, '+HH:MM' / '-HH:MM' parse directly, IANA names
+// route through tz.ianaOffset (DST-aware). Unknown strings fall back to
+// local so the calendar still renders.
+export function offset(timeZone, atDate = undefined) {
+  if (timeZone === 'local') return tzOffset(atDate);
   if (timeZone === 'UTC') return 0;
-  return parseOffset(timeZone) ?? tzOffset();
+  const parsed = parseOffset(timeZone);
+  if (parsed !== undefined) return parsed;
+  const iana = ianaOffset(timeZone, atDate);
+  if (iana !== undefined) return iana;
+  return tzOffset(atDate);
 }
 
 // view: re-export createView under the derived-helper name for symmetry
