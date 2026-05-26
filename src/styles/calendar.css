@@ -1163,7 +1163,7 @@ body.ec-resizing-active * {
 .ec-event.ec-event-selected {
   background: var(--ec-event-color);
   color: #ffffff;
-  box-shadow: 0 0 0 2px var(--ec-active-bg-color);
+  box-shadow: 0 0 0 2px var(--ec-event-color);
 }
 
 .ec-month-scroller-cell.ec-today .ec-day-number {
