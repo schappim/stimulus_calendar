@@ -14,6 +14,8 @@
 //   7. Snapshots on prev/next pages render after first gesture.
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { Application } from '@hotwired/stimulus';
 import CalendarController from '../../src/controllers/calendar_controller.js';
 
@@ -296,5 +298,49 @@ describe('Pager — swipe / wheel / keyboard navigation', () => {
     // Date unchanged — chip drag goes to interaction plugin, not pager.
     const date = el.calendarApi.getOption('date');
     expect(date.toISOString().substring(0, 10)).toBe('2026-05-15');
+  });
+
+  // Mobile host shells routinely drop the outer grid border (see
+  // demo/18-mobile.html: `.ec-grid.ec-time-grid { border: 0 }`). In a
+  // single-day view that leaves the trailing day-name header with no
+  // visible right edge, so the live header and the appearing
+  // neighbour's header blend together during a swipe. The library's
+  // CSS reinstates the 1px column separator while the gesture is in
+  // flight; this test pins both halves down: the .ec-pager-dragging
+  // class lands on the pager during a horizontal pointer drag, AND
+  // the stylesheet ships the matching rule that hangs a right border
+  // on the trailing day-head while that class is present.
+  it('day-name header keeps its right border during a swipe (single-day view, no outer grid border)', async () => {
+    const el = mount(`<div data-controller="calendar"
+                            data-calendar-plugins-value='["TimeGrid"]'
+                            data-calendar-view-value="timeGridDay"
+                            data-calendar-date-value="2026-05-15"></div>`);
+    await tick();
+    const pager = el.querySelector('.ec-pager');
+    Object.defineProperty(pager, 'offsetWidth', { configurable: true, value: 600 });
+    const dayHead = el.querySelector('.ec-time-grid .ec-day-head');
+    expect(dayHead).toBeTruthy();
+    // Confirm the trailing-header bug surface still exists: in a
+    // single-day TimeGrid view the only day-head IS :last-child,
+    // which the base CSS strips of its right border.
+    expect(dayHead.matches('.ec-time-grid .ec-day-head:last-child')).toBe(true);
+
+    // Begin a horizontal drag — large enough to "decide" the gesture
+    // and flip the pager into its dragging state, small enough not
+    // to commit a navigation.
+    fire(pager, 'pointerdown', { clientX: 400, clientY: 200 });
+    fire(document, 'pointermove', { clientX: 360, clientY: 200 }); // dx=-40, decides
+    expect(pager.classList.contains('ec-pager-dragging')).toBe(true);
+    fire(document, 'pointerup', { clientX: 360, clientY: 200 });
+    await new Promise((r) => setTimeout(r, 280));
+
+    // Pin the CSS contract: the library ships a rule that targets
+    // both the time-grid AND day-grid trailing day-head while the
+    // pager is dragging, restoring the 1px right border so the live
+    // and snapshot headers don't blur into one strip in shells that
+    // drop the outer grid border.
+    const cssPath = resolve(process.cwd(), 'src/styles/calendar.css');
+    const css = readFileSync(cssPath, 'utf8');
+    expect(css).toMatch(/\.ec-pager\.ec-pager-dragging\s+\.ec-time-grid\s+\.ec-day-head:last-child[\s\S]*?\.ec-pager\.ec-pager-dragging\s+\.ec-day-grid\s+\.ec-day-head:last-child[\s\S]*?border-right:\s*1px\s+solid\s+var\(--ec-border-color\)/);
   });
 });

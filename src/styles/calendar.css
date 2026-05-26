@@ -1060,6 +1060,25 @@
   visibility: hidden;
 }
 
+/* While a swipe is in flight the trailing day-name header animates
+ * toward the appearing neighbour. At rest its right border is
+ * suppressed via `:last-child` so the outer grid border (or the next
+ * header's left edge) carries the visual column edge — fine on
+ * desktop, where the grid's own border-radius'd outline frames the
+ * view. But hosts that drop the outer border (the mobile shell in
+ * demo/18-mobile.html sets `.ec-grid.ec-time-grid { border: 0 }`)
+ * leave the live header and the snapshot's header butted edge-to-edge
+ * with no separator, so the two days' names blur into one strip
+ * across the swipe. Reinstate the 1px right border on the trailing
+ * header while the gesture is active so the column boundary stays
+ * visible during the slide; the outer border, when present, still
+ * sits just outside it, so the doubled width is only paid during the
+ * brief animation. */
+.ec-pager.ec-pager-dragging .ec-time-grid .ec-day-head:last-child,
+.ec-pager.ec-pager-dragging .ec-day-grid .ec-day-head:last-child {
+  border-right: 1px solid var(--ec-border-color);
+}
+
 /* Body cursor + escape-hatch when actively swiping. */
 .ec-pager.ec-pager-dragging { cursor: grabbing; }
 .ec-pager.ec-pager-dragging .ec-pager-track { will-change: transform; }
