@@ -300,6 +300,18 @@
     #cal .ec-event.ec-event-editing::after {
       bottom: -11px; left: 4px; right: auto; top: auto;
     }
+    /* Multi-day timed events render as one chip per day, each carrying
+       .ec-event-editing once edit mode is engaged. The start-of-event
+       circle belongs only on the first segment (no continues-from), and
+       the end-of-event circle belongs only on the last segment (no
+       continues-to). Continuation edges represent midnight — not the
+       event's real boundary — so a handle there would be misleading. */
+    #cal .ec-event.ec-event-editing.ec-event-continues-from::before {
+      content: none;
+    }
+    #cal .ec-event.ec-event-editing.ec-event-continues-to::after {
+      content: none;
+    }
 
     /* Touch-only gate: resize handles are inert until the user enters
        edit mode via long-press. Desktop (mouse / hover-capable) keeps

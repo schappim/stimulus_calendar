@@ -180,6 +180,46 @@ describe('Interaction — resize handle', () => {
     expect(last.querySelector('.ec-resizer-end')).toBeTruthy();
   });
 
+  it('long-pressing a multi-day timed event promotes every segment into edit mode', async () => {
+    const el = mount(`<div data-controller="calendar"
+                            data-calendar-plugins-value='["TimeGrid","Interaction"]'
+                            data-calendar-date-value="2026-05-25"
+                            data-calendar-options-value='{"editable":true}'></div>`);
+    await tick(2);
+    el.calendarApi.addEvent({
+      id: 'mle1', title: 'Two-day',
+      start: '2026-05-26T16:30:00',
+      end:   '2026-05-27T17:00:00',
+    });
+    await tick();
+
+    const segments = el.querySelectorAll('[data-event-id="mle1"]');
+    expect(segments.length).toBe(2);
+
+    // Long-press the FIRST segment — every segment of the event should
+    // gain .ec-event-editing so the CSS handle pseudo-elements can land
+    // on the correct ends (start circle on the first segment, end circle
+    // on the last). The pseudo-element circles are CSS-only and not
+    // queryable in JSDOM, but the controlling class is.
+    const first = segments[0];
+    vi.useFakeTimers();
+    try {
+      fire(first, 'pointerdown', { pointerType: 'touch', clientX: 50, clientY: 200 });
+      vi.advanceTimersByTime(1100);
+    } finally {
+      vi.useRealTimers();
+    }
+
+    for (const seg of segments) {
+      expect(seg.classList.contains('ec-event-editing')).toBe(true);
+    }
+
+    // Release the pointer so this test's drag state doesn't leak into
+    // the next test's resize gesture (a held pointerdown stays armed).
+    fireTouch(document, 'touchend', [], [{ identifier: 1, clientX: 50, clientY: 200 }]);
+    fire(document, 'pointerup', { pointerType: 'touch', clientX: 50, clientY: 200 });
+  });
+
   it('dragging the last-segment resizer leftward into an earlier day shortens the event to that day', async () => {
     const onResize = vi.fn();
     const el = mount(`<div data-controller="calendar"

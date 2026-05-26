@@ -585,9 +585,20 @@ function attachEventDragHandler(rootEl, state) {
   }
 
   function enterEditMode(chip) {
+    // Multi-day timed events render as one chip per day, all sharing the
+    // same data-event-id. Edit mode is a property of the *event*, not one
+    // segment — so promote every segment together. This keeps the
+    // accent ring continuous across the spanned days, and lets the
+    // CSS pseudo-element handles land on the correct ends (start
+    // circle on the first segment, end circle on the last) using the
+    // existing .ec-event-continues-from / .ec-event-continues-to flags.
+    const id = chip.getAttribute('data-event-id');
+    const escapedId = (id && typeof CSS !== 'undefined' && CSS.escape) ? CSS.escape(id) : id;
+    const segments = id ? Array.from(rootEl.querySelectorAll?.(`[data-event-id="${escapedId}"]`) ?? []) : [chip];
+    const segmentSet = new Set(segments);
     rootEl.querySelectorAll?.('.ec-event.ec-event-editing')
-      .forEach((el) => { if (el !== chip) el.classList.remove('ec-event-editing'); });
-    chip.classList.add('ec-event-editing');
+      .forEach((el) => { if (!segmentSet.has(el)) el.classList.remove('ec-event-editing'); });
+    segments.forEach((seg) => seg.classList.add('ec-event-editing'));
   }
 
   function suppressChipClick(chip) {
