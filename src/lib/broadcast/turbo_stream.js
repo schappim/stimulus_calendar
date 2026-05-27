@@ -48,7 +48,17 @@ export function createTurboStreamAdapter() {
   let handler = null;
 
   function onConnect() {
-    customElements.upgrade?.(document.querySelector('turbo-stream'));
+    // Upgrade any pre-existing <turbo-stream> nodes so they're known to
+    // the custom-element registry before we start dispatching. Passing
+    // a null Node throws ("parameter 1 is not of type 'Node'") — on
+    // pages where the adapter mounts before the first stream element
+    // exists, querySelector returns null and the unguarded call
+    // breaks _installBroadcastBus, taking the calendar's connect with it.
+    if (typeof customElements?.upgrade === 'function') {
+      for (const node of document.querySelectorAll('turbo-stream')) {
+        customElements.upgrade(node);
+      }
+    }
     document.addEventListener('turbo:before-stream-render', (e) => {
       const stream = e.detail?.newStream;
       if (stream?.getAttribute('action') === 'calendar-event') {

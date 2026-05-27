@@ -4534,7 +4534,10 @@ function Li(n) {
 function ki() {
   let n = null;
   function t() {
-    customElements.upgrade?.(document.querySelector("turbo-stream")), document.addEventListener("turbo:before-stream-render", (e) => {
+    if (typeof customElements?.upgrade == "function")
+      for (const e of document.querySelectorAll("turbo-stream"))
+        customElements.upgrade(e);
+    document.addEventListener("turbo:before-stream-render", (e) => {
       const o = e.detail?.newStream;
       if (o?.getAttribute("action") === "calendar-event") {
         e.preventDefault();
