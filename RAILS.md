@@ -9,6 +9,15 @@ Mirrors the shape of [stimulus_grid's RAILS.md](https://github.com/schappim/stim
 but scoped to calendar surfaces (events, resources, time ranges) rather than
 tabular cells. Ticked items land as PLAN.md's Phase 14 commits ship.
 
+> **Just want to wire up live sync?** This document is a forward-looking
+> *scoping checklist*. For the concrete integration walkthrough — what
+> to write today, in what order, with verification steps — read
+> [`docs/LIVE_SYNC_RAILS.md`](docs/LIVE_SYNC_RAILS.md) (cookbook) and
+> [`skills/stimulus-calendar-rails/SKILL.md`](skills/stimulus-calendar-rails/SKILL.md)
+> (LLM playbook). The exact wire format is in
+> [`docs/BROADCAST.md`](docs/BROADCAST.md); the API surface in
+> [`docs/RAILS_REFERENCE.md`](docs/RAILS_REFERENCE.md).
+
 ---
 
 ## 1. Custom Turbo Stream Actions
