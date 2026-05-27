@@ -11,6 +11,7 @@ import { assignOverlapLanes } from '../lib/events.js';
 import {
   eventMetaClassNames,
   eventMetaDataAttrs,
+  resolveEventType,
   buildRecurringBadge,
 } from '../lib/event_meta.js';
 
@@ -339,6 +340,9 @@ export function renderTimeGridView(container, state) {
         if (event.classNames) classes.push(...(Array.isArray(event.classNames) ? event.classNames : [event.classNames]));
         // Phase C5/C6 auto-classes.
         classes.push(...eventMetaClassNames(event));
+        // S5 — eventTypes mapping.
+        const typeStyle = resolveEventType(event, options);
+        if (typeStyle) classes.push(...typeStyle.classNames);
         const chip = createElement('div', classes.filter(Boolean).join(' '), '', [
           ['data-event-id', event.id],
           ['data-event-start', event.start.toISOString()],
@@ -356,7 +360,8 @@ export function renderTimeGridView(container, state) {
         chip.style.left = lane === 0 ? '0' : `${lane * LANE_OFFSET_PX}px`;
         chip.style.right = '0';
         if (lane > 0) chip.style.zIndex = String(lane + 1);
-        if (event.backgroundColor) chip.style.setProperty('--ec-event-color', event.backgroundColor);
+        const tgBgColor = event.backgroundColor ?? typeStyle?.color;
+        if (tgBgColor) chip.style.setProperty('--ec-event-color', tgBgColor);
         const titleEl = createElement('div', theme.eventTitle);
         if (event.extendedProps?.rrule) titleEl.append(buildRecurringBadge());
         titleEl.append(document.createTextNode(event.title || ''));

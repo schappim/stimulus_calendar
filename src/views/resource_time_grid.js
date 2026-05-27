@@ -8,7 +8,7 @@ import { cloneDate, addDay, setMidnight, datesEqual } from '../lib/date.js';
 import { createSlots, createSlotTimeLimits } from '../lib/slots.js';
 import { viewDates as viewDatesHelper } from '../lib/derived.js';
 import { assignOverlapLanes } from '../lib/events.js';
-import { eventMetaDataAttrs } from '../lib/event_meta.js';
+import { eventMetaDataAttrs, resolveEventType } from '../lib/event_meta.js';
 import { formatEventTimeRange } from './time_grid.js';
 
 export function renderResourceTimeGridView(container, state) {
@@ -178,6 +178,9 @@ export function renderResourceTimeGridView(container, state) {
             chipClasses.push(...(Array.isArray(globalCls2) ? globalCls2 : [globalCls2]));
           }
           if (event.classNames) chipClasses.push(...(Array.isArray(event.classNames) ? event.classNames : [event.classNames]));
+          // S5 — eventTypes mapping.
+          const typeStyle = resolveEventType(event, options);
+          if (typeStyle) chipClasses.push(...typeStyle.classNames);
           const chip = createElement('div', chipClasses.filter(Boolean).join(' '), '', [
             ['data-event-id', event.id],
             ...eventMetaDataAttrs(event),
@@ -191,7 +194,7 @@ export function renderResourceTimeGridView(container, state) {
           chip.style.left = lane === 0 ? '0' : `${lane * LANE_OFFSET_PX}px`;
           chip.style.right = '0';
           if (lane > 0) chip.style.zIndex = String(lane + 1);
-          const eventColor = event.backgroundColor ?? resource.eventBackgroundColor;
+          const eventColor = event.backgroundColor ?? typeStyle?.color ?? resource.eventBackgroundColor;
           if (eventColor) chip.style.setProperty('--ec-event-color', eventColor);
           chip.append(createElement('div', theme.eventTitle, event.title || ''));
           const timeEl = createElement('div', theme.eventTime ?? 'ec-event-time');

@@ -30,7 +30,7 @@ import { cloneDate, addDay, setMidnight, datesEqual, createDate } from '../lib/d
 import { viewDates as viewDatesHelper } from '../lib/derived.js';
 import { getPayload, setPayload } from '../lib/payload.js';
 import { buildResourceGroupLayout } from '../lib/resource_groups.js';
-import { eventMetaDataAttrs } from '../lib/event_meta.js';
+import { eventMetaDataAttrs, resolveEventType } from '../lib/event_meta.js';
 
 export function renderResourceTimelineView(container, state) {
   const groupState = state.get('resourceGroupState') ?? new Map();
@@ -453,6 +453,9 @@ export function renderResourceTimelineView(container, state) {
           chipClasses.push(...(Array.isArray(globalCls) ? globalCls : [globalCls]));
         }
         if (event.classNames) chipClasses.push(...(Array.isArray(event.classNames) ? event.classNames : [event.classNames]));
+        // S5 — eventTypes mapping.
+        const typeStyle = resolveEventType(event, options);
+        if (typeStyle) chipClasses.push(...typeStyle.classNames);
         const chip = createElement('div', chipClasses.filter(Boolean).join(' '), event.title || '', [
           ['data-event-id', event.id],
           ...eventMetaDataAttrs(event),
@@ -460,7 +463,8 @@ export function renderResourceTimelineView(container, state) {
         chip.style.position = 'absolute';
         chip.style.left = `${left}px`;
         chip.style.width = `${width}px`;
-        if (event.backgroundColor) chip.style.setProperty('--ec-event-color', event.backgroundColor);
+        const tlBgColor = event.backgroundColor ?? typeStyle?.color;
+        if (tlBgColor) chip.style.setProperty('--ec-event-color', tlBgColor);
 
         if (width < Number(options.eventNarrowThreshold ?? 60)) chip.classList.add('ec-event-narrow');
         if (typeof ResizeObserver !== 'undefined') {

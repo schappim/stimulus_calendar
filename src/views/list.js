@@ -5,7 +5,7 @@
 import { createElement } from '../lib/dom.js';
 import { cloneDate, addDay, setMidnight } from '../lib/date.js';
 import { viewDates as viewDatesHelper } from '../lib/derived.js';
-import { eventMetaDataAttrs } from '../lib/event_meta.js';
+import { eventMetaDataAttrs, resolveEventType } from '../lib/event_meta.js';
 
 export function renderListView(container, state) {
   const render = () => {
@@ -50,6 +50,9 @@ export function renderListView(container, state) {
           rowClasses.push(...(Array.isArray(globalCls) ? globalCls : [globalCls]));
         }
         if (event.classNames) rowClasses.push(...(Array.isArray(event.classNames) ? event.classNames : [event.classNames]));
+        // S5 — eventTypes mapping.
+        const typeStyle = resolveEventType(event, options);
+        if (typeStyle) rowClasses.push(...typeStyle.classNames);
         const row = createElement('div', rowClasses.filter(Boolean).join(' '), '', [
           ['data-event-id', event.id],
           ...eventMetaDataAttrs(event),
@@ -57,7 +60,8 @@ export function renderListView(container, state) {
         // Route the per-event colour through --ec-event-color on the row so
         // both the row stripe and the tag dot inherit the accent. Per-type
         // modifier classes (.ec-appt-*) can still override via specificity.
-        if (event.backgroundColor) row.style.setProperty('--ec-event-color', event.backgroundColor);
+        const rowBgColor = event.backgroundColor ?? typeStyle?.color;
+        if (rowBgColor) row.style.setProperty('--ec-event-color', rowBgColor);
         row.append(createElement('span', theme.eventTag));
         const time = event.allDay ? 'all-day' : timeFmt.format(event.start);
         row.append(createElement('time', theme.eventTime, time));

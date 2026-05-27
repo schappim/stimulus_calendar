@@ -81,6 +81,57 @@ describe('view: dayGridMonth', () => {
     expect(chip.textContent).toContain('Standup');
   });
 
+  it('eventTypes mapping applies classNames + color fallback to the chip', async () => {
+    const el = await mount(`<div data-controller="calendar"
+      data-calendar-plugins-value='["DayGrid"]'
+      data-calendar-view-value="dayGridMonth"
+      data-calendar-date-value="2026-05-15"></div>`);
+    el.calendarApi.setOption('eventTypes', {
+      job:         { color: '#f59e0b', classNames: ['ec-event-job'] },
+      quote_visit: { color: '#6366f1' },
+    });
+    el.calendarApi.addEvent({
+      id: 'a-job', title: 'Switchboard',
+      start: '2026-05-15T09:00', end: '2026-05-15T11:00',
+      extendedProps: { type: 'job' },
+    });
+    el.calendarApi.addEvent({
+      id: 'a-qv', title: 'Quote visit',
+      start: '2026-05-15T13:00', end: '2026-05-15T14:00',
+      extendedProps: { type: 'quote_visit' },
+    });
+    const job = el.querySelector('[data-event-id="a-job"]');
+    const qv  = el.querySelector('[data-event-id="a-qv"]');
+    expect(job.classList.contains('ec-event-type-job')).toBe(true);
+    expect(job.classList.contains('ec-event-job')).toBe(true);
+    expect(job.style.getPropertyValue('--ec-event-color')).toBe('#f59e0b');
+    // quote_visit had no declared classNames — still gets the
+    // auto ec-event-type-{slug} class.
+    expect(qv.classList.contains('ec-event-type-quote-visit')).toBe(true);
+    expect(qv.style.getPropertyValue('--ec-event-color')).toBe('#6366f1');
+  });
+
+  it('eventTypes color does not override an explicit event.backgroundColor', async () => {
+    const el = await mount(`<div data-controller="calendar"
+      data-calendar-plugins-value='["DayGrid"]'
+      data-calendar-view-value="dayGridMonth"
+      data-calendar-date-value="2026-05-15"></div>`);
+    el.calendarApi.setOption('eventTypes', {
+      job: { color: '#f59e0b' },
+    });
+    el.calendarApi.addEvent({
+      id: 'override', title: 'Override',
+      start: '2026-05-15T09:00', end: '2026-05-15T11:00',
+      backgroundColor: '#000000',
+      extendedProps: { type: 'job' },
+    });
+    const chip = el.querySelector('[data-event-id="override"]');
+    // Explicit per-event color wins; eventTypes is the fallback.
+    expect(chip.style.getPropertyValue('--ec-event-color')).toBe('#000000');
+    // …but the type-derived classes still land.
+    expect(chip.classList.contains('ec-event-type-job')).toBe(true);
+  });
+
   it('passes extendedProps.dataAttrs through to data-* attributes on the chip', async () => {
     const el = await mount(`<div data-controller="calendar"
       data-calendar-plugins-value='["DayGrid"]'

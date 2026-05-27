@@ -12,6 +12,7 @@ import { viewDates as viewDatesHelper } from '../lib/derived.js';
 import {
   eventMetaClassNames,
   eventMetaDataAttrs,
+  resolveEventType,
   buildRecurringBadge,
 } from '../lib/event_meta.js';
 
@@ -166,6 +167,10 @@ export function renderDayGridView(container, state) {
           classes.push(...event.classNames);
           // Phase C5/C6 — auto-classes from extendedProps.
           classes.push(...eventMetaClassNames(event));
+          // S5 — eventTypes mapping. Apply once per chip; pull the
+          // color into the bgColor fallback chain below.
+          const typeStyle = resolveEventType(event, options);
+          if (typeStyle) classes.push(...typeStyle.classNames);
           // Phase C3 — Month-cell event style. The `stripe` variant
           // renders a full-width coloured bar with title only — no dot,
           // no time. Matches the mockup's Month view.
@@ -175,7 +180,7 @@ export function renderDayGridView(container, state) {
             ['data-event-id', event.id],
             ...eventMetaDataAttrs(event),
           ]);
-          const bgColor = event.backgroundColor ?? options.eventBackgroundColor ?? options.eventColor;
+          const bgColor = event.backgroundColor ?? typeStyle?.color ?? options.eventBackgroundColor ?? options.eventColor;
           const txtColor = event.textColor ?? options.eventTextColor;
           if (bgColor) chip.style.setProperty('--ec-event-color', bgColor);
           if (txtColor) chip.style.color = txtColor;
