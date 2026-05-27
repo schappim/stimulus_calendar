@@ -783,6 +783,49 @@
   padding: 4px 0;
 }
 
+/* Empty-cell layer (Phase A3). Sits under the bars so chips still own
+ * their hit area; only "blank" stretches between bars receive the tap.
+ * On hover/focus the `＋` glyph fades in for opted-in installs. */
+.ec-timeline-cells {
+  z-index: 0;
+}
+
+.ec-timeline-cell {
+  border-right: 1px solid transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+}
+
+.ec-timeline-cell:hover {
+  background: color-mix(in srgb, var(--ec-highlight-color) 50%, transparent);
+}
+
+.ec-timeline-cell-add {
+  font-size: 18px;
+  font-weight: 300;
+  color: var(--ec-muted-text-color);
+  width: 22px;
+  height: 22px;
+  line-height: 20px;
+  text-align: center;
+  border-radius: 999px;
+  border: 1px dashed transparent;
+  opacity: 0;
+  transition: opacity 120ms ease-out, background 120ms ease-out, border-color 120ms ease-out;
+  pointer-events: none;     /* the parent cell owns the click */
+}
+
+.ec-timeline-cell:hover .ec-timeline-cell-add,
+.ec-timeline-cell:focus-visible .ec-timeline-cell-add {
+  opacity: 1;
+  border-color: color-mix(in srgb, var(--ec-active-bg-color) 50%, transparent);
+  color: var(--ec-active-bg-color);
+  background: var(--ec-bg-color);
+}
+
 /* -------------------------------------------------------------------------
  * ResourceTimeline group header (Phase A1 — Roster crews)
  *

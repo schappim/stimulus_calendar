@@ -89,6 +89,8 @@ export default class CalendarController extends Controller {
     // Phase A1 — Roster grouping
     resourceGroups: Array,
     resourceGroupField: String,
+    // Phase A3 — empty-cell affordance
+    emptyCellAddButton: { type: Boolean, default: false },
     // Broadcast / live-sync options
     broadcast: String,
     broadcastChannel: String,
@@ -782,7 +784,7 @@ CalendarController.OPTION_KEYS = [
   'resources', 'refetchResourcesOnNavigate', 'datesAboveResources',
   'filterResourcesWithEvents', 'filterEventsWithResources',
   'monthHeaderFormat', 'slotWidth', 'resourceExpand',
-  'resourceGroups', 'resourceGroupField',
+  'resourceGroups', 'resourceGroupField', 'emptyCellAddButton',
   'broadcast', 'broadcastChannel',
 ];
 

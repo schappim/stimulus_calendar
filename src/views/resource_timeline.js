@@ -79,6 +79,15 @@ export function renderResourceTimelineView(container, state) {
     });
     state.set('resourceGroupsById', groupsById);
 
+    // Reverse index: resourceId → group. Used by per-cell event payloads
+    // so the host doesn't have to thread the groups list through every
+    // cellClick handler.
+    const groupByResourceId = new Map();
+    for (const g of groupsById.values()) {
+      for (const rid of g.resourceIds) groupByResourceId.set(rid, g);
+    }
+    const groupOf = (r) => groupByResourceId.get(r.id) ?? null;
+
     const body = createElement('div', 'ec-timeline-body', '', [['data-row', 'body']]);
 
     const renderGroupHeader = (group) => {
@@ -188,6 +197,51 @@ export function renderResourceTimelineView(container, state) {
       ribbon.style.minHeight = '30px';
       const dayWidth = slotWidth;
       ribbon.style.width = `${days.length * dayWidth}px`;
+
+      // Phase A3 — empty-cell layer. Each day in this resource's strip
+      // gets a tap-target cell sitting behind the bars. Hover/focus
+      // reveals a centred `＋` (only when emptyCellAddButton is opt-in)
+      // and tap fires cellClick with { date, resource, group, jsEvent }.
+      // Drawn BEFORE the bars so absolute-positioned chips paint on top
+      // and a tap that lands on a bar still hits the bar's click handler.
+      const cellsLayer = createElement('div', 'ec-timeline-cells');
+      cellsLayer.style.position = 'absolute';
+      cellsLayer.style.inset = '0';
+      cellsLayer.style.display = 'grid';
+      cellsLayer.style.gridTemplateColumns = `repeat(${days.length}, ${dayWidth}px)`;
+      cellsLayer.style.pointerEvents = 'none';
+      const fire = state.get('fire');
+      for (let i = 0; i < days.length; i++) {
+        const day = days[i];
+        const cell = createElement('div', 'ec-timeline-cell', '', [
+          ['data-date', day.toISOString().substring(0, 10)],
+          ['data-day',  String(day.getUTCDay())],
+        ]);
+        cell.style.pointerEvents = 'auto';
+        // Optional `＋` glyph for the host. Three shapes:
+        //   true                 → built-in centred plus
+        //   ({date, resource}) → custom recipe ({ html | domNodes | textContent })
+        //   false / undefined    → no glyph (cell still listens for tap)
+        const addOpt = options.emptyCellAddButton;
+        if (addOpt) {
+          const btn = createElement('span', 'ec-timeline-cell-add', '+');
+          if (typeof addOpt === 'function') {
+            const c = addOpt({ date: day, resource, group: groupOf(resource) });
+            if (typeof c === 'string') btn.textContent = c;
+            else if (c?.html) btn.innerHTML = c.html;
+            else if (c?.domNodes) { btn.textContent = ''; c.domNodes.forEach((n) => btn.append(n)); }
+          }
+          cell.append(btn);
+        }
+        cell.addEventListener('click', (jsEvent) => {
+          fire?.('cellClick', {
+            date: day, resource, group: groupOf(resource),
+            jsEvent, view: state.get('view'),
+          });
+        });
+        cellsLayer.append(cell);
+      }
+      ribbon.append(cellsLayer);
       const resourceEvents = events.filter((e) =>
         e.resourceIds.length === 0 || e.resourceIds.includes(resource.id));
       for (const event of resourceEvents) {

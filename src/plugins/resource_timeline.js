@@ -42,6 +42,15 @@ export const ResourceTimelinePlugin = {
       resourceGroupField: undefined,
       groupHeaderContent: undefined,
       groupHeaderDidMount: undefined,
+      // Phase A3 — per-cell quick-add affordance + cellClick.
+      //   emptyCellAddButton: false | true | (ctx) => htmlOrText
+      //   cellClick: ({ date, resource, group, jsEvent, view }) => …
+      // cellClick is distinct from dateClick (which the Interaction
+      // plugin fires from the underlying calendar background); cellClick
+      // always carries { date, resource, group } so the host can open
+      // its "new appointment for crew Y on day Z" sheet pre-filled.
+      emptyCellAddButton: undefined,
+      cellClick: undefined,
     });
     Object.assign(options.buttonText, {
       expand: 'Expand',

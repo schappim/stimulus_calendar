@@ -129,6 +129,49 @@ describe('view: resourceTimeline', () => {
     expect(el.calendarApi.getResourceGroups().length).toBe(2);
   });
 
+  it('fires calendar:cellClick with { date, resource, group } (Phase A3)', async () => {
+    const el = await mount(`<div data-controller="calendar"
+      data-calendar-plugins-value='["ResourceTimeline"]'
+      data-calendar-view-value="resourceTimelineWeek"
+      data-calendar-date-value="2026-05-25"
+      data-calendar-empty-cell-add-button-value="true"
+      data-calendar-resources-value='[{"id":"will","title":"Will"}]'
+      data-calendar-resource-groups-value='[
+        {"id":"a","title":"Crew A","resourceIds":["will"],"expanded":true}
+      ]'>
+    </div>`);
+    const cells = el.querySelectorAll('.ec-timeline-cell');
+    // 7-day week
+    expect(cells.length).toBe(7);
+    // emptyCellAddButton true → every cell carries the `+` glyph
+    expect(cells[0].querySelector('.ec-timeline-cell-add')).toBeTruthy();
+
+    const events = [];
+    el.addEventListener('calendar:cellClick', (e) => events.push(e.detail));
+    cells[2].click();
+    expect(events.length).toBe(1);
+    expect(events[0].resource.id).toBe('will');
+    expect(events[0].group?.id).toBe('a');
+    expect(events[0].date).toBeInstanceOf(Date);
+    expect(cells[2].getAttribute('data-date')).toBe(events[0].date.toISOString().substring(0,10));
+  });
+
+  it('omits the + glyph when emptyCellAddButton is off but still fires cellClick', async () => {
+    const el = await mount(`<div data-controller="calendar"
+      data-calendar-plugins-value='["ResourceTimeline"]'
+      data-calendar-view-value="resourceTimelineWeek"
+      data-calendar-date-value="2026-05-25"
+      data-calendar-resources-value='[{"id":"will","title":"Will"}]'>
+    </div>`);
+    const cells = el.querySelectorAll('.ec-timeline-cell');
+    expect(cells[0].querySelector('.ec-timeline-cell-add')).toBeNull();
+    const events = [];
+    el.addEventListener('calendar:cellClick', (e) => events.push(e.detail));
+    cells[0].click();
+    expect(events.length).toBe(1);
+    expect(events[0].group).toBeNull();
+  });
+
   it('positions an event ribbon at the right day offset', async () => {
     const el = await mount(`<div data-controller="calendar"
       data-calendar-plugins-value='["ResourceTimeline"]'

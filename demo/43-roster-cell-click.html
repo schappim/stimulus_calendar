@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>stimulus_calendar — Empty-cell quick-add (Phase A3)</title>
+  <link rel="stylesheet" href="../src/styles/calendar.css">
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; margin: 2rem; }
+    .ec { width: 1080px; }
+    h1 { font-size: 1.25rem; }
+    .note { color: #475569; font-size: 0.875rem; max-width: 60ch; margin-bottom: 1rem; }
+    .sheet { margin-top: 1rem; padding: 0.75rem 1rem; background: #f1f5f9; border-radius: 6px;
+             font: 13px/1.5 ui-monospace, monospace; max-width: 60ch; }
+  </style>
+</head>
+<body>
+  <h1>Tap any empty cell → fire <code>calendar:cellClick</code></h1>
+  <p class="note">
+    Phase A3. Hover a cell for the <code>＋</code> glyph; click anywhere on
+    the cell to fire <code>calendar:cellClick</code> with
+    <code>{ date, resource, group, jsEvent, view }</code>. Distinct from
+    <code>dateClick</code>: this always carries the resource and (when
+    grouped) the crew.
+  </p>
+  <div data-controller="calendar"
+       data-calendar-plugins-value='["ResourceTimeline"]'
+       data-calendar-view-value="resourceTimelineWeek"
+       data-calendar-date-value="2026-05-25"
+       data-calendar-empty-cell-add-button-value="true"
+       data-calendar-options-value='{"slotWidth":140}'
+       data-calendar-resources-value='[
+         {"id":"will","title":"Will Tan"},
+         {"id":"mike","title":"Mike O"},
+         {"id":"sam","title":"Sam Ng"}
+       ]'
+       data-calendar-resource-groups-value='[
+         {"id":"a","title":"Crew A","color":"#5856d6","resourceIds":["will","mike"],"expanded":true},
+         {"id":"b","title":"Crew B","color":"#34c759","resourceIds":["sam"],"expanded":true}
+       ]'>
+  </div>
+  <div class="sheet" id="sheet">Tap any empty cell to see the host "new appointment" sheet.</div>
+  <script type="module">
+    import { Application } from '/node_modules/@hotwired/stimulus/dist/stimulus.js';
+    import CalendarController from '/src/controllers/calendar_controller.js';
+    const app = Application.start();
+    app.register('calendar', CalendarController);
+    await new Promise((r) => setTimeout(r, 80));
+    const el = document.querySelector('[data-controller="calendar"]');
+    el.calendarApi.addEvent({ id:'e1', title:'Smith reno', resourceIds:['will'], start:'2026-05-26', end:'2026-05-27', allDay:true });
+    el.calendarApi.addEvent({ id:'e2', title:'Hot water', resourceIds:['sam'],  start:'2026-05-28', end:'2026-05-29', allDay:true });
+
+    const sheet = document.getElementById('sheet');
+    el.addEventListener('calendar:cellClick', (e) => {
+      const { date, resource, group } = e.detail;
+      sheet.textContent =
+        `new-appointment sheet\n` +
+        `  date    : ${date.toISOString().substring(0,10)}\n` +
+        `  crew    : ${group?.title ?? '(none)'}\n` +
+        `  for     : ${resource.title}\n`;
+    });
+  </script>
+</body>
+</html>
