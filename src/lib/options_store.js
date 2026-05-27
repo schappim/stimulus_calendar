@@ -322,6 +322,17 @@ function baseDefaults() {
     //
     // Off by default (no class emitted).
     eventAppearAnimation: undefined,
+    // S13 — custom renderer for the conflict modal. Receives:
+    //   { hostEl, eventId, serverValue, clientValue, onResolve }
+    // and is expected to return a controller object \`{ close }\` (so
+    // the library can dismiss the modal when a subsequent broadcast
+    // resolves the conflict server-side). \`onResolve({ resolution,
+    // eventId, … })\` MUST be called by the host's UI to fire
+    // \`calendar:conflictResolved\` and apply the chosen value.
+    //
+    // Unset → default \`renderConflictModal\` from
+    // src/components/conflict_modal.js is used.
+    conflictRenderer: undefined,
     filterEventsWithResources: false,
     firstDay: 0,
     headerToolbar: { start: 'title', center: '', end: 'today prev,next' },

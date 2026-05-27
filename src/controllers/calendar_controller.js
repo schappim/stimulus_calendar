@@ -24,6 +24,7 @@ import { createWeekScroller } from '../components/week_scroller.js';
 import { resolvePluginNames } from '../plugins/index.js';
 import { BroadcastBus, resolveAdapter } from '../lib/broadcast/index.js';
 import { consumeChipClickSuppression } from '../lib/click_suppression.js';
+import { renderConflictModal } from '../components/conflict_modal.js';
 
 // Stimulus calendar controller. One Stimulus controller per calendar; each
 // owns its own MainState, plugin set, and DOM tree. The HTML attribute
@@ -355,6 +356,48 @@ export default class CalendarController extends Controller {
     else if (op === 'override-occurrence' && message.seriesId && message.date) {
       this._applySeriesOccurrenceOverride(message.seriesId, message.date, message.overrides ?? {});
     }
+    // S13 — server detected a conflict (e.g., stale lock_version on a
+    // move). Render the resolution modal and apply the user's choice
+    // to local state. The host listens for `calendar:conflictResolved`
+    // to emit any server-side write the resolution implies.
+    else if (op === 'conflict' && (message.eventId || message.event?.id)) {
+      this._showConflictModal(message);
+    }
+  }
+
+  _showConflictModal(message) {
+    if (this._activeConflictModal) {
+      // Replace any earlier outstanding conflict for the same event —
+      // the latest server snapshot supersedes.
+      this._activeConflictModal.close();
+      this._activeConflictModal = null;
+    }
+    const options = this._state.get('options');
+    const renderer = typeof options.conflictRenderer === 'function'
+      ? options.conflictRenderer
+      : renderConflictModal;
+    const eventId = String(message.eventId ?? message.event?.id);
+    const ctx = {
+      hostEl: this.element,
+      eventId,
+      serverValue: message.serverValue ?? message.server_value ?? null,
+      clientValue: message.clientValue ?? message.client_value ?? null,
+      locale: options.locale,
+      buttonText: options.buttonText,
+      onResolve: ({ resolution, serverValue, clientValue }) => {
+        this._activeConflictModal = null;
+        const chosen = resolution === 'mine' ? clientValue : serverValue;
+        if (chosen && resolution !== 'dismissed') {
+          // Apply locally. The host decides whether to push a
+          // server-side write by listening to calendar:conflictResolved.
+          this._applyEventChange('update', { id: eventId, ...chosen });
+        }
+        this.dispatch('conflictResolved', {
+          detail: { resolution, eventId, serverValue, clientValue },
+        });
+      },
+    };
+    this._activeConflictModal = renderer(ctx);
   }
 
   _applySeriesOccurrenceSkip(seriesId, dateStr) {
