@@ -78,11 +78,13 @@ describe('view: resourceTimeline', () => {
       ]'>
     </div>`);
     const headers = el.querySelectorAll('[data-row="group-header"]');
-    expect(headers.length).toBe(2);
+    // 2 explicit groups + 1 synthetic "Other" for Joe.
+    expect(headers.length).toBe(3);
     expect(headers[0].getAttribute('data-group-id')).toBe('a');
     expect(headers[0].querySelector('.ec-group-header-name').textContent).toBe('Crew A');
     expect(headers[0].querySelector('.ec-group-header-count').textContent).toBe('2');
-    // Ungrouped resource still rendered at the tail
+    expect(headers[2].getAttribute('data-group-id')).toBe('__ungrouped');
+    expect(headers[2].querySelector('.ec-group-header-name').textContent).toBe('Other');
     expect(el.querySelector('[data-resource-id="joe"]')).toBeTruthy();
   });
 

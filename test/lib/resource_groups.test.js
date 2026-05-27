@@ -5,7 +5,7 @@ describe('buildResourceGroupLayout', () => {
   const r = (id, extra = {}) => ({ id, title: id, extendedProps: {}, ...extra });
 
   it('emits group headers in the declared order and resources beneath each', () => {
-    const { layout } = buildResourceGroupLayout({
+    const { layout, groupsById } = buildResourceGroupLayout({
       resources: [r('will'), r('mike'), r('sam'), r('joe')],
       resourceGroups: [
         { id: 'a', title: 'Crew A', resourceIds: ['will', 'mike'], expanded: true },
@@ -15,14 +15,43 @@ describe('buildResourceGroupLayout', () => {
       groupState: new Map(),
     });
     const kinds = layout.map((e) => e.kind);
-    expect(kinds).toEqual(['group','resource','resource','group','resource','resource']);
+    // Ungrouped 'joe' now sits under a synthetic "Other" parent.
+    expect(kinds).toEqual([
+      'group','resource','resource',
+      'group','resource',
+      'group','resource',
+    ]);
     expect(layout[0].group.title).toBe('Crew A');
-    expect(layout[1].resource.id).toBe('will');
-    expect(layout[2].resource.id).toBe('mike');
     expect(layout[3].group.title).toBe('Crew B');
-    expect(layout[4].resource.id).toBe('sam');
-    expect(layout[5].resource.id).toBe('joe');           // ungrouped → tail
-    expect(layout[5].group).toBeNull();
+    expect(layout[5].group.id).toBe('__ungrouped');
+    expect(layout[5].group.title).toBe('Other');
+    expect(layout[6].resource.id).toBe('joe');
+    expect(layout[6].group.id).toBe('__ungrouped');
+    expect(groupsById.get('__ungrouped').synthetic).toBe(true);
+  });
+
+  it('opts out of the synthetic Other group when ungroupedTitle is null', () => {
+    const { layout, groupsById } = buildResourceGroupLayout({
+      resources: [r('will'), r('joe')],
+      resourceGroups: [
+        { id: 'a', title: 'Crew A', resourceIds: ['will'], expanded: true },
+      ],
+      ungroupedTitle: null,
+      groupState: new Map(),
+    });
+    expect(layout.map((e) => e.kind)).toEqual(['group','resource','resource']);
+    expect(layout[2].group).toBeNull();
+    expect(groupsById.has('__ungrouped')).toBe(false);
+  });
+
+  it('keeps resources flat when there are no explicit groups at all', () => {
+    const { layout } = buildResourceGroupLayout({
+      resources: [r('will'), r('joe')],
+      resourceGroups: undefined,
+      resourceGroupField: undefined,
+      groupState: new Map(),
+    });
+    expect(layout.map((e) => e.kind)).toEqual(['resource','resource']);
   });
 
   it('honours groupState over the declared expanded flag', () => {
@@ -38,7 +67,7 @@ describe('buildResourceGroupLayout', () => {
     expect(layout[0].group.expanded).toBe(false);
   });
 
-  it('derives groups from resourceGroupField when no explicit list', () => {
+  it('derives groups from resourceGroupField when no explicit list, with synthetic Other', () => {
     const { layout, groupsById } = buildResourceGroupLayout({
       resources: [
         r('will', { crewId: 'a' }),
@@ -50,13 +79,17 @@ describe('buildResourceGroupLayout', () => {
       resourceGroupField: 'crewId',
       groupState: new Map(),
     });
-    expect(groupsById.size).toBe(2);
+    expect(groupsById.size).toBe(3);
     expect(groupsById.get('a').resourceIds).toEqual(['will','mike']);
     expect(groupsById.get('b').resourceIds).toEqual(['sam']);
-    const kinds = layout.map((e) => e.kind);
-    expect(kinds).toEqual(['group','resource','resource','group','resource','resource']);
-    expect(layout[5].resource.id).toBe('joe');
-    expect(layout[5].group).toBeNull();
+    expect(groupsById.get('__ungrouped').resourceIds).toEqual(['joe']);
+    expect(layout.map((e) => e.kind)).toEqual([
+      'group','resource','resource',
+      'group','resource',
+      'group','resource',
+    ]);
+    expect(layout[6].resource.id).toBe('joe');
+    expect(layout[6].group.id).toBe('__ungrouped');
   });
 
   it('reads groupField from extendedProps too', () => {

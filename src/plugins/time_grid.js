@@ -24,6 +24,12 @@ export const TimeGridPlugin = {
       slotMinTime: '00:00:00',
       snapDuration: undefined,
       view: 'timeGridWeek',
+      // Phase C2 — same density-dots semantics as DayGrid.
+      dayHeaderDensity: false,
+      // Phase C1 — TimeGridWeek can opt into the continuous horizontal
+      // week scroller. Controller swaps the pager for the WeekScroller
+      // when this is on.
+      continuousWeekScroll: false,
     });
     Object.assign(options.buttonText, {
       timeGridDay: 'day',

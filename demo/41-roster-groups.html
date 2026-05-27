@@ -21,7 +21,9 @@
     Phase A1 of the schedule-page gap plan. Resource groups render a header
     row above their members with chevron, swatch, name and member count.
     Toggle the chevron to collapse / expand the crew. Resources with no
-    group (Joe) render flat at the bottom — no "Unaffiliated" stub.
+    explicit crew (Joe) get wrapped under a synthetic <code>Other</code>
+    header so they sit visually separate from the named crews. Pass
+    <code>ungroupedGroupTitle: null</code> to opt out of that bucket.
   </p>
   <div class="actions">
     <button data-act="toggle-a">Toggle Crew A from JS</button>

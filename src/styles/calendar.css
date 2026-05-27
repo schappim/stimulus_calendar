@@ -1000,6 +1000,76 @@
   border-left: 1px solid var(--ec-border-color);
 }
 
+/* Day-header density dots (Phase C2). Up to 3 small dots beneath the
+ * weekday label; count is capped by the renderer. Custom recipes can
+ * paint anything via dayHeaderDensity: (ctx) => htmlOrText. */
+.ec-day-head-density {
+  display: flex;
+  justify-content: center;
+  gap: 3px;
+  margin-top: 2px;
+}
+
+.ec-day-head-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--ec-active-bg-color);
+  opacity: 0.7;
+}
+
+/* Stripe chip variant (Phase C3) — full-width coloured bar with title
+ * only. Drives a more compact Month view that matches the tradie
+ * schedule mockup. */
+.ec-day-grid .ec-event.ec-event-stripe {
+  background: color-mix(in srgb, var(--ec-event-color, var(--ec-event-accent)) 80%, white);
+  color: #fff;
+  padding: 1px 0.4rem;
+  border-radius: 3px;
+  border: none;
+  font-weight: 500;
+  margin-top: 1px;
+}
+
+.ec-day-grid .ec-event.ec-event-stripe .ec-event-dot,
+.ec-day-grid .ec-event.ec-event-stripe .ec-event-time {
+  display: none;
+}
+
+/* Confirmation states (Phase C5) — visual treatment keyed off
+ * extendedProps.confirmationState / extendedProps.conflict, applied
+ * via eventClassNames or the renderer's auto-class layer. Default
+ * looks; host can override with their own CSS for the same class. */
+.ec-event.ec-event-tentative {
+  border-style: dashed;
+  opacity: 0.7;
+}
+
+.ec-event.ec-event-confirmed {
+  /* No special treatment — confirmed is the baseline. Hook is here
+   * for hosts that want to add an accent (e.g. a checkmark glyph). */
+}
+
+.ec-event.ec-event-cancelled {
+  text-decoration: line-through;
+  opacity: 0.5;
+}
+
+.ec-event.ec-event-conflict {
+  outline: 2px solid #dc2626;
+  outline-offset: -2px;
+}
+
+/* Recurring event badge (Phase C6) — small loop glyph rendered by the
+ * lib/event_meta.js helper alongside the title. */
+.ec-event .ec-event-recurring {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 0.25rem;
+  opacity: 0.7;
+  font-size: 0.9em;
+}
+
 /* -------------------------------------------------------------------------
  * Phase B — hours-mode + today-circle + pinch row height
  * --------------------------------------------------------------------- */

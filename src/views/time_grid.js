@@ -8,6 +8,7 @@ import { cloneDate, addDay, setMidnight, datesEqual, toISOString, addDuration, c
 import { createSlots, createSlotTimeLimits } from '../lib/slots.js';
 import { viewDates as viewDatesHelper } from '../lib/derived.js';
 import { assignOverlapLanes } from '../lib/events.js';
+import { eventMetaClassNames, buildRecurringBadge } from '../lib/event_meta.js';
 
 export function renderTimeGridView(container, state) {
   // Persist user-scrolled vertical offset across re-renders so that
@@ -49,10 +50,37 @@ export function renderTimeGridView(container, state) {
     ]);
     header.append(createElement('div', `${theme.sidebar} ec-corner`));
     const headerFmt = new Intl.DateTimeFormat(options.locale, { timeZone: 'UTC', ...options.dayHeaderFormat });
+    const dotsOpt = options.dayHeaderDensity;
+    // Density-dot input — pull events here (filtered isn't defined yet
+    // at this point in the renderer).
+    const filteredForDots = dotsOpt ? (state.get('filteredEvents') ?? []) : [];
+    const countOn = (day) => {
+      const next = cloneDate(day); addDay(next);
+      return filteredForDots.filter((e) => e.start < next && e.end > day).length;
+    };
     for (const d of days) {
       const head = createElement('div', theme.dayHead, headerFmt.format(d), [
         ['data-day', String(d.getUTCDay())],
       ]);
+      if (dotsOpt) {
+        const count = countOn(d);
+        if (count > 0) {
+          if (typeof dotsOpt === 'function') {
+            const c = dotsOpt({ date: d, count, max: 3 });
+            const wrap = createElement('span', 'ec-day-head-density');
+            if (typeof c === 'string') wrap.textContent = c;
+            else if (c?.html) wrap.innerHTML = c.html;
+            else if (c?.domNodes) c.domNodes.forEach((n) => wrap.append(n));
+            head.append(wrap);
+          } else {
+            const dots = createElement('span', 'ec-day-head-density');
+            for (let i = 0; i < Math.min(3, count); ++i) {
+              dots.append(createElement('span', 'ec-day-head-dot'));
+            }
+            head.append(dots);
+          }
+        }
+      }
       header.append(head);
     }
     root.append(header);
@@ -303,6 +331,8 @@ export function renderTimeGridView(container, state) {
           classes.push(...(Array.isArray(globalCls) ? globalCls : [globalCls]));
         }
         if (event.classNames) classes.push(...(Array.isArray(event.classNames) ? event.classNames : [event.classNames]));
+        // Phase C5/C6 auto-classes.
+        classes.push(...eventMetaClassNames(event));
         const chip = createElement('div', classes.filter(Boolean).join(' '), '', [
           ['data-event-id', event.id],
           ['data-event-start', event.start.toISOString()],
@@ -320,7 +350,10 @@ export function renderTimeGridView(container, state) {
         chip.style.right = '0';
         if (lane > 0) chip.style.zIndex = String(lane + 1);
         if (event.backgroundColor) chip.style.setProperty('--ec-event-color', event.backgroundColor);
-        chip.append(createElement('div', theme.eventTitle, event.title || ''));
+        const titleEl = createElement('div', theme.eventTitle);
+        if (event.extendedProps?.rrule) titleEl.append(buildRecurringBadge());
+        titleEl.append(document.createTextNode(event.title || ''));
+        chip.append(titleEl);
         const timeEl = createElement('div', theme.eventTime ?? 'ec-event-time');
         timeEl.innerHTML = CLOCK_ICON_SVG;
         timeEl.append(document.createTextNode(formatEventTimeRange(visStart, visEnd, options)));

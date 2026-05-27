@@ -11,18 +11,25 @@
 //     { kind: 'resource', resource: <r2>, group },
 //     { kind: 'group',    group: { id, title, color, expanded } },
 //     …,
-//     { kind: 'resource', resource: <ungrouped> },   // group === null
+//     { kind: 'group',    group: { id: '__ungrouped', title: 'Other', … } },
+//     { kind: 'resource', resource: <r3>, group },
 //   ]
 //
-// Resources that don't match any group land in a trailing flat region
-// with no group header above them (mockup §roster shows this as
-// "no header, just rows" — there is no "Unaffiliated" stub).
+// When at least one explicit group exists AND there are resources that
+// don't match any group, the helper auto-emits a trailing synthetic
+// group with id "__ungrouped" so the leftover resources have a parent
+// header above them (rather than floating loose under the last crew's
+// expander). The title comes from options.ungroupedTitle (default
+// "Other"); pass `null` / `false` to opt out and keep the flat tail.
 //
-// Group expansion is stored on the group object itself (mutable in place
-// so the caller's setGroupExpanded works without re-deriving the whole
-// list every time the user toggles a chevron).
+// When NO explicit groups exist (and no resourceGroupField derives one),
+// the helper returns the resources flat with no headers at all — a
+// pure resource list, the existing pre-Phase-A1 behaviour.
 
-export function buildResourceGroupLayout({ resources, resourceGroups, resourceGroupField, groupState }) {
+export function buildResourceGroupLayout({
+  resources, resourceGroups, resourceGroupField, groupState,
+  ungroupedTitle = 'Other',
+}) {
   const groupsById = new Map();
   const orderedGroupIds = [];
 
@@ -83,8 +90,35 @@ export function buildResourceGroupLayout({ resources, resourceGroups, resourceGr
       if (r) layout.push({ kind: 'resource', resource: r, group: grp });
     }
   }
-  for (const r of resources) {
-    if (!assignedIds.has(r.id)) layout.push({ kind: 'resource', resource: r, group: null });
+
+  // Ungrouped resources. Two modes:
+  //   - groups exist + ungroupedTitle is set
+  //         → wrap leftovers in a synthetic "Other" group so the user
+  //           gets a clear separation from the named crews.
+  //   - no explicit groups
+  //         → render flat (the original Phase 9 behaviour).
+  const ungrouped = resources.filter((r) => !assignedIds.has(r.id));
+  if (ungrouped.length === 0) return { layout, groupsById };
+
+  const haveExplicitGroups = orderedGroupIds.length > 0;
+  if (haveExplicitGroups && ungroupedTitle) {
+    const ungroupedId = '__ungrouped';
+    const liveExpanded = groupState.get(ungroupedId);
+    const grp = {
+      id: ungroupedId,
+      title: ungroupedTitle,
+      color: undefined,
+      resourceIds: ungrouped.map((r) => r.id),
+      expanded: liveExpanded ?? true,
+      synthetic: true,
+    };
+    groupsById.set(ungroupedId, grp);
+    layout.push({ kind: 'group', group: grp });
+    if (grp.expanded) {
+      for (const r of ungrouped) layout.push({ kind: 'resource', resource: r, group: grp });
+    }
+  } else {
+    for (const r of ungrouped) layout.push({ kind: 'resource', resource: r, group: null });
   }
   return { layout, groupsById };
 }

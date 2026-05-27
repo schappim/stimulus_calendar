@@ -40,6 +40,12 @@ export const ResourceTimelinePlugin = {
       // matching group render as flat siblings — no "Unaffiliated" header.
       resourceGroups: undefined,
       resourceGroupField: undefined,
+      // When at least one explicit group is defined and there are
+      // resources that don't match any group, the renderer wraps the
+      // leftovers in a synthetic "Other" group so they're visually
+      // separated from the named crews. Set to null / '' to opt out
+      // and keep the flat tail (the pre-Phase A1 behaviour).
+      ungroupedGroupTitle: 'Other',
       groupHeaderContent: undefined,
       groupHeaderDidMount: undefined,
       // Phase A3 — per-cell quick-add affordance + cellClick.

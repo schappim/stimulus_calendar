@@ -9,6 +9,7 @@ import {
   getWeekNumber, createWeekNumberContent,
 } from '../lib/date.js';
 import { viewDates as viewDatesHelper } from '../lib/derived.js';
+import { eventMetaClassNames, buildRecurringBadge } from '../lib/event_meta.js';
 
 function eventsOnDay(events, day) {
   const next = cloneDate(day);
@@ -45,10 +46,38 @@ export function renderDayGridView(container, state) {
       headers.append(createElement('div', theme.weekNumber, ''));
     }
     const headerFmt = new Intl.DateTimeFormat(options.locale, { timeZone: 'UTC', ...options.dayHeaderFormat });
+    // Phase C2 — density dots. When enabled, the renderer counts events
+    // per day (capped at 3) and either renders a built-in trio of dots
+    // or hands { date, count, max } to a custom recipe.
+    const dotsOpt = options.dayHeaderDensity;
+    const filteredForDots = dotsOpt ? (state.get('filteredEvents') ?? []) : [];
+    const countOn = (day) => {
+      const next = cloneDate(day); addDay(next);
+      return filteredForDots.filter((e) => e.start < next && e.end > day).length;
+    };
     for (const d of days.slice(0, visibleWeekdays)) {
       const head = createElement('div', theme.dayHead, headerFmt.format(d), [
         ['data-day', String(d.getUTCDay())],
       ]);
+      if (dotsOpt) {
+        const count = countOn(d);
+        if (count > 0) {
+          if (typeof dotsOpt === 'function') {
+            const c = dotsOpt({ date: d, count, max: 3 });
+            const wrap = createElement('span', 'ec-day-head-density');
+            if (typeof c === 'string') wrap.textContent = c;
+            else if (c?.html) wrap.innerHTML = c.html;
+            else if (c?.domNodes) c.domNodes.forEach((n) => wrap.append(n));
+            head.append(wrap);
+          } else {
+            const dots = createElement('span', 'ec-day-head-density');
+            for (let i = 0; i < Math.min(3, count); ++i) {
+              dots.append(createElement('span', 'ec-day-head-dot'));
+            }
+            head.append(dots);
+          }
+        }
+      }
       headers.append(head);
     }
     grid.append(headers);
@@ -130,17 +159,20 @@ export function renderDayGridView(container, state) {
             classes.push(...(Array.isArray(globalCls) ? globalCls : [globalCls]));
           }
           classes.push(...event.classNames);
+          // Phase C5/C6 — auto-classes from extendedProps.
+          classes.push(...eventMetaClassNames(event));
+          // Phase C3 — Month-cell event style. The `stripe` variant
+          // renders a full-width coloured bar with title only — no dot,
+          // no time. Matches the mockup's Month view.
+          const stripe = options.dayCellEventStyle === 'stripe';
+          if (stripe) classes.push('ec-event-stripe');
           const chip = createElement('div', classes.filter(Boolean).join(' '), '', [
             ['data-event-id', event.id],
           ]);
           const bgColor = event.backgroundColor ?? options.eventBackgroundColor ?? options.eventColor;
           const txtColor = event.textColor ?? options.eventTextColor;
-          // Drive the accent through the CSS custom property so per-type
-          // modifier classes (.ec-appt-*) can still override it via
-          // specificity. Direct style.backgroundColor would beat any class.
           if (bgColor) chip.style.setProperty('--ec-event-color', bgColor);
           if (txtColor) chip.style.color = txtColor;
-          // Custom event content takes priority over the default dot/time/title.
           if (options.eventContent) {
             const fn = options.eventContent;
             const content = typeof fn === 'function'
@@ -149,6 +181,9 @@ export function renderDayGridView(container, state) {
             if (typeof content === 'string') chip.innerText = content;
             else if (content?.html) chip.innerHTML = content.html;
             else if (content?.domNodes) chip.replaceChildren(...content.domNodes);
+          } else if (stripe) {
+            if (event.extendedProps?.rrule) chip.append(buildRecurringBadge());
+            chip.append(createElement('span', theme.eventTitle, event.title || ''));
           } else {
             const dot = createElement('span', 'ec-event-dot');
             const time = eventTimeText(event, options);
@@ -157,6 +192,7 @@ export function renderDayGridView(container, state) {
             } else {
               chip.append(dot);
             }
+            if (event.extendedProps?.rrule) chip.append(buildRecurringBadge());
             chip.append(createElement('span', theme.eventTitle, event.title || ''));
           }
           // User event handlers + matching DOM CustomEvent dispatch via

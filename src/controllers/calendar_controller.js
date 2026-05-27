@@ -94,6 +94,8 @@ export default class CalendarController extends Controller {
     emptyCellAddButton: { type: Boolean, default: false },
     // Phase C1 — TimeGridWeek continuous horizontal scroller
     continuousWeekScroll: { type: Boolean, default: false },
+    // Phase C2 — density dots beneath the dayHeader weekday label.
+    dayHeaderDensity: { type: Boolean, default: false },
     // Broadcast / live-sync options
     broadcast: String,
     broadcastChannel: String,
@@ -807,7 +809,7 @@ CalendarController.OPTION_KEYS = [
   'filterResourcesWithEvents', 'filterEventsWithResources',
   'monthHeaderFormat', 'slotWidth', 'resourceExpand',
   'resourceGroups', 'resourceGroupField', 'emptyCellAddButton',
-  'continuousWeekScroll',
+  'continuousWeekScroll', 'dayHeaderDensity',
   'broadcast', 'broadcastChannel',
 ];
 

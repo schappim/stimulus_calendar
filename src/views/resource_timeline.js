@@ -187,6 +187,7 @@ export function renderResourceTimelineView(container, state) {
       resources: tops,
       resourceGroups: options.resourceGroups,
       resourceGroupField: options.resourceGroupField,
+      ungroupedTitle: options.ungroupedGroupTitle,
       groupState,
     });
     state.set('resourceGroupsById', groupsById);

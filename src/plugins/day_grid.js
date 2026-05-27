@@ -14,6 +14,14 @@ export const DayGridPlugin = {
       weekNumbers: false,
       weekNumberContent: undefined,
       view: 'dayGridMonth',
+      // Phase C2 — density dots in dayHead. false (default) skips the
+      // count entirely; true paints up to 3 dots; a function takes
+      // ({ date, count, max }) and returns html/text/domNodes.
+      dayHeaderDensity: false,
+      // Phase C3 — Month-cell event style. 'chip' (default) renders
+      // dot + time + title; 'stripe' renders a full-width colour bar
+      // with just the title (matches the mockup's Month view).
+      dayCellEventStyle: 'chip',
     });
     Object.assign(options.buttonText, {
       dayGridDay: 'day',
