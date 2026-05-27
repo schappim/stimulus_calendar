@@ -4761,8 +4761,28 @@ const nt = class nt extends _n {
   _publishBroadcast(t, e, o) {
     this._bus && (this._bus.publish({ op: t, event: e, meta: o }), this.dispatch("broadcast:out", { detail: { message: { op: t, event: e, meta: o } } }));
   }
+  // Tell the bus to drop any inbound broadcast carrying this
+  // optimistic id. Hosts call this BEFORE issuing the PATCH that
+  // mutates the row server-side: the server echoes the id back on its
+  // broadcast, and we suppress our own echo so the optimistic UI
+  // doesn't fight a redundant merge from the wire.
+  //
+  // Ids expire after `ttl` ms (default 30s) so a never-arriving echo
+  // doesn't leak the set forever.
+  _expectEcho(t, e = 3e4) {
+    if (!t || (this._expectedEchoes || (this._expectedEchoes = /* @__PURE__ */ new Map()), this._expectedEchoes.has(t))) return;
+    const o = setTimeout(() => this._expectedEchoes?.delete(t), e);
+    this._expectedEchoes.set(t, o);
+  }
+  _consumeEcho(t) {
+    return !t || !this._expectedEchoes?.has(t) ? !1 : (clearTimeout(this._expectedEchoes.get(t)), this._expectedEchoes.delete(t), !0);
+  }
   _applyBroadcast(t) {
     if (!t) return;
+    if (this._consumeEcho(t.optimisticId)) {
+      this.dispatch("broadcast:in", { detail: { message: t, suppressed: !0 } });
+      return;
+    }
     this.dispatch("broadcast:in", { detail: { message: t } });
     const { op: e, event: o } = t;
     e === "add" && o ? this._applyEventChange("add", o) : e === "update" && o ? this._applyEventChange("update", o) : e === "remove" && o?.id ? this._applyEventChange("remove", o) : e === "refetch" && typeof this.element.calendarApi?.refetchEvents == "function" ? this.element.calendarApi.refetchEvents() : e === "skip-occurrence" && t.seriesId && t.date ? this._applySeriesOccurrenceSkip(t.seriesId, t.date) : e === "override-occurrence" && t.seriesId && t.date ? this._applySeriesOccurrenceOverride(t.seriesId, t.date, t.overrides ?? {}) : e === "conflict" && (t.eventId || t.event?.id) && this._showConflictModal(t);
@@ -4933,6 +4953,12 @@ const nt = class nt extends _n {
       getEvents: () => this._state.get("filteredEvents") ?? [],
       getEventById: (e) => (this._state.get("filteredEvents") ?? []).find((o) => o.id === e),
       refetchEvents: async () => this._refetchEvents(),
+      // Echo suppression — host calls expectEcho(uuid) BEFORE issuing
+      // a server PATCH whose return broadcast would otherwise re-apply
+      // the optimistic UI. Sender sets the X-Optimistic-Id header, the
+      // server echoes it on the broadcast, the inbound bus drops the
+      // matching message. Ids self-expire after 30s.
+      expectEcho: (e, o) => this._expectEcho(e, o),
       // Resources
       refetchResources: async () => this._refetchResources(),
       getResources: () => this._state.get("resources") ?? [],

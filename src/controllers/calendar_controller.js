@@ -335,8 +335,40 @@ export default class CalendarController extends Controller {
     this.dispatch('broadcast:out', { detail: { message: { op, event, meta } } });
   }
 
+  // Tell the bus to drop any inbound broadcast carrying this
+  // optimistic id. Hosts call this BEFORE issuing the PATCH that
+  // mutates the row server-side: the server echoes the id back on its
+  // broadcast, and we suppress our own echo so the optimistic UI
+  // doesn't fight a redundant merge from the wire.
+  //
+  // Ids expire after `ttl` ms (default 30s) so a never-arriving echo
+  // doesn't leak the set forever.
+  _expectEcho(optimisticId, ttl = 30_000) {
+    if (!optimisticId) return;
+    if (!this._expectedEchoes) this._expectedEchoes = new Map();
+    if (this._expectedEchoes.has(optimisticId)) return;
+    const timer = setTimeout(() => this._expectedEchoes?.delete(optimisticId), ttl);
+    this._expectedEchoes.set(optimisticId, timer);
+  }
+
+  _consumeEcho(optimisticId) {
+    if (!optimisticId || !this._expectedEchoes?.has(optimisticId)) return false;
+    clearTimeout(this._expectedEchoes.get(optimisticId));
+    this._expectedEchoes.delete(optimisticId);
+    return true;
+  }
+
   _applyBroadcast(message) {
     if (!message) return;
+    // Echo suppression — see _expectEcho. The Ruby helpers emit the
+    // `optimistic-id="..."` attribute, the turbo-stream adapter
+    // camel-cases it to `optimisticId`. A match means this broadcast
+    // is our own server round-trip; skip the local apply (the
+    // optimistic UI already has the new state).
+    if (this._consumeEcho(message.optimisticId)) {
+      this.dispatch('broadcast:in', { detail: { message, suppressed: true } });
+      return;
+    }
     this.dispatch('broadcast:in', { detail: { message } });
     const { op, event } = message;
     if (op === 'add' && event) this._applyEventChange('add', event);
@@ -704,6 +736,13 @@ export default class CalendarController extends Controller {
       getEvents: () => this._state.get('filteredEvents') ?? [],
       getEventById: (id) => (this._state.get('filteredEvents') ?? []).find((e) => e.id === id),
       refetchEvents: async () => this._refetchEvents(),
+
+      // Echo suppression — host calls expectEcho(uuid) BEFORE issuing
+      // a server PATCH whose return broadcast would otherwise re-apply
+      // the optimistic UI. Sender sets the X-Optimistic-Id header, the
+      // server echoes it on the broadcast, the inbound bus drops the
+      // matching message. Ids self-expire after 30s.
+      expectEcho: (optimisticId, ttl) => this._expectEcho(optimisticId, ttl),
 
       // Resources
       refetchResources: async () => this._refetchResources(),
