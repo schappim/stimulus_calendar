@@ -2,13 +2,27 @@
 // vertically as rows. Phase 9 ships the skeleton: header timeline with
 // day labels, one row per resource (with title + horizontal event ribbon),
 // optional expand/collapse for nested resources.
+//
+// Phase A1 layers resource groups on top: an ordered list of
+// { kind: 'group' | 'resource', … } entries built from
+// options.resourceGroups / resourceGroupField. A group renders as a
+// single header row (chevron + swatch + title + count + action slot) and
+// hides its members when collapsed. Resources outside every group render
+// flat below all groups.
 
 import { createElement } from '../lib/dom.js';
 import { cloneDate, addDay, setMidnight, datesEqual } from '../lib/date.js';
 import { viewDates as viewDatesHelper } from '../lib/derived.js';
 import { getPayload, setPayload } from '../lib/payload.js';
+import { buildResourceGroupLayout } from '../lib/resource_groups.js';
 
 export function renderResourceTimelineView(container, state) {
+  // Per-controller group expansion state. Persists across re-renders
+  // (so toggling a chevron doesn't reset on the next event-change tick)
+  // but lives on this closure, not on the resource itself.
+  const groupState = state.get('resourceGroupState') ?? new Map();
+  state.set('resourceGroupState', groupState);
+
   const render = () => {
     const options = state.get('options');
     const theme = options.theme;
@@ -39,9 +53,98 @@ export function renderResourceTimelineView(container, state) {
     header.append(slotsHeader);
     root.append(header);
 
-    // Rows — one per visible (non-hidden) resource. Recursive walk so
-    // nested children are indented; collapsed parents hide descendants.
+    // Body — rows. Phase A1: group-aware layout. We walk only top-level
+    // resources (nested-resource expand/collapse stays as a sub-layer
+    // inside renderRow).
+    const tops = resources.filter((r) => (getPayload(r)?.level ?? 0) === 0);
+
+    if (options.resourceExpand !== undefined) {
+      const applyExpand = (r, depth) => {
+        const p = getPayload(r);
+        if (!p) return;
+        if (options.resourceExpand === 'all' || options.resourceExpand === true ||
+            (typeof options.resourceExpand === 'number' && depth < options.resourceExpand)) {
+          r.expanded = true;
+        }
+        for (const c of p.children) applyExpand(c, depth + 1);
+      };
+      for (const r of tops) applyExpand(r, 0);
+    }
+
+    const { layout, groupsById } = buildResourceGroupLayout({
+      resources: tops,
+      resourceGroups: options.resourceGroups,
+      resourceGroupField: options.resourceGroupField,
+      groupState,
+    });
+    state.set('resourceGroupsById', groupsById);
+
     const body = createElement('div', 'ec-timeline-body', '', [['data-row', 'body']]);
+
+    const renderGroupHeader = (group) => {
+      const row = createElement('div', `ec-timeline-row ${theme.groupHeader}`, '', [
+        ['data-row', 'group-header'],
+        ['data-group-id', group.id],
+        ['data-expanded', group.expanded ? 'true' : 'false'],
+      ]);
+      const head = createElement('div', `${theme.rowHead} ec-group-head`);
+      const toggle = createElement('button', theme.groupHeaderToggle, '', [
+        ['type', 'button'],
+        ['aria-label', group.expanded ? 'Collapse' : 'Expand'],
+        ['aria-expanded', String(group.expanded)],
+      ]);
+      toggle.innerHTML = group.expanded
+        ? (options.icons.collapse?.html ?? '−')
+        : (options.icons.expand?.html ?? '+');
+      toggle.addEventListener('click', () => {
+        const next = !group.expanded;
+        groupState.set(group.id, next);
+        group.expanded = next;
+        const fire = state.get('fire');
+        fire?.(next ? 'groupExpand' : 'groupCollapse', {
+          groupId: group.id, view: state.get('view'),
+        });
+        render();
+      });
+      head.append(toggle);
+
+      const swatch = createElement('span', theme.groupHeaderSwatch);
+      if (group.color) swatch.style.background = group.color;
+      head.append(swatch);
+
+      head.append(createElement('span', theme.groupHeaderName, group.title));
+      head.append(createElement('span', theme.groupHeaderCount, `${group.resourceIds.length}`));
+
+      // Right-hand action slot — host can supply an HTML / text recipe via
+      // options.groupHeaderContent({ group, view }) or wire a click on
+      // [data-group-header-action] from the calendar:groupExpand event.
+      const actionSlot = createElement('span', theme.groupHeaderAction, '', [
+        ['data-group-header-action', ''],
+      ]);
+      const contentFn = options.groupHeaderContent;
+      if (typeof contentFn === 'function') {
+        const c = contentFn({ group, view: state.get('view') });
+        if (typeof c === 'string') actionSlot.textContent = c;
+        else if (c?.html) actionSlot.innerHTML = c.html;
+        else if (c?.domNodes) c.domNodes.forEach((n) => actionSlot.append(n));
+      }
+      head.append(actionSlot);
+
+      row.append(head);
+
+      // Strip cell — empty placeholder spanning the timeline width so
+      // the bottom border lines up with regular rows.
+      const strip = createElement('div', 'ec-group-header-strip');
+      strip.style.width = `${days.length * slotWidth}px`;
+      row.append(strip);
+      body.append(row);
+
+      const mountFn = options.groupHeaderDidMount;
+      if (typeof mountFn === 'function') {
+        queueMicrotask(() => mountFn({ group, el: row, view: state.get('view') }));
+      }
+    };
+
     const renderRow = (resource, depth) => {
       const payload = getPayload(resource);
       if (payload?.hidden) return;
@@ -50,12 +153,8 @@ export function renderResourceTimelineView(container, state) {
         ['data-depth', String(depth)],
       ]);
       const head = createElement('div', theme.rowHead, '', [['data-resource-label', '']]);
-      // Indent nested resources via a custom property the CSS adds to its
-      // base padding — setting padding-left directly would clobber the
-      // stylesheet's leading whitespace.
       head.style.setProperty('--ec-row-head-indent', `${depth * 16}px`);
 
-      // Expander button for nested resources.
       const hasChildren = payload?.children?.length > 0;
       if (hasChildren) {
         const expander = createElement('button', theme.expander, '', [
@@ -67,7 +166,6 @@ export function renderResourceTimelineView(container, state) {
           : (options.icons.expand?.html ?? '+');
         expander.addEventListener('click', () => {
           resource.expanded = !resource.expanded;
-          // Refresh hidden flags on descendants.
           const propagate = (r, hidden) => {
             const p = getPayload(r);
             if (!p) return;
@@ -132,25 +230,11 @@ export function renderResourceTimelineView(container, state) {
       }
     };
 
-    // Walk only top-level resources; renderRow recurses.
-    const tops = resources.filter((r) => (getPayload(r)?.level ?? 0) === 0);
-
-    // Honour resourceExpand: 'all' | number | bool — auto-set expanded
-    // before rendering.
-    if (options.resourceExpand !== undefined) {
-      const applyExpand = (r, depth) => {
-        const p = getPayload(r);
-        if (!p) return;
-        if (options.resourceExpand === 'all' || options.resourceExpand === true ||
-            (typeof options.resourceExpand === 'number' && depth < options.resourceExpand)) {
-          r.expanded = true;
-        }
-        for (const c of p.children) applyExpand(c, depth + 1);
-      };
-      for (const r of tops) applyExpand(r, 0);
+    for (const entry of layout) {
+      if (entry.kind === 'group') renderGroupHeader(entry.group);
+      else renderRow(entry.resource, 0);
     }
 
-    for (const r of tops) renderRow(r, 0);
     root.append(body);
     container.replaceChildren(root);
   };

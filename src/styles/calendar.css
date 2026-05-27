@@ -756,6 +756,96 @@
   padding: 4px 0;
 }
 
+/* -------------------------------------------------------------------------
+ * ResourceTimeline group header (Phase A1 — Roster crews)
+ *
+ * Drawn as a regular timeline row with a distinct background, sticky
+ * row-head (the crew name + chevron + swatch), and an empty strip on
+ * the right where the resource rows' ribbons would sit. The collapse /
+ * expand toggle hides the descendants by re-rendering the layout from
+ * the controller, NOT by CSS sibling selectors — the group's
+ * `expanded: false` simply doesn't emit its member rows.
+ * --------------------------------------------------------------------- */
+
+.ec-timeline .ec-group-header {
+  background: #f8fafc;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ec-muted-text-color);
+}
+
+.ec-timeline .ec-group-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding-left: 0.75rem;
+}
+
+.ec-group-header-toggle {
+  appearance: none;
+  background: transparent;
+  border: 1px solid var(--ec-border-color);
+  border-radius: 4px;
+  width: 1.25rem;
+  height: 1.25rem;
+  font-size: 0.875rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ec-muted-text-color);
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+
+.ec-group-header-toggle:hover {
+  background: var(--ec-button-hover-bg-color);
+  color: var(--ec-text-color);
+}
+
+.ec-group-header-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  background: var(--ec-event-accent);
+  flex: 0 0 auto;
+}
+
+.ec-group-header-name {
+  font-weight: 600;
+  color: var(--ec-text-color);
+  letter-spacing: 0;
+  text-transform: none;
+  font-size: 0.875rem;
+}
+
+.ec-group-header-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.4rem;
+  background: var(--ec-border-color);
+  color: var(--ec-muted-text-color);
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.ec-group-header-action {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.ec-group-header-strip {
+  border-left: 1px solid var(--ec-border-color);
+}
+
 .ec-timeline .ec-event {
   position: absolute;
   top: 4px;

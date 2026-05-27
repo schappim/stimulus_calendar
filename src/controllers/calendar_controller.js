@@ -86,6 +86,9 @@ export default class CalendarController extends Controller {
     monthHeaderFormat: Object,
     slotWidth: Number,
     resourceExpand: String,
+    // Phase A1 — Roster grouping
+    resourceGroups: Array,
+    resourceGroupField: String,
     // Broadcast / live-sync options
     broadcast: String,
     broadcastChannel: String,
@@ -442,6 +445,32 @@ export default class CalendarController extends Controller {
       refetchResources: async () => this._refetchResources(),
       getResources: () => this._state.get('resources') ?? [],
 
+      // Resource groups (Phase A1) — ResourceTimeline only. The renderer
+      // owns the group expansion map; we just forward the read / write so
+      // host code can collapse/expand crews programmatically and a fresh
+      // re-render picks up the new state.
+      setGroupExpanded: (groupId, expanded) => {
+        const map = this._state.get('resourceGroupState') ?? new Map();
+        map.set(String(groupId), !!expanded);
+        this._state.set('resourceGroupState', map);
+        const groupsById = this._state.get('resourceGroupsById');
+        const g = groupsById?.get(String(groupId));
+        if (g) g.expanded = !!expanded;
+        // Re-fire the derivation pipeline so the renderer wakes up; no
+        // option mutation needed because group state is its own slot.
+        this._recompute();
+      },
+      getGroupExpanded: (groupId) => {
+        const map = this._state.get('resourceGroupState') ?? new Map();
+        if (map.has(String(groupId))) return map.get(String(groupId));
+        const g = this._state.get('resourceGroupsById')?.get(String(groupId));
+        return g?.expanded ?? true;
+      },
+      getResourceGroups: () => {
+        const m = this._state.get('resourceGroupsById');
+        return m ? Array.from(m.values()) : [];
+      },
+
       // Navigation
       next: () => this._navigate(+1),
       prev: () => this._navigate(-1),
@@ -753,6 +782,7 @@ CalendarController.OPTION_KEYS = [
   'resources', 'refetchResourcesOnNavigate', 'datesAboveResources',
   'filterResourcesWithEvents', 'filterEventsWithResources',
   'monthHeaderFormat', 'slotWidth', 'resourceExpand',
+  'resourceGroups', 'resourceGroupField',
   'broadcast', 'broadcastChannel',
 ];
 

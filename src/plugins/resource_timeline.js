@@ -31,6 +31,17 @@ export const ResourceTimelinePlugin = {
       resourceExpand: undefined,
       slotWidth: 32,
       view: 'resourceTimelineWeek',
+      // Phase A1 — Roster grouping. Two ways to feed groups:
+      //   (a) explicit list:  resourceGroups: [{ id, title, color,
+      //       resourceIds, expanded }]
+      //   (b) derive from a field on each resource:
+      //       resourceGroupField: 'crewId'
+      // When both are supplied the explicit list wins. Resources with no
+      // matching group render as flat siblings — no "Unaffiliated" header.
+      resourceGroups: undefined,
+      resourceGroupField: undefined,
+      groupHeaderContent: undefined,
+      groupHeaderDidMount: undefined,
     });
     Object.assign(options.buttonText, {
       expand: 'Expand',
@@ -49,6 +60,13 @@ export const ResourceTimelinePlugin = {
       rowHead: 'ec-row-head',
       slots: 'ec-slots',
       timeline: 'ec-timeline',
+      // Phase A1 — group header row above each crew's resource rows.
+      groupHeader:        'ec-group-header',
+      groupHeaderSwatch:  'ec-group-header-swatch',
+      groupHeaderToggle:  'ec-group-header-toggle',
+      groupHeaderName:    'ec-group-header-name',
+      groupHeaderCount:   'ec-group-header-count',
+      groupHeaderAction:  'ec-group-header-action',
     });
     Object.assign(options.views, {
       resourceTimelineDay: {

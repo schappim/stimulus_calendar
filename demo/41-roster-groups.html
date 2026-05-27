@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>stimulus_calendar — Roster groups (Phase A1)</title>
+  <link rel="stylesheet" href="../src/styles/calendar.css">
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; margin: 2rem; }
+    .ec { width: 1080px; }
+    h1 { font-size: 1.25rem; }
+    .note { color: #475569; font-size: 0.875rem; max-width: 60ch; margin-bottom: 1rem; }
+    .actions { margin: 0.5rem 0 1rem; display: flex; gap: 0.5rem; }
+    .actions button { padding: 0.4rem 0.75rem; }
+    .log { font: 12px/1.4 ui-monospace, monospace; background: #f1f5f9;
+           padding: 0.5rem 0.75rem; border-radius: 4px; max-height: 8rem; overflow:auto; }
+  </style>
+</head>
+<body>
+  <h1>Roster groups — Crew A / Crew B with chevron toggle</h1>
+  <p class="note">
+    Phase A1 of the schedule-page gap plan. Resource groups render a header
+    row above their members with chevron, swatch, name and member count.
+    Toggle the chevron to collapse / expand the crew. Resources with no
+    group (Joe) render flat at the bottom — no "Unaffiliated" stub.
+  </p>
+  <div class="actions">
+    <button data-act="toggle-a">Toggle Crew A from JS</button>
+    <button data-act="toggle-b">Toggle Crew B from JS</button>
+  </div>
+  <div data-controller="calendar"
+       data-calendar-plugins-value='["ResourceTimeline"]'
+       data-calendar-view-value="resourceTimelineWeek"
+       data-calendar-date-value="2026-05-25"
+       data-calendar-options-value='{"slotWidth":120}'
+       data-calendar-resources-value='[
+         {"id":"will","title":"Will Tan","eventBackgroundColor":"#5856d6"},
+         {"id":"mike","title":"Mike O","eventBackgroundColor":"#5856d6"},
+         {"id":"sam","title":"Sam Ng","eventBackgroundColor":"#34c759"},
+         {"id":"jess","title":"Jess Q","eventBackgroundColor":"#34c759"},
+         {"id":"joe","title":"Joe (sub)"}
+       ]'
+       data-calendar-resource-groups-value='[
+         {"id":"a","title":"Crew A","color":"#5856d6","resourceIds":["will","mike"],"expanded":true},
+         {"id":"b","title":"Crew B","color":"#34c759","resourceIds":["sam","jess"],"expanded":true}
+       ]'>
+  </div>
+  <h3 style="margin-top:1.25rem;font-size:0.875rem;">Event log</h3>
+  <div class="log" id="log"></div>
+  <script type="module">
+    import { Application } from '/node_modules/@hotwired/stimulus/dist/stimulus.js';
+    import CalendarController from '/src/controllers/calendar_controller.js';
+    const app = Application.start();
+    app.register('calendar', CalendarController);
+    await new Promise((r) => setTimeout(r, 80));
+    const el = document.querySelector('[data-controller="calendar"]');
+    el.calendarApi.addEvent({ id:'e1', title:'Job — Smith reno',      resourceIds:['will'], start:'2026-05-25', end:'2026-05-27', allDay:true });
+    el.calendarApi.addEvent({ id:'e2', title:'Quote — Patel kitchen', resourceIds:['mike'], start:'2026-05-26', end:'2026-05-27', allDay:true });
+    el.calendarApi.addEvent({ id:'e3', title:'Service call',           resourceIds:['sam'],  start:'2026-05-25', end:'2026-05-26', allDay:true });
+    el.calendarApi.addEvent({ id:'e4', title:'Site visit',             resourceIds:['jess'], start:'2026-05-28', end:'2026-05-30', allDay:true });
+    el.calendarApi.addEvent({ id:'e5', title:'Floater job',            resourceIds:['joe'],  start:'2026-05-29', end:'2026-05-30', allDay:true });
+
+    const log = document.getElementById('log');
+    const append = (line) => { log.textContent = `${new Date().toLocaleTimeString()}  ${line}\n` + log.textContent; };
+    el.addEventListener('calendar:groupExpand',   (e) => append(`groupExpand   ${e.detail.groupId}`));
+    el.addEventListener('calendar:groupCollapse', (e) => append(`groupCollapse ${e.detail.groupId}`));
+
+    document.querySelector('[data-act="toggle-a"]').addEventListener('click', () => {
+      const open = el.calendarApi.getGroupExpanded('a');
+      el.calendarApi.setGroupExpanded('a', !open);
+    });
+    document.querySelector('[data-act="toggle-b"]').addEventListener('click', () => {
+      const open = el.calendarApi.getGroupExpanded('b');
+      el.calendarApi.setGroupExpanded('b', !open);
+    });
+  </script>
+</body>
+</html>
