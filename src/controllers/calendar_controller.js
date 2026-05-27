@@ -147,6 +147,7 @@ export default class CalendarController extends Controller {
     this._installEventPopoverDefault();
     this._installBackgroundDeselect();
     this._installPostGestureClickSuppression();
+    this._installBridgeActionsChannel();
     this._installOffPeriodTracking();
     this._installBackToTodayPill();
 
@@ -767,6 +768,47 @@ export default class CalendarController extends Controller {
       if (!chip) return;
       if (!consumeChipClickSuppression(this._state)) return;
       jsEvent.stopImmediatePropagation();
+    };
+    this.element.addEventListener('click', handler, true);
+    this._teardowns.push(() => this.element.removeEventListener('click', handler, true));
+  }
+
+  // Hotwire Native bridge action channel (S7).
+  //
+  // When `options.bridgeActions` is on, a click on any descendant
+  // carrying `data-bridge-action` fires a `calendar:bridgeAction`
+  // event before the browser follows the link. Host listeners route
+  // the action through native bridges (e.g. CallKit for `tel:`,
+  // Maps for `navigate:`, native nav for `open:`) and signal "I
+  // handled it" by calling `event.preventDefault()` on the
+  // bridgeAction event. Doing so suppresses the underlying link
+  // click.
+  //
+  // Hosts that don't preventDefault — typically in a desktop browser
+  // fallback where the native bridge isn't available — get the
+  // link's natural href behaviour. The same eventContent template
+  // therefore works on both surfaces without conditional rendering.
+  _installBridgeActionsChannel() {
+    const handler = (jsEvent) => {
+      const options = this._state.get('options');
+      if (!options.bridgeActions) return;
+      const el = jsEvent.target?.closest?.('[data-bridge-action]');
+      if (!el) return;
+      const detail = {
+        kind: el.getAttribute('data-bridge-action'),
+        payload: el.getAttribute('data-payload'),
+        fallbackHref: el.getAttribute('href') ?? null,
+        el,
+        jsEvent,
+      };
+      const bridgeEvent = new CustomEvent('calendar:bridgeAction', {
+        bubbles: true, cancelable: true, detail,
+      });
+      const notPrevented = el.dispatchEvent(bridgeEvent);
+      if (!notPrevented) {
+        jsEvent.preventDefault();
+        jsEvent.stopPropagation();
+      }
     };
     this.element.addEventListener('click', handler, true);
     this._teardowns.push(() => this.element.removeEventListener('click', handler, true));

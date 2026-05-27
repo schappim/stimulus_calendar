@@ -291,6 +291,23 @@ function baseDefaults() {
     //
     // Non-series events skip the hook entirely.
     confirmEventChange: undefined,
+    // S7 — Hotwire Native bridge action channel. When enabled, a
+    // click on any element with a \`data-bridge-action\` attribute
+    // inside the calendar (typically rendered by the host via
+    // \`eventContent\`) fires a \`calendar:bridgeAction\` DOM event
+    // with detail { kind, payload, fallbackHref, el, jsEvent }
+    // instead of letting the WebView follow the link natively.
+    //
+    // Host listeners route the action through the native bridge
+    // (CallKit for tel: / Maps for navigate / native nav for
+    // open-resource) and call \`event.preventDefault()\` to confirm
+    // they handled it; the library swallows the underlying click.
+    //
+    // Off by default (web behaviour unchanged). When on, hosts that
+    // don't attach a listener AND don't preventDefault see the link's
+    // natural href fire — so the same template works in a desktop
+    // browser and inside Hotwire Native without forking.
+    bridgeActions: false,
     filterEventsWithResources: false,
     firstDay: 0,
     headerToolbar: { start: 'title', center: '', end: 'today prev,next' },
