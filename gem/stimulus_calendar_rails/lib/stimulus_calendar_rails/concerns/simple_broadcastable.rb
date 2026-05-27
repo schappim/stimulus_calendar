@@ -47,6 +47,11 @@ module StimulusCalendarRails
       class_attribute :_scr_simple_resource, instance_accessor: false
       class_attribute :_scr_simple_payload,  instance_accessor: false
       class_attribute :_scr_simple_scope,    instance_accessor: false
+      # Echo suppression — the host's controller stashes the
+      # X-Optimistic-Id header value here before save, the broadcast
+      # carries it back, and the originating client's calendarApi
+      # drops the echo. Non-persisted, per-instance.
+      attr_accessor :_scr_optimistic_id
     end
 
     private
@@ -71,11 +76,13 @@ module StimulusCalendarRails
           case op
           when :add
             StimulusCalendarRails::TurboStreams.event_add(
-              calendar: resource, event_id: id, payload: send(self.class._scr_simple_payload)
+              calendar: resource, event_id: id, payload: send(self.class._scr_simple_payload),
+              optimistic_id: _scr_optimistic_id,
             )
           when :update
             StimulusCalendarRails::TurboStreams.event_update(
-              calendar: resource, event_id: id, attributes: send(self.class._scr_simple_payload)
+              calendar: resource, event_id: id, attributes: send(self.class._scr_simple_payload),
+              optimistic_id: _scr_optimistic_id,
             )
           when :remove
             StimulusCalendarRails::TurboStreams.event_remove(
