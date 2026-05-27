@@ -94,6 +94,48 @@ describe('lib/events', () => {
     expect(local.start instanceof Date).toBe(true);
   });
 
+  it('S11 — startLocal / endLocal expose real-local Dates mirroring wall-clock', () => {
+    const [e] = createEvents([{ start: '2026-05-25T09:00', end: '2026-05-25T10:00' }]);
+    // Internal storage is UTC-mode wall-clock — the UTC accessors carry
+    // the 9 AM the user typed.
+    expect(e.start.getUTCHours()).toBe(9);
+    // The local-Date getters return a real-local Date whose LOCAL
+    // accessors carry the same components.
+    expect(e.startLocal instanceof Date).toBe(true);
+    expect(e.startLocal.getHours()).toBe(9);
+    expect(e.startLocal.getMinutes()).toBe(0);
+    expect(e.endLocal.getHours()).toBe(10);
+  });
+
+  it('S11 — startLocal getter is live: re-reads after start is mutated', () => {
+    const [e] = createEvents([{ start: '2026-05-25T09:00', end: '2026-05-25T10:00' }]);
+    expect(e.startLocal.getHours()).toBe(9);
+    // Simulate a drag-commit setting a new start.
+    e.start.setUTCHours(14);
+    expect(e.startLocal.getHours()).toBe(14);
+  });
+
+  it('S11 — cloneEvent preserves the startLocal / endLocal getters', () => {
+    const orig = createEvents([{ start: '2026-05-25T09:00', end: '2026-05-25T10:00' }])[0];
+    const c = cloneEvent(orig);
+    expect(c.startLocal instanceof Date).toBe(true);
+    expect(c.startLocal.getHours()).toBe(9);
+    // The clone's getter reads the clone's own start, so mutating the
+    // clone doesn't reach into the original.
+    c.start.setUTCHours(11);
+    expect(c.startLocal.getHours()).toBe(11);
+    expect(orig.startLocal.getHours()).toBe(9);
+  });
+
+  it('S11 — startLocal / endLocal are non-enumerable (not serialised by JSON)', () => {
+    const [e] = createEvents([{ start: '2026-05-25T09:00', end: '2026-05-25T10:00' }]);
+    const json = JSON.parse(JSON.stringify(e));
+    expect('startLocal' in json).toBe(false);
+    expect('endLocal' in json).toBe(false);
+    // Sanity — start IS in the serialised output.
+    expect('start' in json).toBe(true);
+  });
+
   it('runReposition trims refs to data.length and calls .reposition() on each', () => {
     const calls = [0, 0, 0];
     const refs = [

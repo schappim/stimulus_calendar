@@ -49,8 +49,47 @@ export function createEvents(input, offset = undefined) {
       }
     }
 
+    defineLocalTimeGetters(result);
     return result;
   });
+}
+
+// S11 — Date-mode boundary helpers.
+//
+// `event.start` and `event.end` are kept in the library's canonical
+// "UTC-mode wall-clock" form: the date components reflect the user's
+// intended local clock but the Date object's UTC accessors carry them
+// (so the value is timezone-agnostic for storage / serialisation).
+// Hosts that need a real local `Date` — for a `<input
+// type="datetime-local">`, for `Intl.DateTimeFormat` without a TZ, for
+// arithmetic that expects local-mode getters — used to hand-roll a
+// `calToLocal()` helper at every boundary. The getters defined here
+// remove that boilerplate: `event.startLocal` and `event.endLocal`
+// return a fresh real-local `Date` mirroring the same wall-clock
+// components.
+//
+// Properties are non-enumerable on purpose:
+//   - JSON.stringify(event) doesn't pick them up (no double-serialisation).
+//   - Object.assign({}, event) skips them (clones don't inherit stale
+//     snapshots; cloneEvent re-applies them manually below).
+//
+// The getters read `this.start` / `this.end` each time, so they're
+// always live: after a drag commit mutates start, startLocal reflects
+// the new value without re-mounting.
+export function defineLocalTimeGetters(event) {
+  Object.defineProperties(event, {
+    startLocal: {
+      get() { return this.start ? toLocalDate(this.start) : null; },
+      enumerable: false,
+      configurable: true,
+    },
+    endLocal: {
+      get() { return this.end ? toLocalDate(this.end) : null; },
+      enumerable: false,
+      configurable: true,
+    },
+  });
+  return event;
 }
 
 function toArrayProp(input, propName) {
@@ -74,7 +113,10 @@ export function toEventWithLocalDates(event) {
 }
 
 export function cloneEvent(event) {
-  return _cloneEvent(event, cloneDate);
+  // Internal clone — still in canonical UTC-mode wall-clock form, so
+  // re-apply the local-time getters that assign({}, event) drops on
+  // the floor (they're non-enumerable accessor properties).
+  return defineLocalTimeGetters(_cloneEvent(event, cloneDate));
 }
 
 function _cloneEvent(event, dateFn) {
