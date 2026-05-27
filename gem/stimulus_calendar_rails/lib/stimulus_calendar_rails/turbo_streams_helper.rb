@@ -44,6 +44,37 @@ module StimulusCalendarRails
       tag("calendar-event", calendar: calendar, op: "bulk") { streams.join }
     end
 
+    # S2 — Series-aware ops. The library doesn't expand RRULE on the
+    # client; the host expands and pushes one event per occurrence
+    # with `extendedProps.series.id` carrying the master id. These ops
+    # let the server tell every subscribed client: "the occurrence at
+    # (series_id, date) was either dropped or patched."
+    #
+    # On the JS side this surgically removes / patches the matching
+    # occurrence in the local store and fires
+    # `calendar:seriesOccurrence{Skipped,Overridden}` so hosts can
+    # update other surfaces.
+    def event_skip_occurrence(calendar:, series_id:, date:)
+      tag("calendar-event", calendar: calendar, op: "skip-occurrence",
+                            series_id: series_id, date: date) do
+        ERB::Util.html_escape({ seriesId: series_id, date: date }.to_json)
+      end
+    end
+
+    # `overrides` is a hash of attribute → new value. Keys mirror the
+    # event payload shape (title, start, end, backgroundColor,
+    # extendedProps, …). The JS side does a shallow merge over the
+    # local occurrence.
+    def event_override_occurrence(calendar:, series_id:, date:, overrides:)
+      tag("calendar-event", calendar: calendar, op: "override-occurrence",
+                            series_id: series_id, date: date) do
+        ERB::Util.html_escape({
+          seriesId: series_id, date: date,
+          overrides: overrides,
+        }.to_json)
+      end
+    end
+
     def tag(action, **attrs)
       attrs[:action] = action
       kept = attrs.compact

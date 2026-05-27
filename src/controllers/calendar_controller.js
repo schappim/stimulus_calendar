@@ -334,6 +334,56 @@ export default class CalendarController extends Controller {
     else if (op === 'refetch' && typeof this.element.calendarApi?.refetchEvents === 'function') {
       this.element.calendarApi.refetchEvents();
     }
+    // S2 — series-aware ops. The library doesn't expand RRULE itself
+    // (host does), so these are filtered updates that find the local
+    // occurrence by (seriesId, date) and either drop it or patch it.
+    // A `calendar:seriesOccurrence*` event fires so hosts can react
+    // (e.g. update other surfaces or queue a refetch).
+    else if (op === 'skip-occurrence' && message.seriesId && message.date) {
+      this._applySeriesOccurrenceSkip(message.seriesId, message.date);
+    }
+    else if (op === 'override-occurrence' && message.seriesId && message.date) {
+      this._applySeriesOccurrenceOverride(message.seriesId, message.date, message.overrides ?? {});
+    }
+  }
+
+  _applySeriesOccurrenceSkip(seriesId, dateStr) {
+    const events = this._state.get('events') ?? this._state.get('options').events ?? [];
+    const sid = String(seriesId);
+    const next = events.filter((e) => {
+      if (String(e.extendedProps?.series?.id ?? '') !== sid) return true;
+      return this._eventStartDateStr(e) !== dateStr;
+    });
+    if (next.length === events.length) return;
+    this._state.set('events', next);
+    this._recompute();
+    this.dispatch('seriesOccurrenceSkipped', { detail: { seriesId: sid, date: dateStr } });
+  }
+
+  _applySeriesOccurrenceOverride(seriesId, dateStr, overrides) {
+    const events = this._state.get('events') ?? this._state.get('options').events ?? [];
+    const sid = String(seriesId);
+    let found = false;
+    const next = events.map((e) => {
+      if (String(e.extendedProps?.series?.id ?? '') !== sid) return e;
+      if (this._eventStartDateStr(e) !== dateStr) return e;
+      found = true;
+      const merged = { ...e, ...overrides, id: e.id, extendedProps: { ...(e.extendedProps ?? {}), ...(overrides.extendedProps ?? {}) } };
+      const parsed = createEvents([merged], this._state.get('offset'))[0];
+      return { ...e, ...parsed };
+    });
+    if (!found) return;
+    this._state.set('events', next);
+    this._recompute();
+    this.dispatch('seriesOccurrenceOverridden', { detail: { seriesId: sid, date: dateStr, overrides } });
+  }
+
+  _eventStartDateStr(event) {
+    const s = event?.start;
+    if (!s) return null;
+    if (typeof s === 'string') return s.substring(0, 10);
+    if (s instanceof Date) return s.toISOString().substring(0, 10);
+    return null;
   }
 
   _applyEventChange(op, event) {
