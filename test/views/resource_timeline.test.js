@@ -225,6 +225,22 @@ describe('view: resourceTimeline', () => {
     }
   });
 
+  it('resource.visible = false skips the row in the timeline (S8)', async () => {
+    const resources = [
+      { id: 'justin', title: 'Justin' },
+      { id: 'tinica', title: 'Tinica (office)', visible: false },
+      { id: 'kobe',   title: 'Kobe' },
+    ];
+    const el = await mount(`<div data-controller="calendar"
+      data-calendar-plugins-value='["ResourceTimeline"]'
+      data-calendar-view-value="resourceTimelineWeek"
+      data-calendar-date-value="2026-05-25"
+      data-calendar-resources-value='${JSON.stringify(resources)}'></div>`);
+    expect(el.querySelector('[data-resource-id="justin"]')).toBeTruthy();
+    expect(el.querySelector('[data-resource-id="kobe"]')).toBeTruthy();
+    expect(el.querySelector('[data-resource-id="tinica"]')).toBeNull();
+  });
+
   it('paints a full-column .ec-resource-offhours band on a closed day (days mode, S6)', async () => {
     // 2026-05-24 is Sunday — Kobe's Mon–Fri schedule means whole day closed.
     const resources = [

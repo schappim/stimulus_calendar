@@ -42,6 +42,12 @@ export function createResource(input) {
     eventBackgroundColor: eventBackgroundColor(input),
     eventTextColor: eventTextColor(input),
     expanded: input.expanded ?? true,
+    // S8 — visibility toggle. Default true so existing consumers see
+    // no behaviour change. Setting `visible: false` removes the
+    // resource (and, by extension, any nested children below the
+    // hidden parent) from the rendered roster without forcing a
+    // refetch.
+    visible: input.visible ?? true,
     workingHours: input.workingHours ?? null,
     extendedProps: input.extendedProps ?? {},
   };

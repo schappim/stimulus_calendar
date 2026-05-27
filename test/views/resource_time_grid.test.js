@@ -34,6 +34,22 @@ describe('view: resourceTimeGrid', () => {
     expect(el.querySelector('[data-resource-id="r2"][data-date] [data-event-id="1"]')).toBeNull();
   });
 
+  it('resource.visible = false hides the lane without filtering events server-side (S8)', async () => {
+    const resources = [
+      { id: 'justin', title: 'Justin' },
+      { id: 'tinica', title: 'Tinica (office)', visible: false },
+      { id: 'kobe',   title: 'Kobe' },
+    ];
+    const el = await mount(`<div data-controller="calendar"
+      data-calendar-plugins-value='["ResourceTimeGrid"]'
+      data-calendar-view-value="resourceTimeGridDay"
+      data-calendar-date-value="2026-05-25"
+      data-calendar-resources-value='${JSON.stringify(resources)}'></div>`);
+    expect(el.querySelector('[data-resource-id="justin"]')).toBeTruthy();
+    expect(el.querySelector('[data-resource-id="kobe"]')).toBeTruthy();
+    expect(el.querySelector('[data-resource-id="tinica"]')).toBeNull();
+  });
+
   it('paints .ec-resource-offhours bands outside workingHours per resource (S6)', async () => {
     // 2026-05-25 is Monday. Justin is 07:00–16:00 Mon–Sat; Kobe is
     // 09:00–17:00 Mon–Fri. Both lanes should get top + bottom bands,

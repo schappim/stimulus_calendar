@@ -28,7 +28,7 @@ export function renderResourceTimeGridView(container, state) {
     const filtered = state.get('filteredEvents') ?? [];
 
     // Optional filter: hide resources with zero events in range.
-    let visibleResources = resources;
+    let visibleResources = resources.filter((r) => r.visible !== false);
     if (options.filterResourcesWithEvents) {
       visibleResources = resources.filter((r) =>
         filtered.some((e) => e.resourceIds.includes(r.id)));

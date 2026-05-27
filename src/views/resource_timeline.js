@@ -335,6 +335,8 @@ export function renderResourceTimelineView(container, state) {
     const renderRow = (resource, depth) => {
       const payload = getPayload(resource);
       if (payload?.hidden) return;
+      // S8 — host-side visibility toggle.
+      if (resource.visible === false) return;
       const row = createElement('div', 'ec-timeline-row', '', [
         ['data-resource-id', resource.id],
         ['data-depth', String(depth)],
