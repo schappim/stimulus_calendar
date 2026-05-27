@@ -71,8 +71,18 @@ export function renderResourceTimeGridView(container, state) {
         if (typeof options.resourceLabelDidMount === 'function') {
           queueMicrotask(() => options.resourceLabelDidMount({ resource, el: resourceLabel }));
         }
-        if (options.datesAboveResources) head.append(dayLabel, resourceLabel);
-        else head.append(resourceLabel, dayLabel);
+        // Suppress the day label on single-day resource views — the
+        // calendar title ("Wednesday, 27 May 2026") already carries
+        // the day, and repeating it under every lane just adds noise
+        // (4 lanes → "WEDNESDAY" rendered 4 times). On a hypothetical
+        // resourceTimeGridWeek the day label is essential to tell
+        // lanes apart, so keep it when days.length > 1.
+        if (days.length > 1) {
+          if (options.datesAboveResources) head.append(dayLabel, resourceLabel);
+          else head.append(resourceLabel, dayLabel);
+        } else {
+          head.append(resourceLabel);
+        }
         header.append(head);
       }
     }

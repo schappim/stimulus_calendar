@@ -48,6 +48,14 @@ export const ResourceTimeGridPlugin = {
       resourceTimeGridDay: {
         component: () => renderResourceTimeGridView,
         dayHeaderFormat: { weekday: 'long' },
+        // Default title carries the weekday so it stays informative
+        // when the per-lane day label is suppressed (see the
+        // days.length > 1 guard in the view's header renderer):
+        // "Wednesday, 27 May 2026" instead of the previous
+        // "27 May 2026", which on a single-day resource view dropped
+        // a useful piece of context the user had to look at the row
+        // headers to recover.
+        titleFormat: { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' },
         duration: { days: 1 },
       },
       resourceTimeGridWeek: {
