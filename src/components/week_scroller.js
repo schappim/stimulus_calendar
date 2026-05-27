@@ -56,7 +56,10 @@ export function createWeekScroller(container, state, viewFactory, { onDateChange
     root.style.scrollBehavior = 'auto';
     root.scrollLeft = anchorPage.el.offsetLeft;
     root.style.scrollBehavior = prevBehavior || '';
-    requestAnimationFrame(() => { suppressScroll = false; });
+    requestAnimationFrame(() => {
+      suppressScroll = false;
+      syncCurrentPageMarker();
+    });
   });
 
   // Snap-detect + lazy extend on scroll.
@@ -87,10 +90,30 @@ export function createWeekScroller(container, state, viewFactory, { onDateChange
       root.scrollLeft = oldScrollLeft + grew;
       requestAnimationFrame(() => { suppressScroll = false; });
     }
+    syncCurrentPageMarker();
     clearTimeout(settleTimer);
     settleTimer = setTimeout(onSettled, SCROLL_SETTLE_MS);
   };
   root.addEventListener('scroll', onScroll, { passive: true });
+
+  // Mark the page that owns the viewport-left edge as "current". The
+  // CSS rule `.ec-week-scroller-page:not(.ec-week-scroller-page-current)
+  // .ec-sidebar { visibility: hidden }` then guarantees that only one
+  // time-of-day gutter ever paints — the current page's sticky-left
+  // sidebar pins to the WeekScroller's left edge and adjacent pages'
+  // sidebars stay invisible even mid-scroll.
+  function syncCurrentPageMarker() {
+    const scrollLeft = root.scrollLeft;
+    let current = null;
+    for (const p of pages.values()) {
+      if (p.el.offsetLeft <= scrollLeft + 1) {
+        if (!current || p.el.offsetLeft > current.el.offsetLeft) current = p;
+      }
+    }
+    for (const p of pages.values()) {
+      p.el.classList.toggle('ec-week-scroller-page-current', p === current);
+    }
+  }
 
   function onSettled() {
     if (suppressScroll || !pageWidth) return;

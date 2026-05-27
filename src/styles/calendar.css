@@ -1289,6 +1289,17 @@
   z-index: 5;
 }
 
+/* Single-sidebar guarantee. The WeekScroller tags whichever page
+ * owns the viewport-left as .ec-week-scroller-page-current; every
+ * other page's sidebar / corner / all-day sidebar is invisible. Layout
+ * width is preserved (visibility:hidden, not display:none) so the day
+ * columns in those pages don't shift sideways during the snap. */
+.ec-week-scroller-page:not(.ec-week-scroller-page-current) .ec-time-grid .ec-sidebar,
+.ec-week-scroller-page:not(.ec-week-scroller-page-current) .ec-time-grid .ec-corner,
+.ec-week-scroller-page:not(.ec-week-scroller-page-current) .ec-time-grid .ec-all-day .ec-sidebar {
+  visibility: hidden;
+}
+
 .ec-timeline .ec-event {
   position: absolute;
   top: 4px;
