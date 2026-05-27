@@ -559,8 +559,15 @@ export default class CalendarController extends Controller {
     main.className = options.theme.main;
     main.dataset.calendarSlot = 'view';
     root.append(toolbar, main);
-    if (options.height) root.style.height =
-      typeof options.height === 'number' ? `${options.height}px` : options.height;
+    if (options.height) {
+      root.style.height =
+        typeof options.height === 'number' ? `${options.height}px` : options.height;
+      // Opt the root into the flex-fill layout below. Hosts that don't
+      // set options.height keep the legacy auto-sized layout (where the
+      // time-grid body's hardcoded max-height: 540px caps the visible
+      // window) so existing demos / fixtures don't shift.
+      root.dataset.calendarHasHeight = '';
+    }
     this.element.replaceChildren(root);
     this._root = root;
     this._toolbarEl = toolbar;

@@ -457,6 +457,35 @@
   overflow-y: auto;
 }
 
+/* When options.height is set, fill the available vertical space and
+ * scroll internally instead of bottoming out at the legacy 540px cap.
+ * The flex chain runs root → main → time-grid → body; min-height: 0 on
+ * every link lets the body shrink below its content size so its own
+ * overflow-y: auto handles scroll within a calc(100vh - chrome) shell
+ * without poking events out the bottom of the calendar.
+ *
+ * Hosts that don't pass options.height keep the legacy auto-sized
+ * layout — the data-calendar-has-height attribute is set by the
+ * controller only when a height is configured. */
+.ec[data-calendar-has-height] {
+  display: flex;
+  flex-direction: column;
+}
+.ec[data-calendar-has-height] [data-calendar-slot="view"] {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.ec[data-calendar-has-height] .ec-grid {
+  flex: 1;
+  min-height: 0;
+}
+.ec[data-calendar-has-height] .ec-time-grid [data-row="body"] {
+  max-height: none;
+  min-height: 0;
+}
+
 .ec-time-grid .ec-sidebar {
   display: flex;
   flex-direction: column;

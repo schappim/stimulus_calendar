@@ -4864,7 +4864,7 @@ const nt = class nt extends _n {
     const o = document.createElement("div");
     o.className = t.theme.toolbar, o.dataset.calendarSlot = "toolbar";
     const i = document.createElement("div");
-    i.className = t.theme.main, i.dataset.calendarSlot = "view", e.append(o, i), t.height && (e.style.height = typeof t.height == "number" ? `${t.height}px` : t.height), this.element.replaceChildren(e), this._root = e, this._toolbarEl = o, this.element.dataset.calendarMounted = "true", this._state.set("rootEl", e);
+    i.className = t.theme.main, i.dataset.calendarSlot = "view", e.append(o, i), t.height && (e.style.height = typeof t.height == "number" ? `${t.height}px` : t.height, e.dataset.calendarHasHeight = ""), this.element.replaceChildren(e), this._root = e, this._toolbarEl = o, this.element.dataset.calendarMounted = "true", this._state.set("rootEl", e);
     const r = {
       prev: () => this._navigate(-1),
       next: () => this._navigate(1),
