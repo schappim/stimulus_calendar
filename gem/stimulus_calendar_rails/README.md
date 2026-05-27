@@ -43,10 +43,20 @@ StimulusCalendarRails.start(app)
 
 ## Usage
 
-See the parent project's
-[README — Rails section](https://github.com/schappim/stimulus_calendar#rails--hotwire-stimulus_calendar_rails)
-and the LLM-oriented
-[stimulus-calendar-rails skill](https://github.com/schappim/stimulus_calendar/blob/main/skills/stimulus-calendar-rails/SKILL.md).
+Recommended reading order:
+
+1. **[`docs/LIVE_SYNC_RAILS.md`](https://github.com/schappim/stimulus_calendar/blob/main/docs/LIVE_SYNC_RAILS.md)**
+   — end-to-end cookbook for wiring a model + Calendar + partial so
+   live sync works the first time. Includes multi-tenancy traps and a
+   verification ladder.
+2. **[`skills/stimulus-calendar-rails/SKILL.md`](https://github.com/schappim/stimulus_calendar/blob/main/skills/stimulus-calendar-rails/SKILL.md)**
+   — concise LLM playbook covering the same material.
+3. **[`docs/BROADCAST.md`](https://github.com/schappim/stimulus_calendar/blob/main/docs/BROADCAST.md)**
+   — the exact Turbo Streams wire format and echo-suppression rules.
+4. **[`docs/RAILS_REFERENCE.md`](https://github.com/schappim/stimulus_calendar/blob/main/docs/RAILS_REFERENCE.md)**
+   — full API surface (every public class + method).
+5. [Parent README — Rails section](https://github.com/schappim/stimulus_calendar#rails--hotwire-stimulus_calendar_rails)
+   — top-level intro and capability list.
 
 ## License
 

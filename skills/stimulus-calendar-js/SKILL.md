@@ -304,8 +304,13 @@ Payload schema:
 }
 ```
 
-See [`docs/BROADCAST.md`](../../docs/BROADCAST.md) (Phase 13) for the wire format
-and Rails recipe.
+See [`docs/BROADCAST.md`](../../docs/BROADCAST.md) for the full wire
+format. If the app is Rails + Hotwire, switch to the
+[`stimulus-calendar-rails` skill](../stimulus-calendar-rails/SKILL.md)
+and read [`docs/LIVE_SYNC_RAILS.md`](../../docs/LIVE_SYNC_RAILS.md) —
+the Rails companion gem handles model commit hooks, optimistic-id echo
+suppression, multi-tenant scoping, and the matching Turbo Stream
+custom action so you don't hand-roll any of it.
 
 ## Gotchas
 
