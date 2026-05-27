@@ -55,6 +55,20 @@
   --ec-now-indicator-color:      #dc2626;
   --ec-sidebar-width:            64px;
   --ec-slot-height:              22px;
+  /* The colour event chip washes blend their accent into. In light mode
+   * this is white (chip is a pale tint of the accent over white); in
+   * dark mode it's swapped to a dark slate so the chip still reads as
+   * a saturated tint instead of going pure white. The two -strength
+   * tokens control how much of the accent comes through — dark mode
+   * bumps them up so the chip stays visible against a darker calendar
+   * background. */
+  --ec-event-wash-base:          #ffffff;
+  --ec-event-wash-strength:      10%;
+  --ec-event-border-strength:    35%;
+  /* Day-grid `.ec-other-month` cell — months adjacent to the visible one.
+   * Tokenised so dark mode can swap it without rewriting the cell rule. */
+  --ec-other-month-bg:           #f9fafb;
+  --ec-other-month-text:         #94a3b8;
 
   /* position:relative so absolutely-positioned overlays (the back-to-
    * today pill from Phase E2, the suggested-slot indicators, etc.)
@@ -239,7 +253,7 @@
 
 .ec-day-grid .ec-day:nth-child(7n) { border-right: none; }
 
-.ec-day-grid .ec-day.ec-other-month { background: #f9fafb; color: #94a3b8; }
+.ec-day-grid .ec-day.ec-other-month { background: var(--ec-other-month-bg); color: var(--ec-other-month-text); }
 .ec-day-grid .ec-day.ec-today { background: var(--ec-today-bg-color); }
 
 .ec-day-grid .ec-day-number {
@@ -250,7 +264,7 @@
   margin-bottom: 0.25rem;
 }
 
-.ec-day-grid .ec-day.ec-other-month .ec-day-number { color: #94a3b8; }
+.ec-day-grid .ec-day.ec-other-month .ec-day-number { color: var(--ec-other-month-text); }
 
 /* dayGridWeek / dayGridDay get taller cells. */
 .ec-day-grid:not(:has([data-row="days"]:nth-of-type(3))) .ec-day {
@@ -309,8 +323,8 @@
   align-items: center;
   gap: 0.3rem;
   padding: 2px 0.5rem;
-  background: color-mix(in srgb, var(--ec-event-accent) 10%, white);
-  border: 1px solid color-mix(in srgb, var(--ec-event-accent) 35%, white);
+  background: color-mix(in srgb, var(--ec-event-accent) var(--ec-event-wash-strength), var(--ec-event-wash-base));
+  border: 1px solid color-mix(in srgb, var(--ec-event-accent) var(--ec-event-border-strength), var(--ec-event-wash-base));
   color: var(--ec-event-title-color);
   border-radius: 6px;
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI",
@@ -686,8 +700,8 @@
    * accent so a dragged chip is fully opaque (not alpha-blended over the
    * tile beneath it). Approximates the hand-picked Tailwind -50/-200
    * stops within a few units across the palette. */
-  background: color-mix(in srgb, var(--ec-event-accent) 8%, white);
-  border: 1px solid color-mix(in srgb, var(--ec-event-accent) 38%, white);
+  background: color-mix(in srgb, var(--ec-event-accent) var(--ec-event-wash-strength), var(--ec-event-wash-base));
+  border: 1px solid color-mix(in srgb, var(--ec-event-accent) var(--ec-event-border-strength), var(--ec-event-wash-base));
   color: var(--ec-event-title-color);
   padding: 4px 8px 4px 14px;          /* left padding clears the accent strip */
   border-radius: 10px;
@@ -1479,8 +1493,8 @@
   position: absolute;
   top: 4px;
   bottom: 4px;
-  background: color-mix(in srgb, var(--ec-event-accent) 10%, white);
-  border: 1px solid color-mix(in srgb, var(--ec-event-accent) 35%, white);
+  background: color-mix(in srgb, var(--ec-event-accent) var(--ec-event-wash-strength), var(--ec-event-wash-base));
+  border: 1px solid color-mix(in srgb, var(--ec-event-accent) var(--ec-event-border-strength), var(--ec-event-wash-base));
   color: var(--ec-event-title-color);
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI",
                Roboto, system-ui, sans-serif;
@@ -2376,3 +2390,75 @@ body.ec-resizing-active * {
  * ----------------------------------------------------------------------- */
 
 .ec-hidden { display: none !important; }
+
+/* -------------------------------------------------------------------------
+ * Dark mode
+ *
+ * Activated by a `.dark` class on any ancestor (host apps that follow
+ * Tailwind's class-based dark mode convention put `.dark` on <html>).
+ * Every override is a token swap — no rule duplication — so dark mode
+ * tracks structural changes elsewhere in the stylesheet automatically.
+ *
+ * The chip-wash strategy: swap `--ec-event-wash-base` from white to a
+ * dark slate, and bump `--ec-event-wash-strength` / `-border-strength`
+ * so the accent stays visible against the darker base. This keeps
+ * per-event accent tinting (a "job" chip is still amber, a "site_visit"
+ * chip is still purple) but renders them as a saturated dark tint
+ * instead of a pale-on-white wash that would clash with the dark
+ * calendar background.
+ *
+ * The chip title also flips: instead of mixing the accent toward black
+ * (illegible on dark), mix it toward white. The accent strip
+ * (`.ec-time-grid .ec-event::before`) stays at full accent strength —
+ * it's a 3px bar, doesn't need legibility.
+ * ----------------------------------------------------------------------- */
+
+.dark .ec {
+  --ec-bg-color:                 #0f172a;   /* slate-900 */
+  --ec-text-color:               #e2e8f0;   /* slate-200 */
+  --ec-muted-text-color:         #94a3b8;   /* slate-400 */
+  --ec-border-color:             #334155;   /* slate-700 */
+  --ec-strong-border-color:      #475569;   /* slate-600 */
+  --ec-header-bg-color:          #1e293b;   /* slate-800 */
+  /* Subtle amber tint — pure-saturated amber-200 swatches washed out
+   * the rest of the dark calendar. Picked to be visible but not the
+   * brightest thing on the canvas. */
+  --ec-today-bg-color:           #422006;   /* amber-950 */
+  --ec-highlight-color:          #1e3a8a;   /* blue-900 */
+  --ec-active-bg-color:          #3b82f6;   /* blue-500 — buttons + selections */
+  --ec-active-text-color:        #ffffff;
+  --ec-button-bg-color:          #1e293b;   /* slate-800 */
+  --ec-button-text-color:        var(--ec-text-color);
+  --ec-button-hover-bg-color:    #334155;   /* slate-700 */
+  --ec-event-bg-color:           #3b82f6;
+  --ec-event-text-color:         #ffffff;
+  --ec-event-border-color:       rgba(255, 255, 255, 0.08);
+  --ec-event-title-color:        #f1f5f9;   /* fixed light text on chips */
+  --ec-event-subtle-color:       rgba(255, 255, 255, 0.65);
+  --ec-bg-event-color:           #475569;   /* slate-600 — background blocks */
+  --ec-now-indicator-color:      #f87171;   /* red-400 — a touch lighter than red-600 */
+  /* Chip wash base flips to dark, strengths bump up. */
+  --ec-event-wash-base:          #0b1220;
+  --ec-event-wash-strength:      28%;
+  --ec-event-border-strength:    55%;
+  --ec-other-month-bg:           #0a1018;
+  --ec-other-month-text:         #475569;
+}
+
+/* Per-chip title: in light mode this mixes the accent toward black for
+ * a darker tinted heading. On dark we mix toward white so the title
+ * stays legible against the darker chip wash. */
+.dark .ec .ec-event {
+  --ec-event-title-color: color-mix(in srgb, var(--ec-event-accent) 30%, white);
+}
+
+/* Day popover is appended directly to <body> — outside the `.ec`
+ * cascade scope, so its token values can't inherit from the calendar
+ * root. Mirror the dark overrides at the popover selector explicitly. */
+.dark .ec-popup {
+  background: #1e293b;
+  color: #e2e8f0;
+  border-color: #475569;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.6),
+              0 4px 6px -4px rgba(0, 0, 0, 0.4);
+}
