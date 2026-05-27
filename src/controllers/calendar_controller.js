@@ -444,13 +444,32 @@ export default class CalendarController extends Controller {
     const parsedEvent = op === 'remove'
       ? event
       : createEvents([event], this._state.get('offset'))[0];
+    const id = String(event.id);
     let next;
-    if (op === 'add') next = [...events.filter((e) => e.id !== String(event.id)), parsedEvent];
-    else if (op === 'update') next = events.map((e) =>
-      e.id === String(event.id) ? { ...e, ...parsedEvent } : e);
-    else if (op === 'remove') next = events.filter((e) => e.id !== String(event.id));
-    if (op === 'add') this._markEventAppearing(String(event.id));
-    if (op === 'remove') this._unmarkEventAppearing(String(event.id));
+    let appearing = false;
+    if (op === 'add') {
+      next = [...events.filter((e) => e.id !== id), parsedEvent];
+      appearing = true;
+    } else if (op === 'update') {
+      // Upsert: if the event isn't in our current window, treat the
+      // update as an add. A drag that MOVED the event INTO the
+      // receiver's visible range (e.g. sender on month view drops a
+      // past event onto today; receiver on week view didn't have the
+      // past event in state because it was outside the previously-
+      // fetched range) would otherwise silently no-op — the map below
+      // never matches and the receiver stays blind.
+      const idx = events.findIndex((e) => e.id === id);
+      if (idx === -1) {
+        next = [...events, parsedEvent];
+        appearing = true;
+      } else {
+        next = events.map((e) => e.id === id ? { ...e, ...parsedEvent } : e);
+      }
+    } else if (op === 'remove') {
+      next = events.filter((e) => e.id !== id);
+    }
+    if (appearing) this._markEventAppearing(id);
+    if (op === 'remove') this._unmarkEventAppearing(id);
     if (next) {
       this._state.set('events', next);
       this._recompute();
