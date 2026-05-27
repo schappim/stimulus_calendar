@@ -1027,6 +1027,37 @@
   min-height: var(--ec-timeline-row-h);
 }
 
+/* -------------------------------------------------------------------------
+ * WeekScroller (Phase C1 — continuous-week scroll for TimeGrid)
+ *
+ * A horizontally-scrolling stack of TimeGrid weeks with CSS scroll-snap
+ * so each swipe lands on a full week. Activated by
+ * options.continuousWeekScroll: true on a `timeGridWeek` view.
+ * --------------------------------------------------------------------- */
+.ec-week-scroller {
+  position: relative;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+  /* Soft scrollbar so it doesn't visually clobber the timeline; the
+   * snap is the primary affordance. */
+  scrollbar-width: thin;
+}
+
+.ec-week-scroller-track {
+  display: flex;
+  align-items: stretch;
+  min-height: 100%;
+}
+
+.ec-week-scroller-page {
+  flex: 0 0 100%;
+  min-width: 100%;
+  scroll-snap-stop: always;
+}
+
 .ec-timeline .ec-event {
   position: absolute;
   top: 4px;

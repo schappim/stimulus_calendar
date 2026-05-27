@@ -20,6 +20,7 @@ import {
 } from '../components/event_popover.js';
 import { createPager } from '../components/pager.js';
 import { createMonthScroller } from '../components/month_scroller.js';
+import { createWeekScroller } from '../components/week_scroller.js';
 import { resolvePluginNames } from '../plugins/index.js';
 import { BroadcastBus, resolveAdapter } from '../lib/broadcast/index.js';
 
@@ -91,6 +92,8 @@ export default class CalendarController extends Controller {
     resourceGroupField: String,
     // Phase A3 — empty-cell affordance
     emptyCellAddButton: { type: Boolean, default: false },
+    // Phase C1 — TimeGridWeek continuous horizontal scroller
+    continuousWeekScroll: { type: Boolean, default: false },
     // Broadcast / live-sync options
     broadcast: String,
     broadcastChannel: String,
@@ -366,6 +369,16 @@ export default class CalendarController extends Controller {
       this._pager = null;
       this._state.set('pagerApi', null);
       this._viewTeardown = () => { scroller.destroy(); this._monthScroller = null; };
+      return;
+    }
+    if (viewName === 'timeGridWeek' && options?.continuousWeekScroll && typeof factory === 'function') {
+      const scroller = createWeekScroller(this._mainEl, this._state, factory, {
+        onDateChange: (date) => this.element.calendarApi?.gotoDate(date),
+      });
+      this._weekScroller = scroller;
+      this._pager = null;
+      this._state.set('pagerApi', null);
+      this._viewTeardown = () => { scroller.destroy(); this._weekScroller = null; };
       return;
     }
     if (typeof factory === 'function') {
@@ -794,6 +807,7 @@ CalendarController.OPTION_KEYS = [
   'filterResourcesWithEvents', 'filterEventsWithResources',
   'monthHeaderFormat', 'slotWidth', 'resourceExpand',
   'resourceGroups', 'resourceGroupField', 'emptyCellAddButton',
+  'continuousWeekScroll',
   'broadcast', 'broadcastChannel',
 ];
 

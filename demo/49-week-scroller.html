@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>stimulus_calendar — Continuous week scroller (Phase C1)</title>
+  <link rel="stylesheet" href="../src/styles/calendar.css">
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; margin: 2rem; }
+    .ec { width: 920px; height: 520px; }
+    h1 { font-size: 1.25rem; }
+    .note { color: #475569; font-size: 0.875rem; max-width: 65ch; margin-bottom: 1rem; }
+  </style>
+</head>
+<body>
+  <h1>Continuous-week scroll on TimeGridWeek</h1>
+  <p class="note">
+    Phase C1. Set <code>continuousWeekScroll: true</code> on a
+    <code>timeGridWeek</code> view and the controller swaps in the
+    <code>WeekScroller</code> instead of the standard Pager. Each
+    visible page is a fully-rendered week TimeGrid; CSS scroll-snap
+    locks the user to one week at a time, scroll-settle bumps
+    <code>options.date</code> to the centred week. Swipe left/right
+    (or use the trackpad) to navigate continuously.
+  </p>
+  <div data-controller="calendar"
+       data-calendar-plugins-value='["TimeGrid","Interaction"]'
+       data-calendar-view-value="timeGridWeek"
+       data-calendar-continuous-week-scroll-value="true"
+       data-calendar-options-value='{"editable":true,"nowIndicator":true}'>
+  </div>
+  <script type="module">
+    import { Application } from '/node_modules/@hotwired/stimulus/dist/stimulus.js';
+    import CalendarController from '/src/controllers/calendar_controller.js';
+    const app = Application.start();
+    app.register('calendar', CalendarController);
+    await new Promise((r) => setTimeout(r, 80));
+    const el = document.querySelector('[data-controller="calendar"]');
+    const today = new Date();
+    const at = (offsetDays, h) => {
+      const d = new Date(today);
+      d.setDate(d.getDate() + offsetDays);
+      d.setHours(h, 0, 0, 0);
+      return d.toISOString();
+    };
+    el.calendarApi.addEvent({ id:'e1', title:'Stand-up',  start: at(0, 9), end: at(0, 9.5) });
+    el.calendarApi.addEvent({ id:'e2', title:'Customer call', start: at(1, 14), end: at(1, 15) });
+    el.calendarApi.addEvent({ id:'e3', title:'Reno · Smith', start: at(7, 8), end: at(7, 12), backgroundColor:'#5856d6' });
+    el.calendarApi.addEvent({ id:'e4', title:'Quote · Patel', start: at(8, 13), end: at(8, 14) });
+    el.calendarApi.addEvent({ id:'e5', title:'Service call', start: at(-7, 10), end: at(-7, 11), backgroundColor:'#34c759' });
+  </script>
+</body>
+</html>
