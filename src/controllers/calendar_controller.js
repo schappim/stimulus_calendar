@@ -280,6 +280,14 @@ export default class CalendarController extends Controller {
     const state = this._state;
     this._recompute = () => {
       const options = state.get('options');
+      // State has been destroyed (controller disconnect tore it down)
+      // — any pending async work that resolves AFTER disconnect should
+      // bail out silently instead of throwing on `options.date` etc.
+      // Hit cleanly via the Turbo navigation path: user navigates
+      // away while a refetch is in flight; the fetch resolves, calls
+      // _recompute, and state.get('options') returns undefined because
+      // PluginState.destroy() ran in the interim.
+      if (!options) return;
       const cr = currentRange(options.date, options.duration, options.firstDay);
       state.set('currentRange', cr);
       const ar = activeRange(cr, state.get('extensions')?.activeRange);
@@ -991,6 +999,7 @@ export default class CalendarController extends Controller {
   // ?start=&end= ISO strings.
   async _refetchEvents() {
     const options = this._state.get('options');
+    if (!options) return [];  // disposed before we started
     const sources = [];
     // When BOTH options.events AND options.eventSources are set, the
     // inline `options.events` array is a first-paint snapshot only —
@@ -1013,6 +1022,12 @@ export default class CalendarController extends Controller {
     const out = [];
     for (const src of sources) {
       const resolved = await this._resolveSource(src, params);
+      // The controller may have disconnected mid-fetch (Turbo
+      // navigation tearing down /appointments while the
+      // calendar.json request was still in flight). Bail out silently
+      // so we don't mutate or read a destroyed PluginState — the
+      // host's next page is responsible for its own renders.
+      if (!this._state?.get('options')) return out;
       if (Array.isArray(resolved)) out.push(...resolved);
     }
     if (out.length || sources.length) {

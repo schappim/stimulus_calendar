@@ -4775,7 +4775,9 @@ const ot = class ot extends En {
   _installDerivations() {
     const t = this._state;
     this._recompute = () => {
-      const e = t.get("options"), o = hn(e.date, e.duration, e.firstDay);
+      const e = t.get("options");
+      if (!e) return;
+      const o = hn(e.date, e.duration, e.firstDay);
       t.set("currentRange", o);
       const s = gn(o, t.get("extensions")?.activeRange);
       t.set("activeRange", s), t.set("viewDates", ke(s, e.hiddenDays ?? [])), t.set("offset", ho(e.timeZone ?? "local", e.date));
@@ -5182,7 +5184,9 @@ const ot = class ot extends En {
   // on. URL sources are fetched against the active range as
   // ?start=&end= ISO strings.
   async _refetchEvents() {
-    const t = this._state.get("options"), e = [], o = Array.isArray(t.eventSources) && t.eventSources.length > 0;
+    const t = this._state.get("options");
+    if (!t) return [];
+    const e = [], o = Array.isArray(t.eventSources) && t.eventSources.length > 0;
     t.events !== void 0 && !o && e.push(t.events), o && e.push(...t.eventSources);
     const s = this._state.get("activeRange"), r = s ? {
       start: Ie(s.start, 10),
@@ -5190,6 +5194,7 @@ const ot = class ot extends En {
     } : {}, i = [];
     for (const a of e) {
       const u = await this._resolveSource(a, r);
+      if (!this._state?.get("options")) return i;
       Array.isArray(u) && i.push(...u);
     }
     if (i.length || e.length) {
