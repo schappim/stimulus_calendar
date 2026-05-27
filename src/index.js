@@ -5,13 +5,28 @@ import { VERSION } from './lib/version.js';
 
 export { CalendarController, VERSION };
 
+// Idempotency guard for start(). Two paths typically call start():
+// (1) host application.js explicitly via `StimulusCalendar.start(app)`,
+// (2) the Rails companion's stimulus_calendar_rails.js auto-starter
+//     fires on both turbo:load and DOMContentLoaded.
+// Without this WeakSet, the calendar controller gets registered against
+// the same Stimulus Application twice (or three times), Stimulus mounts
+// two controller instances per element, and every state operation
+// (event load, broadcast apply, drag commit) fires twice — most visibly
+// as duplicate event chips with the same id but divergent timestamps
+// (one parse path runs before refetch lands, the other after).
+const _registered = new WeakSet();
+
 /**
  * Register every stimulus_calendar controller against a Stimulus Application.
  * Pass an existing application instance to register into; omit to bootstrap
- * a fresh one (matching stimulus_grid's convention).
+ * a fresh one (matching stimulus_grid's convention). Safe to call multiple
+ * times against the same Application — subsequent calls are no-ops.
  */
 export function start(app) {
   const application = app ?? Application.start();
+  if (_registered.has(application)) return application;
+  _registered.add(application);
   application.register('calendar', CalendarController);
   return application;
 }
