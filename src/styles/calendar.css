@@ -836,6 +836,52 @@
   border-right: 1px dashed var(--ec-border-color);
 }
 
+/* Per-resource lane sizing. Each staff lane targets at least
+ * `--ec-resource-col-min-width` (default 180px) and shares any
+ * extra space evenly via 1fr. When the staff count fits the
+ * calendar's allocated width nothing changes — columns expand to
+ * fill. Once N × min-width exceeds the container, the columns hit
+ * their floor and the grid root scrolls horizontally instead of
+ * crushing the lanes into narrow slivers.
+ *
+ * Both the header row and the inner .ec-days column-wrap use the
+ * same min-width so header lanes line up with body lanes during a
+ * horizontal scroll. The TimeGrid base rule (`minmax(0, 1fr)`)
+ * still applies to the standard TimeGrid views — only resource
+ * views get the floored column. */
+.ec-resource.ec-time-grid [data-row="header"] {
+  grid-template-columns: var(--ec-sidebar-width)
+    repeat(var(--ec-cols, 7), minmax(var(--ec-resource-col-min-width, 180px), 1fr));
+}
+
+.ec-resource.ec-time-grid .ec-days {
+  grid-template-columns:
+    repeat(var(--ec-cols, 7), minmax(var(--ec-resource-col-min-width, 180px), 1fr));
+}
+
+/* Horizontal scroll container. The header and body each carry
+ * `min-width: max-content` so when the column minmax floors push
+ * their natural width past the visible area, they expand together
+ * and the grid root's overflow-x: auto handles the scrollbar. The
+ * sidebar's `position: sticky; left: 0` (from the TimeGrid base
+ * rules) pins the time axis to the visible left edge as the user
+ * scans the staff lanes to the right.
+ *
+ * overflow-y stays visible so the body's own `overflow-y: auto`
+ * keeps handling the vertical scroll for hour rows — we do not
+ * want both axes scrolling the same outer container, which would
+ * have made the sticky time axis stutter against the body's own
+ * scroll. */
+.ec-grid.ec-resource.ec-time-grid {
+  overflow-x: auto;
+  overflow-y: visible;
+}
+
+.ec-resource.ec-time-grid [data-row="header"],
+.ec-resource.ec-time-grid [data-row="body"] {
+  min-width: max-content;
+}
+
 /* -------------------------------------------------------------------------
  * Resource Timeline
  * ----------------------------------------------------------------------- */
