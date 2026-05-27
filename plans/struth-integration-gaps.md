@@ -319,16 +319,27 @@ with unit + integration tests on the JS side. Search `git log
 - [x] **S8** — `resource.visible: false` filters the lane / row out
   without a refetch.
 
+Nice-to-haves (also landed in this branch):
+
+- [x] **S11** — `event.startLocal` / `event.endLocal` non-enumerable
+  getters that read `start`/`end` live and return real-local Dates,
+  so hosts don't have to write `calToLocal()` at every boundary.
+- [x] **S12** — `eventAppearAnimation` option + per-event override
+  on `extendedProps.appearAnimation`. The controller maintains a
+  `_pendingAppearIds` set that the chip renderer reads, with a
+  queueMicrotask-scheduled clear so multiple synchronous re-renders
+  during one state change all stamp the marker but later renders
+  (drag commits, broadcasts) don't re-fire.
+- [x] **S13** — Default themable conflict modal triggered by
+  `op="conflict"`. Side-by-side server/client diff, three resolutions
+  (theirs / mine / dismissed) via button / backdrop click / Escape,
+  themable through `ec-conflict-*` class names and the existing CSS
+  custom-property palette. `options.conflictRenderer` replaces the
+  default when a host wants a custom UI.
+
 Open (deferred — not blockers for Struth adoption):
 
 - [ ] **S4** — optimistic update reconciliation (`op="confirm"` /
   `op="revert"` + `X-Optimistic-Id`). Already tracked in
   `RAILS.md §4` as the 0.2 work; listing here for visibility, not
   re-doing.
-- [ ] **S11** — `event.startLocal` / `event.endLocal` boundary
-  helpers. Polish; host can do `calToLocal` today.
-- [ ] **S12** — `eventAppearAnimation` (`fly-in` / `highlight-pulse`).
-  Polish; deferred until visual design exists.
-- [ ] **S13** — Default themable conflict UI for `op="conflict"`.
-  Wants a design pass on the modal shape; deferred until a host
-  asks for the rendered default.
