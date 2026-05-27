@@ -6,13 +6,25 @@
   <link rel="stylesheet" href="../src/styles/calendar.css">
   <style>
     body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; margin: 2rem; }
-    .ec { width: 1080px; }
     h1 { font-size: 1.25rem; }
     .note { color: #475569; font-size: 0.875rem; max-width: 60ch; margin-bottom: 1rem; }
     .actions { margin: 0.5rem 0 1rem; display: flex; gap: 0.5rem; }
     .actions button { padding: 0.4rem 0.75rem; }
     .log { font: 12px/1.4 ui-monospace, monospace; background: #f1f5f9;
            padding: 0.5rem 0.75rem; border-radius: 4px; max-height: 8rem; overflow:auto; }
+
+    /* Bounded scroll host — exercises sticky-left row-head against a
+     * width-constrained scroll container. The calendar itself takes
+     * its natural width (rowhead 160 + days * slotWidth); this
+     * wrapper clips horizontally so the strip needs to scroll. */
+    .scroll-host {
+      width: 720px;
+      max-width: 100%;
+      overflow-x: auto;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+    }
+    .scroll-host .ec { width: max-content; min-width: 720px; }
   </style>
 </head>
 <body>
@@ -29,23 +41,30 @@
     <button data-act="toggle-a">Toggle Crew A from JS</button>
     <button data-act="toggle-b">Toggle Crew B from JS</button>
   </div>
-  <div data-controller="calendar"
-       data-calendar-plugins-value='["ResourceTimeline"]'
-       data-calendar-view-value="resourceTimelineWeek"
-       data-calendar-date-value="2026-05-25"
-       data-calendar-options-value='{"slotWidth":120}'
-       data-calendar-resources-value='[
-         {"id":"will","title":"Will Tan","eventBackgroundColor":"#5856d6"},
-         {"id":"mike","title":"Mike O","eventBackgroundColor":"#5856d6"},
-         {"id":"sam","title":"Sam Ng","eventBackgroundColor":"#34c759"},
-         {"id":"jess","title":"Jess Q","eventBackgroundColor":"#34c759"},
-         {"id":"joe","title":"Joe (sub)"}
-       ]'
-       data-calendar-resource-groups-value='[
-         {"id":"a","title":"Crew A","color":"#5856d6","resourceIds":["will","mike"],"expanded":true},
-         {"id":"b","title":"Crew B","color":"#34c759","resourceIds":["sam","jess"],"expanded":true}
-       ]'>
+  <div class="scroll-host">
+    <div data-controller="calendar"
+         data-calendar-plugins-value='["ResourceTimeline"]'
+         data-calendar-view-value="resourceTimelineWeek"
+         data-calendar-date-value="2026-05-25"
+         data-calendar-options-value='{"slotWidth":160}'
+         data-calendar-resources-value='[
+           {"id":"will","title":"Will Tan","eventBackgroundColor":"#5856d6"},
+           {"id":"mike","title":"Mike O","eventBackgroundColor":"#5856d6"},
+           {"id":"sam","title":"Sam Ng","eventBackgroundColor":"#34c759"},
+           {"id":"jess","title":"Jess Q","eventBackgroundColor":"#34c759"},
+           {"id":"joe","title":"Joe (sub)"}
+         ]'
+         data-calendar-resource-groups-value='[
+           {"id":"a","title":"Crew A","color":"#5856d6","resourceIds":["will","mike"],"expanded":true},
+           {"id":"b","title":"Crew B","color":"#34c759","resourceIds":["sam","jess"],"expanded":true}
+         ]'>
+    </div>
   </div>
+  <p class="note" style="margin-top:0.5rem;">
+    Scroll the calendar horizontally — the resource column stays glued
+    to the left, only the day strip slides under it. There is exactly
+    one row-head DOM tree, ever (no Pager snapshots).
+  </p>
   <h3 style="margin-top:1.25rem;font-size:0.875rem;">Event log</h3>
   <div class="log" id="log"></div>
   <script type="module">

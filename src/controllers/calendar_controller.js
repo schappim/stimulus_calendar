@@ -456,6 +456,31 @@ export default class CalendarController extends Controller {
       this._viewTeardown = () => { scroller.destroy(); this._weekScroller = null; };
       return;
     }
+    // ResourceTimeline bypasses the Pager entirely. The Pager's three-
+    // page carousel (prev / current / next) would render THREE row-head
+    // columns in the DOM (one per snapshot). At rest the prev/next
+    // snapshots are visibility:hidden, but during a swipe both
+    // neighbours become visible -- the user would see two row-head
+    // columns side-by-side. The Pager's transformed track also breaks
+    // position:sticky inside its descendants, which is what we use to
+    // pin the row-head column to the left of the scroll container.
+    //
+    // Mounting the renderer directly into _mainEl gives us:
+    //   - exactly one row-head column DOM tree
+    //   - the natural scrolling ancestor (the calendar root, the body,
+    //     or whatever parent has overflow:auto) drives sticky-left so
+    //     the row-head stays glued during horizontal scroll
+    //   - toolbar prev/next still navigate (re-render replaces the
+    //     view in place); swipe-between-weeks is the trade-off.
+    if (viewName && viewName.startsWith('resourceTimeline') && typeof factory === 'function') {
+      const teardown = factory(this._mainEl, this._state);
+      this._pager = null;
+      this._monthScroller = null;
+      this._weekScroller = null;
+      this._state.set('pagerApi', null);
+      this._viewTeardown = () => { teardown?.(); };
+      return;
+    }
     if (typeof factory === 'function') {
       const pager = createPager(this._mainEl, this._state, factory, {
         onNavigate: ({ direction, date }) => {

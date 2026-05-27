@@ -682,72 +682,80 @@
  * Resource Timeline
  * ----------------------------------------------------------------------- */
 
-/* ResourceTimeline — four-quadrant frozen-column layout.
+/* ResourceTimeline — single-flow layout with sticky-left row-head.
  *
- *  +-------------+--------------------+
- *  |  corner     |  day-axis           |
- *  +-------------+--------------------+
- *  |  rowhead    |  strip-pane         |
- *  |  column     |  (the ONLY real     |
- *  |  (FROZEN)   |   scroll container) |
- *  +-------------+--------------------+
+ * The row-head column and the day strip live in the SAME flex row so
+ * they share a single horizontal scroll container. position:sticky on
+ * every .ec-row-head pins the column to the visible left edge of the
+ * nearest scrolling ancestor (page body, calendar root, or a custom
+ * scroll container). There is ONE .ec-row-head element per row -- no
+ * separate quadrants, no Pager snapshots (controller bypasses Pager
+ * for ResourceTimeline so no transformed ancestor breaks sticky).
  *
- * The strip pane scrolls in both axes. On every scroll the renderer
- * translates the inner tracks of the day-axis (horizontal) and the
- * rowhead column (vertical) so the day-axis stays at the top and the
- * rowhead column stays at the left. The corner stays put.
- *
- * Why not position: sticky? Sticky inside a wide flex/grid descendant
- * of a transformed ancestor (the Pager track applies translate3d) is
- * unreliable — Safari, Firefox and Chromium can each handle it
- * differently, and on horizontal scroll the row-heads can drift. A
- * static layout with JS-translated tracks is unambiguous. */
+ * Whichever element does the horizontal scrolling -- page body,
+ * .ec.calendar-root (overflow:auto on its outer container), or a
+ * custom wrapper -- the row-head stays glued to its visible left edge
+ * and the day-strip scrolls behind it.
+ */
 .ec-grid.ec-timeline {
-  display: grid;
-  grid-template-columns: var(--ec-timeline-rowhead-w, 160px) 1fr;
-  grid-template-rows: auto 1fr;
   border: 1px solid var(--ec-border-color);
   border-radius: 0.25rem;
-  overflow: hidden;
   background: var(--ec-bg-color);
+  /* No internal overflow constraint by default -- the calendar takes
+   * its natural width and the nearest scrolling ancestor (e.g. the
+   * page body) drives sticky positioning. Hosts that want internal
+   * scrolling can wrap with .ec-timeline-scroll-host below or set
+   * overflow:auto on the host element. */
+  overflow: visible;
 }
 
 .ec-timeline {
-  /* Single source of truth for the resource-axis (row-head) column
-   * width. Override per-instance via:
-   *   .ec-timeline { --ec-timeline-rowhead-w: 200px; }                   */
   --ec-timeline-rowhead-w: 160px;
 }
 
-.ec-timeline-corner {
-  grid-row: 1;
-  grid-column: 1;
-  background: var(--ec-header-bg-color);
-  border-right: 1px solid var(--ec-border-color);
-  border-bottom: 1px solid var(--ec-border-color);
-  /* Hold the same vertical real-estate as the day-axis next to it so
-   * the borders meet at the top-left without a 1px misalignment. */
-  min-height: 1.85rem;
-}
-
-.ec-timeline-day-axis {
-  grid-row: 1;
-  grid-column: 2;
-  overflow: hidden;
-  background: var(--ec-header-bg-color);
-  border-bottom: 1px solid var(--ec-border-color);
-}
-
-.ec-timeline-day-axis-inner {
+/* Sticky-top day header. The header itself is a flex row so its
+ * children (corner spacer + day-labels strip) lay out horizontally
+ * and the natural width matches the body rows. */
+.ec-timeline [data-row="header"] {
   display: flex;
-  flex-direction: column;
-  will-change: transform;
+  flex-direction: row;
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--ec-header-bg-color);
+  border-bottom: 1px solid var(--ec-border-color);
   min-width: max-content;
+}
+
+/* The header's corner spacer IS an .ec-row-head: it inherits the
+ * sticky-left rule below + we lift its z-index so the top-left meets
+ * cleanly with the day-axis. */
+.ec-timeline [data-row="header"] > .ec-row-head {
+  background: var(--ec-header-bg-color);
+  z-index: 4;
+  border-bottom: none;
+}
+
+.ec-timeline-hour-head {
+  display: flex;
+  flex-direction: row;
+  position: sticky;
+  top: 1.85rem;
+  z-index: 3;
+  background: var(--ec-bg-color);
+  border-bottom: 1px solid var(--ec-border-color);
+  min-width: max-content;
+}
+
+.ec-timeline-hour-head > .ec-row-head {
+  background: var(--ec-bg-color);
+  z-index: 4;
 }
 
 .ec-timeline .ec-slots {
   display: flex;
   flex-wrap: nowrap;
+  flex: 0 0 auto;
 }
 
 .ec-timeline .ec-slots .ec-day-head {
@@ -761,71 +769,72 @@
   padding: 0.375rem 0.25rem;
 }
 
-.ec-timeline-rowhead-col {
-  grid-row: 2;
-  grid-column: 1;
-  overflow: hidden;
-  border-right: 1px solid var(--ec-border-color);
-  background: var(--ec-bg-color);
-}
-
-.ec-timeline-rowhead-col-inner {
-  will-change: transform;
-}
-
-.ec-timeline-strip-pane {
-  grid-row: 2;
-  grid-column: 2;
-  overflow: auto;
-}
-
-.ec-timeline-strips {
-  position: relative;
+.ec-timeline-body {
   display: flex;
   flex-direction: column;
   min-width: max-content;
 }
-
-.ec-timeline-row-head {
-  display: flex;
-  align-items: center;
-  border-bottom: 1px solid var(--ec-border-color);
-  background: var(--ec-bg-color);
-  min-height: 34px;
-}
-
-.ec-timeline-row-head:last-child { border-bottom: none; }
 
 .ec-timeline-row {
   display: flex;
   flex-direction: row;
   border-bottom: 1px solid var(--ec-border-color);
   min-height: 34px;
+  min-width: max-content;
 }
 
 .ec-timeline-row:last-child { border-bottom: none; }
 
+/* The row-head cell. position:sticky;left:0 pins it to the visible
+ * left edge of the nearest scrolling ancestor. Background MUST be
+ * fully opaque so chips sliding behind don't bleed through. */
 .ec-timeline .ec-row-head {
   display: flex;
   align-items: center;
   padding: 0.5rem 0.75rem 0.5rem calc(1rem + var(--ec-row-head-indent, 0px));
   font-size: 0.875rem;
   font-weight: 500;
-  width: 100%;
+  border-right: 1px solid var(--ec-border-color);
+  background: var(--ec-bg-color);
+  flex: 0 0 var(--ec-timeline-rowhead-w);
+  width: var(--ec-timeline-rowhead-w);
+  min-width: var(--ec-timeline-rowhead-w);
   box-sizing: border-box;
+  position: sticky;
+  left: 0;
+  z-index: 2;
 }
 
-/* Group rows (left column) — grey background, uppercase eyebrow text.
- * The strip side is empty (just a divider) so the colour doesn't bleed
- * into the bars area. */
-.ec-group-row-head {
+/* Group-header rows: grey background carries through the row-head so
+ * the sticky column visually merges with the rest of the grey bar
+ * rather than punching a white hole through it. */
+.ec-timeline-row.ec-group-header > .ec-row-head,
+.ec-timeline [data-row="group-header"] > .ec-row-head {
   background: #f8fafc;
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--ec-muted-text-color);
-  border-bottom: 1px solid var(--ec-border-color);
-  min-height: 34px;
+}
+
+/* The ribbon and the group-header strip both grow naturally to the
+ * width the renderer sets inline (totalCols * colWidth). flex:0 0
+ * disables shrink so they stay full width even when the parent is
+ * narrower than them -- horizontal scroll kicks in instead. */
+.ec-timeline-ribbon,
+.ec-group-header-strip {
+  flex: 0 0 auto;
+  min-width: 0;
+  position: relative;
+}
+
+/* Optional bounded-height wrapper for hosts that want internal
+ * scrolling instead of letting the page body handle it. Drop this
+ * around the controller host:
+ *
+ *   <div class="ec-timeline-scroll-host" style="height:480px;">
+ *     <div data-controller="calendar" ...></div>
+ *   </div>
+ */
+.ec-timeline-scroll-host {
+  overflow: auto;
+  position: relative;
 }
 
 .ec-expander {
