@@ -1946,6 +1946,51 @@
   border-color: rgba(215, 0, 21, 0.3);
 }
 
+/* Links card — host-supplied navigations rendered as iOS-settings-style
+ * tappable rows between the props card and the footer. Host emits the
+ * link list via `event.extendedProps.links = [{label, href}]`. The
+ * card itself has no padding so each row spans the full width and the
+ * hover state reads as a full-bleed strip. */
+.ec-event-popover-card-links {
+  padding: 0;
+  overflow: hidden;
+}
+
+.ec-event-popover-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 10px 12px;
+  text-decoration: none;
+  color: inherit;
+  font-weight: 500;
+  font-size: 13px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  transition: background-color 80ms ease-out;
+}
+.ec-event-popover-link:last-child { border-bottom: none; }
+.ec-event-popover-link:hover { background: rgba(0, 0, 0, 0.04); }
+.ec-event-popover-link:focus-visible {
+  outline: 2px solid var(--ec-active-bg-color, #2563eb);
+  outline-offset: -2px;
+}
+
+.ec-event-popover-link-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ec-event-popover-link-chevron {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.45;
+}
+
 /* -------------------------------------------------------------------------
  * Pager — macOS-Calendar-style horizontal swipe between adjacent date
  * pages. The track is 3 × 100% wide; only the centre page is visible at
@@ -2461,4 +2506,16 @@ body.ec-resizing-active * {
   border-color: #475569;
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.6),
               0 4px 6px -4px rgba(0, 0, 0, 0.4);
+}
+
+/* Event popover (separate from `.ec-popup` — different surface, lives
+ * outside the .ec cascade). Hosts that override the calendar-side
+ * tokens via :root.dark .ec, html.dark .ec etc. need to ALSO target
+ * the popover, since it's appended directly to <body>. The library
+ * ships generic dark defaults here; hosts can re-style further. */
+.dark .ec-event-popover-link {
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+.dark .ec-event-popover-link:hover {
+  background: rgba(255, 255, 255, 0.06);
 }

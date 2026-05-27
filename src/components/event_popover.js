@@ -88,8 +88,10 @@ export function openEventPopover({ event, anchorEl, state }) {
 
   // --- Remaining extendedProps card -------------------------------------
   // Everything not already shown above, rendered as a small definition list.
+  // `links` is rendered as a dedicated card below; filter it out of the
+  // generic prop list so it doesn't render as "Links: [object Object]".
   const extras = Object.entries(event.extendedProps ?? {})
-    .filter(([k]) => !['description', 'category', 'location', 'attendees'].includes(k))
+    .filter(([k]) => !['description', 'category', 'location', 'attendees', 'links'].includes(k))
     .filter(([, v]) => v !== undefined && v !== null && v !== '');
   if (extras.length) {
     const card = createElement('div', 'ec-event-popover-card');
@@ -99,6 +101,48 @@ export function openEventPopover({ event, anchorEl, state }) {
       dl.append(createElement('dd', '', String(v)));
     }
     card.append(dl);
+    popoverEl.append(card);
+  }
+
+  // --- Links card --------------------------------------------------------
+  // Host-supplied actions that navigate elsewhere (e.g. "Open job",
+  // "Open customer", "Join Zoom"). Each link renders as a full-width
+  // tappable row with chevron. Clicking closes the popover and lets
+  // the anchor's default navigation run — Turbo Drive picks it up like
+  // any other in-app link.
+  //
+  // Shape: `extendedProps.links = [{ label, href, target?, rel? }]`.
+  // Entries without href are skipped so a half-built link list doesn't
+  // render a row that does nothing.
+  const links = Array.isArray(event.extendedProps?.links)
+    ? event.extendedProps.links.filter((l) => l && l.href)
+    : [];
+  if (links.length) {
+    const card = createElement('div', 'ec-event-popover-card ec-event-popover-card-links');
+    for (const link of links) {
+      const row = createElement('a', 'ec-event-popover-link', '', [
+        ['href', link.href],
+        ['data-popover-link', ''],
+      ]);
+      if (link.target) row.setAttribute('target', link.target);
+      if (link.rel) row.setAttribute('rel', link.rel);
+      row.append(createElement('span', 'ec-event-popover-link-label',
+                               String(link.label ?? link.href)));
+      const chev = createElement('span', 'ec-event-popover-link-chevron', '', [
+        ['aria-hidden', 'true'],
+      ]);
+      chev.innerHTML = '<svg viewBox="0 0 12 12" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4.5 2 L8.5 6 L4.5 10" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      row.append(chev);
+      // Close the popover synchronously so the link's default
+      // navigation isn't followed by a stale popover lingering over
+      // the next page (Turbo Frame visits keep <body> intact, so
+      // without this the popover would remain visible).
+      row.addEventListener('click', () => {
+        fire?.('eventPopoverLinkOpen', { event, link });
+        closeEventPopover();
+      });
+      card.append(row);
+    }
     popoverEl.append(card);
   }
 

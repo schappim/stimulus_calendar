@@ -42,7 +42,7 @@ function nn(n) {
 }
 const vt = 86400;
 function de(n = /* @__PURE__ */ new Date(), t = void 0) {
-  return nn(n) ? In(n, t) : On(n, t);
+  return nn(n) ? On(n, t) : In(n, t);
 }
 function $(n) {
   const t = new Date(n.getTime());
@@ -76,7 +76,7 @@ function Ce(n) {
     n.getUTCSeconds()
   );
 }
-function Ie(n, t = 19) {
+function Oe(n, t = 19) {
   return n.toISOString().substring(0, t);
 }
 function ye(n, ...t) {
@@ -115,7 +115,7 @@ function We(n, t) {
 function Qe(n) {
   return n[an];
 }
-function In(n, t = void 0) {
+function On(n, t = void 0) {
   const e = new Date(Date.UTC(
     n.getFullYear(),
     n.getMonth(),
@@ -126,7 +126,7 @@ function In(n, t = void 0) {
   ));
   return St(e, t ? t - Je(e) : 0), We(e, t ?? Je(e)), e;
 }
-function On(n, t = void 0) {
+function In(n, t = void 0) {
   const e = {}, o = rn(n, e);
   o !== void 0 && (n = n.substring(0, e.index));
   const i = n.match(/\d+/g), r = new Date(Date.UTC(
@@ -172,7 +172,7 @@ function Hn(n, t) {
 function Re(n) {
   return n[cn];
 }
-function g(n, t, e, o = []) {
+function h(n, t, e, o = []) {
   const i = document.createElement(n);
   i.className = t, typeof e == "string" ? i.innerText = e : e?.domNodes ? i.replaceChildren(...e.domNodes) : e?.html && (i.innerHTML = e.html);
   for (const r of o)
@@ -309,18 +309,18 @@ function qn(n, t = {}) {
   let i = yt(e, o);
   const r = yt(t, o), s = lt(i, "views") ?? {}, a = lt(r, "views") ?? {}, u = { ...i };
   t.view && (u.view = t.view);
-  const w = {}, v = {}, h = {}, D = /* @__PURE__ */ new Set([...Ne(s), ...Ne(a)]);
-  for (const y of D) {
+  const w = {}, v = {}, g = {}, M = /* @__PURE__ */ new Set([...Ne(s), ...Ne(a)]);
+  for (const y of M) {
     const l = a[y] ?? {}, b = At(
       i,
       s[y] ?? s[l.type] ?? {}
-    ), T = At(b, r, l), C = lt(T, "component");
+    ), T = At(b, r, l), x = lt(T, "component");
     delete T.view;
-    for (const _ of Ne(T))
-      Et(u, _) ? (w[_] || (w[_] = []), w[_].push(
-        un.includes(_) ? (E) => T[_] = _e(E) ? E(b[_]) : E : (E) => T[_] = E
-      )) : delete T[_];
-    v[y] = T, h[y] = C;
+    for (const S of Ne(T))
+      Et(u, S) ? (w[S] || (w[S] = []), w[S].push(
+        un.includes(S) ? (_) => T[S] = _e(_) ? _(b[S]) : _ : (_) => T[S] = _
+      )) : delete T[S];
+    v[y] = T, g[y] = x;
   }
   v[u.view] ? Pe(u, v[u.view]) : Pe(u, r);
   function c(y, l, b = !0) {
@@ -328,17 +328,17 @@ function qn(n, t = {}) {
   }
   function f(y) {
     if (v[y])
-      return Pe(u, v[y]), h[y];
+      return Pe(u, v[y]), g[y];
   }
   return {
     options: u,
     setOption: c,
     setViewOptions: f,
-    viewComponents: h,
+    viewComponents: g,
     // Sorted list of every view name registered by defaults + plugins +
     // the user. The controller exposes this on state so the toolbar can
     // tokenise view-switcher entries.
-    viewNames: [...D].sort()
+    viewNames: [...M].sort()
   };
 }
 function Xn(n) {
@@ -726,8 +726,8 @@ function io() {
       !t || !e || Ct(n, "datesSet", {
         start: Ce(t.start),
         end: Ce(t.end),
-        startStr: Ie(t.start),
-        endStr: Ie(t.end),
+        startStr: Oe(t.start),
+        endStr: Oe(t.end),
         view: st(e)
       });
     }
@@ -866,8 +866,8 @@ function fn(n, t) {
       let a = "";
       const u = ["startRange", "endRange"], w = [!1, !1];
       for (const v of s) {
-        const h = u.indexOf(v.source);
-        h >= 0 ? w[h] || (a += po(u[1 - h], s), w[h] = !0) : a += v.value;
+        const g = u.indexOf(v.source);
+        g >= 0 ? w[g] || (a += po(u[1 - g], s), w[g] = !0) : a += v.value;
       }
       return a;
     };
@@ -903,9 +903,9 @@ function mn(n, t, e) {
   let a = [...n];
   if (_e(o)) {
     const u = n.map(Ye), w = st(t);
-    a = a.filter((v, h) => o({
+    a = a.filter((v, g) => o({
       event: Ye(v),
-      index: h,
+      index: g,
       events: u,
       view: w
     }));
@@ -927,13 +927,13 @@ function ut(n, t, e = {}) {
   const o = t.get("options"), i = o.theme, r = o.headerToolbar ?? {};
   n.replaceChildren();
   for (const s of ["start", "center", "end"]) {
-    const a = (r[s] ?? "").trim(), u = g("div", "", "", [["data-toolbar-slot", s]]);
+    const a = (r[s] ?? "").trim(), u = h("div", "", "", [["data-toolbar-slot", s]]);
     a && go(u, a, t, e, i), n.append(u);
   }
 }
 function go(n, t, e, o, i) {
   for (const r of t.split(/\s+/)) {
-    const s = g("div", i.buttonGroup);
+    const s = h("div", i.buttonGroup);
     for (const a of r.split(",").filter(Boolean)) {
       const u = mo(a, e, o, i);
       u && s.append(u);
@@ -948,7 +948,7 @@ function mo(n, t, e, o) {
   return (t.get("viewNames") ?? []).includes(n) ? vo(n, t, e, o) : r.customButtons && Object.hasOwn(r.customButtons, n) ? yo(n, t, e, o) : null;
 }
 function vo(n, t, e, o) {
-  const i = t.get("options"), r = i.buttonText?.[n] ?? n, s = g("button", `${o.button} ec-${wo(n)}`, r, [
+  const i = t.get("options"), r = i.buttonText?.[n] ?? n, s = h("button", `${o.button} ec-${wo(n)}`, r, [
     ["type", "button"],
     ["data-toolbar-action", "view"],
     ["data-toolbar-view", n]
@@ -956,7 +956,7 @@ function vo(n, t, e, o) {
   return i.view === n && s.classList.add(o.active), s.addEventListener("click", () => e?.gotoView?.(n)), s;
 }
 function yo(n, t, e, o) {
-  const i = t.get("options").customButtons?.[n] ?? {}, r = g("button", `${o.button} ec-custom`, i.text ?? n, [
+  const i = t.get("options").customButtons?.[n] ?? {}, r = h("button", `${o.button} ec-custom`, i.text ?? n, [
     ["type", "button"],
     ["data-toolbar-action", "customButton"],
     ["data-toolbar-button", n]
@@ -972,10 +972,10 @@ function Pt(n, t) {
 }
 const bo = {
   title(n, t, e) {
-    return g("h2", e.title, n.get("viewTitle") ?? "");
+    return h("h2", e.title, n.get("viewTitle") ?? "");
   },
   prev(n, t, e) {
-    const o = g("button", `${e.button} ec-prev`, "", [
+    const o = h("button", `${e.button} ec-prev`, "", [
       ["type", "button"],
       ["aria-label", "Previous"],
       ["data-toolbar-action", "prev"]
@@ -983,7 +983,7 @@ const bo = {
     return o.innerHTML = '<i class="ec-icon ec-prev"></i>', Pt(n, "start") ? (o.disabled = !0, o.classList.add(e.disabled)) : o.addEventListener("click", () => t?.prev?.()), o;
   },
   next(n, t, e) {
-    const o = g("button", `${e.button} ec-next`, "", [
+    const o = h("button", `${e.button} ec-next`, "", [
       ["type", "button"],
       ["aria-label", "Next"],
       ["data-toolbar-action", "next"]
@@ -991,93 +991,115 @@ const bo = {
     return o.innerHTML = '<i class="ec-icon ec-next"></i>', Pt(n, "end") ? (o.disabled = !0, o.classList.add(e.disabled)) : o.addEventListener("click", () => t?.next?.()), o;
   },
   today(n, t, e) {
-    const i = n.get("options").buttonText?.today ?? "today", r = g("button", `${e.button} ec-today`, i, [
+    const i = n.get("options").buttonText?.today ?? "today", r = h("button", `${e.button} ec-today`, i, [
       ["type", "button"],
       ["data-toolbar-action", "today"]
     ]);
     return r.addEventListener("click", () => t?.today?.()), r;
   }
 };
-let Dt = null, pe = null, $e = null, Be = null;
+let Mt = null, pe = null, $e = null, Be = null;
 const To = { hour: "numeric", minute: "2-digit" }, So = { day: "numeric", month: "short", year: "numeric" };
-function It({ event: n, anchorEl: t, state: e }) {
+function Ot({ event: n, anchorEl: t, state: e }) {
   if (xe(), !n || !t) return null;
   const o = e.get("options"), i = o?.locale, r = e.get("fire");
-  pe = g("div", "ec-event-popover", "", [
+  pe = h("div", "ec-event-popover", "", [
     ["role", "dialog"],
     ["aria-modal", "false"],
     ["data-popover", "event"],
     ["data-event-id", n.id]
   ]);
-  const s = g("div", "ec-event-popover-card ec-event-popover-card-title"), a = g("div", "ec-event-popover-title-row");
-  a.append(g("div", "ec-event-popover-title", n.title || "(untitled)"));
-  const u = g("span", "ec-event-popover-swatch"), w = n.backgroundColor || o?.eventBackgroundColor || o?.eventColor;
+  const s = h("div", "ec-event-popover-card ec-event-popover-card-title"), a = h("div", "ec-event-popover-title-row");
+  a.append(h("div", "ec-event-popover-title", n.title || "(untitled)"));
+  const u = h("span", "ec-event-popover-swatch"), w = n.backgroundColor || o?.eventBackgroundColor || o?.eventColor;
   w && (u.style.background = w), a.append(u), s.append(a);
   const v = n.extendedProps?.location;
-  v && s.append(g("div", "ec-event-popover-location", String(v)));
-  const h = g("button", "ec-event-popover-close", "×", [
+  v && s.append(h("div", "ec-event-popover-location", String(v)));
+  const g = h("button", "ec-event-popover-close", "×", [
     ["type", "button"],
     ["aria-label", "Close"]
   ]);
-  h.addEventListener("click", xe), s.append(h), pe.append(s);
-  const D = g("div", "ec-event-popover-card");
-  D.append(g("div", "ec-event-popover-when", xo(n, i))), n.extendedProps?.category && D.append(g(
+  g.addEventListener("click", xe), s.append(g), pe.append(s);
+  const M = h("div", "ec-event-popover-card");
+  M.append(h("div", "ec-event-popover-when", xo(n, i))), n.extendedProps?.category && M.append(h(
     "div",
     "ec-event-popover-when-meta",
     `Category: ${n.extendedProps.category}`
-  )), pe.append(D);
+  )), pe.append(M);
   const c = n.extendedProps?.attendees;
   if (c) {
-    const C = g("div", "ec-event-popover-card");
-    C.append(g("div", "ec-event-popover-card-label", "Invitees")), C.append(g("div", "ec-event-popover-card-value", String(c))), pe.append(C);
+    const S = h("div", "ec-event-popover-card");
+    S.append(h("div", "ec-event-popover-card-label", "Invitees")), S.append(h("div", "ec-event-popover-card-value", String(c))), pe.append(S);
   }
   const f = n.extendedProps?.description;
   if (f) {
-    const C = g("div", "ec-event-popover-card");
-    C.append(g("div", "ec-event-popover-card-label", "Notes")), C.append(g("p", "ec-event-popover-desc", String(f))), pe.append(C);
+    const S = h("div", "ec-event-popover-card");
+    S.append(h("div", "ec-event-popover-card-label", "Notes")), S.append(h("p", "ec-event-popover-desc", String(f))), pe.append(S);
   }
-  const y = Object.entries(n.extendedProps ?? {}).filter(([C]) => !["description", "category", "location", "attendees"].includes(C)).filter(([, C]) => C != null && C !== "");
+  const y = Object.entries(n.extendedProps ?? {}).filter(([S]) => !["description", "category", "location", "attendees", "links"].includes(S)).filter(([, S]) => S != null && S !== "");
   if (y.length) {
-    const C = g("div", "ec-event-popover-card"), _ = g("dl", "ec-event-popover-props");
-    for (const [E, A] of y)
-      _.append(g("dt", "", _o(E))), _.append(g("dd", "", String(A)));
-    C.append(_), pe.append(C);
+    const S = h("div", "ec-event-popover-card"), _ = h("dl", "ec-event-popover-props");
+    for (const [A, P] of y)
+      _.append(h("dt", "", _o(A))), _.append(h("dd", "", String(P)));
+    S.append(_), pe.append(S);
   }
-  const l = g("div", "ec-event-popover-footer"), b = g("button", "ec-event-popover-action", "Edit", [
+  const l = Array.isArray(n.extendedProps?.links) ? n.extendedProps.links.filter((S) => S && S.href) : [];
+  if (l.length) {
+    const S = h("div", "ec-event-popover-card ec-event-popover-card-links");
+    for (const _ of l) {
+      const A = h("a", "ec-event-popover-link", "", [
+        ["href", _.href],
+        ["data-popover-link", ""]
+      ]);
+      _.target && A.setAttribute("target", _.target), _.rel && A.setAttribute("rel", _.rel), A.append(h(
+        "span",
+        "ec-event-popover-link-label",
+        String(_.label ?? _.href)
+      ));
+      const P = h("span", "ec-event-popover-link-chevron", "", [
+        ["aria-hidden", "true"]
+      ]);
+      P.innerHTML = '<svg viewBox="0 0 12 12" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4.5 2 L8.5 6 L4.5 10" stroke-linecap="round" stroke-linejoin="round"/></svg>', A.append(P), A.addEventListener("click", () => {
+        r?.("eventPopoverLinkOpen", { event: n, link: _ }), xe();
+      }), S.append(A);
+    }
+    pe.append(S);
+  }
+  const b = h("div", "ec-event-popover-footer"), T = h("button", "ec-event-popover-action", "Edit", [
     ["type", "button"],
     ["data-popover-action", "edit"]
-  ]), T = g("button", "ec-event-popover-action ec-event-popover-danger", "Delete", [
+  ]), x = h("button", "ec-event-popover-action ec-event-popover-danger", "Delete", [
     ["type", "button"],
     ["data-popover-action", "delete"]
   ]);
-  return b.addEventListener("click", () => {
+  return T.addEventListener("click", () => {
     r?.("eventPopoverEdit", { event: n }), xe();
-  }), T.addEventListener("click", () => {
+  }), x.addEventListener("click", () => {
     r?.("eventPopoverDelete", { event: n }), xe();
-  }), l.append(b, T), pe.append(l), document.body.appendChild(pe), Mo(pe, t), setTimeout(() => {
-    $e = (C) => {
-      pe && !pe.contains(C.target) && !t.contains(C.target) && xe();
-    }, Be = (C) => {
-      C.key === "Escape" && xe();
+  }), b.append(T, x), pe.append(b), document.body.appendChild(pe), Do(pe, t), setTimeout(() => {
+    $e = (S) => {
+      pe && !pe.contains(S.target) && !t.contains(S.target) && xe();
+    }, Be = (S) => {
+      S.key === "Escape" && xe();
     }, document.addEventListener("mousedown", $e, !0), document.addEventListener("keydown", Be, !0);
-  }, 0), Dt = n.id, r?.("eventPopoverOpen", { event: n, el: pe }), pe;
+  }, 0), Mt = n.id, r?.("eventPopoverOpen", { event: n, el: pe }), pe;
 }
 function xe() {
-  pe && (pe.remove(), pe = null, Dt = null, $e && (document.removeEventListener("mousedown", $e, !0), $e = null), Be && (document.removeEventListener("keydown", Be, !0), Be = null));
+  pe && (pe.remove(), pe = null, Mt = null, $e && (document.removeEventListener("mousedown", $e, !0), $e = null), Be && (document.removeEventListener("keydown", Be, !0), Be = null));
 }
 function Co() {
   return pe !== null;
 }
-function Do() {
-  return Dt;
+function Mo() {
+  return Mt;
 }
-function Mo(n, t) {
+function Do(n, t) {
   const e = t.getBoundingClientRect(), o = n.getBoundingClientRect(), i = 8;
   let r = e.right + i, s = e.top, a = "right";
   r + o.width + i > window.innerWidth && (r = Math.max(i, e.left - o.width - i), a = "left"), s + o.height + i > window.innerHeight && (s = Math.max(i, window.innerHeight - o.height - i));
   const u = Math.max(i, r), w = Math.max(i, s);
   n.style.position = "fixed", n.style.left = `${u}px`, n.style.top = `${w}px`, n.setAttribute("data-popover-side", a);
-  const h = e.top + e.height / 2 - w, D = 14, c = o.height - 14, f = Math.max(D, Math.min(c, h));
+  const g = e.top + e.height / 2 - w, M = 14, c = o.height - 14, f = Math.max(M, Math.min(c, g));
   n.style.setProperty("--popover-arrow-top", `${f}px`);
 }
 function xo(n, t) {
@@ -1094,8 +1116,8 @@ function xo(n, t) {
 function _o(n) {
   return n.replace(/([A-Z])/g, " $1").replace(/[_-]+/g, " ").replace(/^./, (t) => t.toUpperCase()).trim();
 }
-const Eo = 0.22, Lo = 140, Ge = 260, Ot = "cubic-bezier(0.22, 1, 0.36, 1)", ko = 6, Ao = 180, Po = 0.35, Io = 200, ft = 230, Rt = "cubic-bezier(0.4, 0, 1, 1)";
-function Oo(n, t, e, { onNavigate: o }) {
+const Eo = 0.22, Lo = 140, Ge = 260, It = "cubic-bezier(0.22, 1, 0.36, 1)", ko = 6, Ao = 180, Po = 0.35, Oo = 200, ft = 230, Rt = "cubic-bezier(0.4, 0, 1, 1)";
+function Io(n, t, e, { onNavigate: o }) {
   const i = He("div", "ec-pager", { tabindex: "0" }), r = He("div", "ec-pager-track"), s = [
     He("div", "ec-pager-page"),
     He("div", "ec-pager-page"),
@@ -1104,34 +1126,34 @@ function Oo(n, t, e, { onNavigate: o }) {
   r.append(...s), i.append(r), n.replaceChildren(i);
   let a = 1;
   const u = [null, null, null];
-  D();
+  M();
   let w = e(s[a], t);
   y(0, !1);
   let v = !1;
-  const h = t.on("change:currentRange", () => {
+  const g = t.on("change:currentRange", () => {
     v || f();
   });
-  function D() {
-    const d = Ee(a - 1), S = Ee(a + 1);
-    for (let M = 0; M < 3; ++M) {
-      const x = s[M];
-      x.classList.remove("ec-pager-page-prev", "ec-pager-page-current", "ec-pager-page-next"), x.removeAttribute("aria-hidden"), M === a ? x.classList.add("ec-pager-page-current") : M === d ? (x.classList.add("ec-pager-page-prev"), x.setAttribute("aria-hidden", "true")) : M === S && (x.classList.add("ec-pager-page-next"), x.setAttribute("aria-hidden", "true"));
+  function M() {
+    const d = Ee(a - 1), C = Ee(a + 1);
+    for (let D = 0; D < 3; ++D) {
+      const E = s[D];
+      E.classList.remove("ec-pager-page-prev", "ec-pager-page-current", "ec-pager-page-next"), E.removeAttribute("aria-hidden"), D === a ? E.classList.add("ec-pager-page-current") : D === d ? (E.classList.add("ec-pager-page-prev"), E.setAttribute("aria-hidden", "true")) : D === C && (E.classList.add("ec-pager-page-next"), E.setAttribute("aria-hidden", "true"));
     }
   }
   function c() {
-    const d = t.get("options"), S = d.dateIncrement ?? d.duration;
-    if (!S) return;
-    const M = Ee(a - 1), x = Ee(a + 1), U = s[a].querySelector?.('[data-row="body"]')?.scrollTop ?? 0;
-    if (!u[M]) {
-      const q = on($(d.date), S), Z = Ht(t, q);
-      s[M].replaceChildren(), u[M] = e(s[M], Z);
-      const J = s[M].querySelector?.('[data-row="body"]');
+    const d = t.get("options"), C = d.dateIncrement ?? d.duration;
+    if (!C) return;
+    const D = Ee(a - 1), E = Ee(a + 1), U = s[a].querySelector?.('[data-row="body"]')?.scrollTop ?? 0;
+    if (!u[D]) {
+      const q = on($(d.date), C), Z = Ht(t, q);
+      s[D].replaceChildren(), u[D] = e(s[D], Z);
+      const J = s[D].querySelector?.('[data-row="body"]');
       J && (J.scrollTop = U);
     }
-    if (!u[x]) {
-      const q = ve($(d.date), S), Z = Ht(t, q);
-      s[x].replaceChildren(), u[x] = e(s[x], Z);
-      const J = s[x].querySelector?.('[data-row="body"]');
+    if (!u[E]) {
+      const q = ve($(d.date), C), Z = Ht(t, q);
+      s[E].replaceChildren(), u[E] = e(s[E], Z);
+      const J = s[E].querySelector?.('[data-row="body"]');
       J && (J.scrollTop = U);
     }
   }
@@ -1139,152 +1161,152 @@ function Oo(n, t, e, { onNavigate: o }) {
     for (let d = 0; d < 3; ++d)
       d !== a && (u[d] && (u[d](), u[d] = null), s[d].replaceChildren());
   }
-  function y(d, S) {
+  function y(d, C) {
     i.style.setProperty("--ec-pager-px", `${d}px`), i.style.setProperty(
       "--ec-pager-transition",
-      S ? `transform ${Ge}ms ${Ot}` : "none"
-    ), r.style.transition = S ? `transform ${Ge}ms ${Ot}` : "none", r.style.transform = `translate3d(${d}px, 0, 0)`;
+      C ? `transform ${Ge}ms ${It}` : "none"
+    ), r.style.transition = C ? `transform ${Ge}ms ${It}` : "none", r.style.transform = `translate3d(${d}px, 0, 0)`;
   }
   function l(d) {
-    const S = Ee(a + d), x = s[S].querySelector?.('[data-row="body"]')?.scrollTop ?? null;
+    const C = Ee(a + d), E = s[C].querySelector?.('[data-row="body"]')?.scrollTop ?? null;
     w && (w(), w = null), s[a].replaceChildren();
     const G = Ee(a - d);
-    if (u[G] && (u[G](), u[G] = null), s[G].replaceChildren(), a = S, D(), y(0, !1), v = !0, o?.({ direction: d }), u[a] && (u[a](), u[a] = null), w = e(s[a], t), x != null) {
+    if (u[G] && (u[G](), u[G] = null), s[G].replaceChildren(), a = C, M(), y(0, !1), v = !0, o?.({ direction: d }), u[a] && (u[a](), u[a] = null), w = e(s[a], t), E != null) {
       const U = s[a].querySelector?.('[data-row="body"]');
-      U && (U.scrollTop = x);
+      U && (U.scrollTop = E);
     }
     v = !1;
   }
   let b = null, T = !1;
-  function C(d) {
-    b || P || d.button !== void 0 && d.button !== 0 || d.pointerType !== "mouse" && (k(d.target, { allowEventChips: d.pointerType === "touch" }) || (A(d.clientX, d.clientY, { pointerId: d.pointerId }), document.addEventListener("pointermove", O, { passive: !1 }), document.addEventListener("pointerup", z), document.addEventListener("pointercancel", z)));
+  function x(d) {
+    b || O || d.button !== void 0 && d.button !== 0 || d.pointerType !== "mouse" && (k(d.target, { allowEventChips: d.pointerType === "touch" }) || (A(d.clientX, d.clientY, { pointerId: d.pointerId }), document.addEventListener("pointermove", P, { passive: !1 }), document.addEventListener("pointerup", z), document.addEventListener("pointercancel", z)));
   }
-  function _(d) {
-    if (P || d.touches?.length !== 1) return;
-    const S = d.touches[0];
+  function S(d) {
+    if (O || d.touches?.length !== 1) return;
+    const C = d.touches[0];
     if (b) {
-      b.touchId ?? (b.touchId = S.identifier), E();
+      b.touchId ?? (b.touchId = C.identifier), _();
       return;
     }
-    k(d.target, { allowEventChips: !0 }) || (A(S.clientX, S.clientY, { touchId: S.identifier }), E());
+    k(d.target, { allowEventChips: !0 }) || (A(C.clientX, C.clientY, { touchId: C.identifier }), _());
   }
-  function E() {
+  function _() {
     T || (T = !0, document.addEventListener("touchmove", R, { passive: !1 }), document.addEventListener("touchend", N, { passive: !1 }), document.addEventListener("touchcancel", N, { passive: !1 }));
   }
-  function A(d, S, { pointerId: M, touchId: x } = {}) {
+  function A(d, C, { pointerId: D, touchId: E } = {}) {
     b = {
       startX: d,
-      startY: S,
+      startY: C,
       lastX: d,
-      lastY: S,
-      pointerId: M,
-      touchId: x,
+      lastY: C,
+      pointerId: D,
+      touchId: E,
       decided: !1,
       abandoned: !1
     };
   }
-  function O(d) {
+  function P(d) {
     !b || b.abandoned || V(d.clientX, d.clientY, d);
   }
   function R(d) {
     if (!b || b.abandoned) return;
-    const S = H(d);
-    S && V(S.clientX, S.clientY, d);
+    const C = H(d);
+    C && V(C.clientX, C.clientY, d);
   }
-  function V(d, S, M) {
+  function V(d, C, D) {
     if (document.body.classList.contains("ec-dragging") || document.body.classList.contains("ec-resizing-active")) {
       b.abandoned = !0, K();
       return;
     }
-    b.lastX = d, b.lastY = S;
-    const x = d - b.startX, G = S - b.startY;
+    b.lastX = d, b.lastY = C;
+    const E = d - b.startX, G = C - b.startY;
     if (!b.decided) {
-      if (Math.abs(G) > Math.abs(x) + ko) {
+      if (Math.abs(G) > Math.abs(E) + ko) {
         b.abandoned = !0;
         return;
       }
-      if (Math.abs(x) < 6) return;
+      if (Math.abs(E) < 6) return;
       b.decided = !0, c(), i.classList.add("ec-pager-dragging");
       try {
         i.setPointerCapture?.(b.pointerId);
       } catch {
       }
     }
-    M.cancelable && M.preventDefault(), y(x, !1);
+    D.cancelable && D.preventDefault(), y(E, !1);
   }
   function z(d) {
     K();
   }
   function N(d) {
-    const S = H(d);
-    S && b && (b.lastX = S.clientX, b.lastY = S.clientY), K();
+    const C = H(d);
+    C && b && (b.lastX = C.clientX, b.lastY = C.clientY), K();
   }
   function K() {
     if (!b) return;
     const d = b;
-    if (b = null, document.removeEventListener("pointermove", O), document.removeEventListener("pointerup", z), document.removeEventListener("pointercancel", z), F(), !d.decided || d.abandoned) {
+    if (b = null, document.removeEventListener("pointermove", P), document.removeEventListener("pointerup", z), document.removeEventListener("pointercancel", z), F(), !d.decided || d.abandoned) {
       i.classList.remove("ec-pager-dragging"), y(0, !1);
       return;
     }
-    const S = d.lastX - d.startX, M = i.offsetWidth || n.offsetWidth || 1, x = Math.min(M * Eo, Lo);
-    S <= -x ? Q(-M, 1) : S >= x ? Q(+M, -1) : (y(0, !0), setTimeout(() => i.classList.remove("ec-pager-dragging"), Ge));
+    const C = d.lastX - d.startX, D = i.offsetWidth || n.offsetWidth || 1, E = Math.min(D * Eo, Lo);
+    C <= -E ? Q(-D, 1) : C >= E ? Q(+D, -1) : (y(0, !0), setTimeout(() => i.classList.remove("ec-pager-dragging"), Ge));
   }
   function H(d) {
-    const S = [d.touches, d.changedTouches];
-    for (const M of S)
-      if (M) {
-        for (const x of Array.from(M))
-          if (x.identifier === b?.touchId) return x;
+    const C = [d.touches, d.changedTouches];
+    for (const D of C)
+      if (D) {
+        for (const E of Array.from(D))
+          if (E.identifier === b?.touchId) return E;
       }
     return d.touches?.[0] ?? d.changedTouches?.[0] ?? null;
   }
   function F() {
     T && (T = !1, document.removeEventListener("touchmove", R), document.removeEventListener("touchend", N), document.removeEventListener("touchcancel", N));
   }
-  function k(d, { allowEventChips: S = !1 } = {}) {
-    return d.closest?.(".ec-resizer, .ec-event.ec-event-editing") || !S && d.closest?.("[data-event-id]") ? !0 : !!d.closest?.("[data-more-link], [data-popover-action], .ec-pager-no-swipe, .ec-button, button, input, select, textarea, a");
+  function k(d, { allowEventChips: C = !1 } = {}) {
+    return d.closest?.(".ec-resizer, .ec-event.ec-event-editing") || !C && d.closest?.("[data-event-id]") ? !0 : !!d.closest?.("[data-more-link], [data-popover-action], .ec-pager-no-swipe, .ec-button, button, input, select, textarea, a");
   }
-  let P = null, X = null;
+  let O = null, X = null;
   function L(d) {
     if (b || Math.abs(d.deltaX) <= Math.abs(d.deltaY)) return;
-    d.preventDefault(), P || (P = { acc: 0, endTimer: null }, c(), i.classList.add("ec-pager-dragging")), P.acc -= d.deltaX;
-    const S = i.offsetWidth || n.offsetWidth || 1, M = Math.max(-S, Math.min(S, P.acc));
-    y(M, !1);
-    const x = Math.min(S * Po, Io);
-    clearTimeout(P.endTimer), P.acc <= -x ? (P = null, i.classList.remove("ec-pager-dragging"), Q(-S, 1)) : P.acc >= x ? (P = null, i.classList.remove("ec-pager-dragging"), Q(+S, -1)) : P.endTimer = setTimeout(() => {
-      P && (P = null, i.classList.remove("ec-pager-dragging"), y(0, !0));
+    d.preventDefault(), O || (O = { acc: 0, endTimer: null }, c(), i.classList.add("ec-pager-dragging")), O.acc -= d.deltaX;
+    const C = i.offsetWidth || n.offsetWidth || 1, D = Math.max(-C, Math.min(C, O.acc));
+    y(D, !1);
+    const E = Math.min(C * Po, Oo);
+    clearTimeout(O.endTimer), O.acc <= -E ? (O = null, i.classList.remove("ec-pager-dragging"), Q(-C, 1)) : O.acc >= E ? (O = null, i.classList.remove("ec-pager-dragging"), Q(+C, -1)) : O.endTimer = setTimeout(() => {
+      O && (O = null, i.classList.remove("ec-pager-dragging"), y(0, !0));
     }, Ao), clearTimeout(X), X = setTimeout(f, 1500);
   }
   function Y(d) {
     d.target !== i && !i.contains(d.target) || d.metaKey || d.ctrlKey || d.altKey || d.target.matches?.('input, textarea, select, [contenteditable="true"]') || (d.key === "ArrowLeft" ? (d.preventDefault(), c(), i.classList.add("ec-pager-dragging"), Q(window.innerWidth || i.offsetWidth, -1)) : d.key === "ArrowRight" && (d.preventDefault(), c(), i.classList.add("ec-pager-dragging"), Q(-(window.innerWidth || i.offsetWidth), 1)));
   }
-  function Q(d, S) {
+  function Q(d, C) {
     y(d, !0), setTimeout(() => {
-      l(S), i.classList.remove("ec-pager-dragging");
+      l(C), i.classList.remove("ec-pager-dragging");
     }, Ge);
   }
   let m = null;
   function I(d) {
-    return new Promise((S) => {
-      const M = i.offsetWidth || n.offsetWidth || 0;
-      if (!M || d !== 1 && d !== -1) {
-        S();
+    return new Promise((C) => {
+      const D = i.offsetWidth || n.offsetWidth || 0;
+      if (!D || d !== 1 && d !== -1) {
+        C();
         return;
       }
       c();
       const G = s[a].querySelector?.('[data-row="body"]')?.scrollTop ?? 0, U = Ee(a + d), q = s[U].querySelector?.('[data-row="body"]');
       q && (q.scrollTop = G), i.classList.add("ec-pager-dragging");
-      const Z = -d * M;
+      const Z = -d * D;
       r.style.transition = `transform ${ft}ms ${Rt}`, i.style.setProperty(
         "--ec-pager-transition",
         `transform ${ft}ms ${Rt}`
       ), i.style.setProperty("--ec-pager-px", `${Z}px`), r.style.transform = `translate3d(${Z}px, 0, 0)`;
-      const J = { resolve: S, aborted: !1 };
+      const J = { resolve: C, aborted: !1 };
       J.timer = setTimeout(() => {
         if (J.aborted) return;
         m === J && (m = null), l(d), i.classList.remove("ec-pager-dragging");
         const B = s[a].querySelector?.('[data-row="body"]');
-        B && (B.scrollTop = G), S();
+        B && (B.scrollTop = G), C();
       }, ft), m = J;
     });
   }
@@ -1293,14 +1315,14 @@ function Oo(n, t, e, { onNavigate: o }) {
     const d = m;
     return m = null, d.aborted = !0, clearTimeout(d.timer), r.style.transition = "none", i.style.setProperty("--ec-pager-transition", "none"), i.style.setProperty("--ec-pager-px", "0px"), r.style.transform = "translate3d(0px, 0, 0)", i.classList.remove("ec-pager-dragging"), d.resolve(), !0;
   }
-  return i.addEventListener("pointerdown", C, { capture: !0 }), i.addEventListener("touchstart", _, { capture: !0, passive: !0 }), i.addEventListener("wheel", L, { passive: !1 }), i.addEventListener("keydown", Y), {
+  return i.addEventListener("pointerdown", x, { capture: !0 }), i.addEventListener("touchstart", S, { capture: !0, passive: !0 }), i.addEventListener("wheel", L, { passive: !1 }), i.addEventListener("keydown", Y), {
     destroy() {
-      h?.();
+      g?.();
       try {
         w && w();
       } catch {
       }
-      f(), clearTimeout(X), i.removeEventListener("pointerdown", C, { capture: !0 }), i.removeEventListener("touchstart", _, { capture: !0 }), i.removeEventListener("wheel", L), i.removeEventListener("keydown", Y), document.removeEventListener("pointermove", O), document.removeEventListener("pointerup", z), document.removeEventListener("pointercancel", z), F(), n.replaceChildren();
+      f(), clearTimeout(X), i.removeEventListener("pointerdown", x, { capture: !0 }), i.removeEventListener("touchstart", S, { capture: !0 }), i.removeEventListener("wheel", L), i.removeEventListener("keydown", Y), document.removeEventListener("pointermove", P), document.removeEventListener("pointerup", z), document.removeEventListener("pointercancel", z), F(), n.replaceChildren();
     },
     // The pager root element — exposed so the Interaction plugin can
     // measure the edge zones for cross-day drag against the live
@@ -1323,7 +1345,7 @@ function Oo(n, t, e, { onNavigate: o }) {
   };
 }
 function Ht(n, t) {
-  const o = { ...n.get("options"), date: t }, i = pn(o.date, o.duration, o.firstDay), r = hn(i, n.get("extensions")?.activeRange), s = ke(r, o.hiddenDays ?? []), a = fn(o.locale, o.titleFormat), u = gn(a, i), w = vn(o.view, u, i, r), v = n.get("events") ?? o.events ?? [], h = Array.isArray(v) ? v : [], D = n.get("resources") ?? o.resources ?? [], c = Array.isArray(D) ? D : [], f = mn(h, w, {
+  const o = { ...n.get("options"), date: t }, i = pn(o.date, o.duration, o.firstDay), r = hn(i, n.get("extensions")?.activeRange), s = ke(r, o.hiddenDays ?? []), a = fn(o.locale, o.titleFormat), u = gn(a, i), w = vn(o.view, u, i, r), v = n.get("events") ?? o.events ?? [], g = Array.isArray(v) ? v : [], M = n.get("resources") ?? o.resources ?? [], c = Array.isArray(M) ? M : [], f = mn(g, w, {
     eventFilter: o.eventFilter,
     eventOrder: o.eventOrder,
     filterEventsWithResources: o.filterEventsWithResources,
@@ -1372,7 +1394,7 @@ function Ee(n) {
 }
 const Ft = 600, Ro = 140, Nt = 3, Ho = 12, Fo = 0;
 function No(n, t, { onDateChange: e }) {
-  const o = g("div", "ec-month-scroller"), i = g("div", "ec-month-scroller-head"), r = g("div", "ec-month-scroller-body");
+  const o = h("div", "ec-month-scroller"), i = h("div", "ec-month-scroller-head"), r = h("div", "ec-month-scroller-body");
   o.append(i, r), n.replaceChildren(o), $o(i, t);
   let s = [];
   const a = Xe($(t.get("options").date)), u = t.get("options").validRange?.start, w = u ? ne($(u)) : (() => {
@@ -1389,7 +1411,7 @@ function No(n, t, { onDateChange: e }) {
         l = !1;
       });
     }
-    r.addEventListener("scroll", _, { passive: !0 });
+    r.addEventListener("scroll", S, { passive: !0 });
   }), r.addEventListener("click", (H) => {
     if (H.target.closest("[data-event-id], [data-more-link]")) return;
     const F = H.target.closest(".ec-month-scroller-cell");
@@ -1398,8 +1420,8 @@ function No(n, t, { onDateChange: e }) {
     const k = F.getAttribute("data-date");
     if (!k) return;
     r.querySelectorAll(".ec-month-scroller-cell.ec-selected").forEach((Y) => Y.classList.remove("ec-selected")), F.classList.add("ec-selected");
-    const [P, X, L] = k.split("-").map(Number);
-    b = !0, f(new Date(P, X - 1, L));
+    const [O, X, L] = k.split("-").map(Number);
+    b = !0, f(new Date(O, X - 1, L));
   }), r.addEventListener("dblclick", (H) => {
     if (H.target.closest("[data-event-id], [data-more-link]")) return;
     const F = H.target.closest(".ec-month-scroller-cell");
@@ -1414,12 +1436,12 @@ function No(n, t, { onDateChange: e }) {
       view: t.get("view")
     });
   });
-  let h = null;
-  const D = t.onAny(({ key: H }) => {
+  let g = null;
+  const M = t.onAny(({ key: H }) => {
     if (["filteredEvents", "currentRange", "activeRange", "options"].includes(H)) {
-      if (h) return;
-      h = setTimeout(() => {
-        h = null, qe(s, t, f);
+      if (g) return;
+      g = setTimeout(() => {
+        g = null, qe(s, t, f);
       }, 0);
     }
   });
@@ -1431,8 +1453,8 @@ function No(n, t, { onDateChange: e }) {
     const F = Xe($(H)), k = () => s.find(
       (L) => L.monthAnchor && L.monthAnchor.getUTCFullYear() === F.getUTCFullYear() && L.monthAnchor.getUTCMonth() === F.getUTCMonth()
     );
-    let P = k();
-    if (!P) {
+    let O = k();
+    if (!O) {
       const L = s[s.length - 1]?.weekStart && s[s.length - 1].weekStart < F, Y = s[0]?.weekStart && s[0].weekStart > F;
       if (L)
         for (; s[s.length - 1].weekStart < F; ) N();
@@ -1441,12 +1463,12 @@ function No(n, t, { onDateChange: e }) {
           const Q = s[0].weekStart;
           if (K(), s[0].weekStart >= Q) break;
         }
-      P = k();
+      O = k();
     }
-    if (!P) return;
+    if (!O) return;
     l = !0;
     const X = r.style.scrollBehavior;
-    r.style.scrollBehavior = "auto", r.scrollTop = Math.max(0, P.rowEl.offsetTop - 12), r.style.scrollBehavior = X || "", requestAnimationFrame(() => {
+    r.style.scrollBehavior = "auto", r.scrollTop = Math.max(0, O.rowEl.offsetTop - 12), r.style.scrollBehavior = X || "", requestAnimationFrame(() => {
       l = !1;
     });
   });
@@ -1456,47 +1478,47 @@ function No(n, t, { onDateChange: e }) {
     });
   }
   let y = null, l = !1, b = !0, T = null;
-  function C() {
+  function x() {
     o.classList.add("ec-scrolling"), clearTimeout(T), T = setTimeout(
       () => o.classList.remove("ec-scrolling"),
       400
     );
   }
-  function _() {
-    l || (b = !1), C(), l || (r.scrollHeight - (r.scrollTop + r.clientHeight) < Ft && N(), r.scrollTop < Ft && K()), clearTimeout(y), y = setTimeout(V, Ro);
+  function S() {
+    l || (b = !1), x(), l || (r.scrollHeight - (r.scrollTop + r.clientHeight) < Ft && N(), r.scrollTop < Ft && K()), clearTimeout(y), y = setTimeout(V, Ro);
   }
-  function E() {
+  function _() {
     const H = r.scrollTop + r.clientHeight / 4;
     let F = null;
-    for (const P of s) {
-      if (P.rowEl.offsetTop > H) break;
-      F = P;
+    for (const O of s) {
+      if (O.rowEl.offsetTop > H) break;
+      F = O;
     }
     if (F = F ?? s[0], !F) return null;
     const k = $(F.weekStart);
     return se(k, 3), new Date(k.getUTCFullYear(), k.getUTCMonth(), k.getUTCDate());
   }
   const A = 220;
-  let O = 0, R = null;
+  let P = 0, R = null;
   function V() {
     if (l) return;
     clearTimeout(R);
     const H = r.scrollTop;
     R = setTimeout(function F() {
       const k = r.scrollTop;
-      if (k !== O) {
-        O = k, R = setTimeout(F, A);
+      if (k !== P) {
+        P = k, R = setTimeout(F, A);
         return;
       }
-      const P = E();
-      if (!P) return;
+      const O = _();
+      if (!O) return;
       const X = t.get("options").date;
-      Math.abs(P.getTime() - X.getTime()) >= 864e5 / 2 && f(P, !1);
-    }, A), O = H;
+      Math.abs(O.getTime() - X.getTime()) >= 864e5 / 2 && f(O, !1);
+    }, A), P = H;
   }
   function z() {
     if (l || b) return;
-    const H = E();
+    const H = _();
     if (!H) return;
     const F = t.get("options").date;
     Math.abs(H.getTime() - F.getTime()) >= 864e5 / 2 && e?.(H);
@@ -1515,15 +1537,15 @@ function No(n, t, { onDateChange: e }) {
       const Q = ne($(F));
       if (H.weekStart <= Q) return;
     }
-    const k = $(H.weekStart), P = $(k);
-    if (P.setUTCMonth(P.getUTCMonth() - Nt), F) {
+    const k = $(H.weekStart), O = $(k);
+    if (O.setUTCMonth(O.getUTCMonth() - Nt), F) {
       const Q = ne($(F));
-      P < Q && P.setTime(Q.getTime());
+      O < Q && O.setTime(Q.getTime());
     }
     const X = t.get("options").firstDay ?? 0;
-    it(P, X);
+    it(O, X);
     const L = r.scrollHeight;
-    pt(r, P, k, s, t, { prepend: !0 }), qe(s, t, f);
+    pt(r, O, k, s, t, { prepend: !0 }), qe(s, t, f);
     const Y = r.scrollHeight;
     l = !0, r.scrollTop += Y - L, requestAnimationFrame(() => {
       l = !1;
@@ -1531,7 +1553,7 @@ function No(n, t, { onDateChange: e }) {
   }
   return {
     destroy() {
-      z(), D(), c?.(), clearTimeout(h), clearTimeout(y), clearTimeout(T), r.removeEventListener("scroll", _), n.replaceChildren();
+      z(), M(), c?.(), clearTimeout(g), clearTimeout(y), clearTimeout(T), r.removeEventListener("scroll", S), n.replaceChildren();
     },
     // Test/debug helper.
     _state() {
@@ -1543,7 +1565,7 @@ function $o(n, t) {
   const e = t.get("options"), o = e.theme, i = e.firstDay ?? 0, r = new Intl.DateTimeFormat(e.locale, { timeZone: "UTC", weekday: "short" });
   n.replaceChildren();
   for (let s = 0; s < 7; ++s) {
-    const a = (i + s) % 7, u = new Date(Date.UTC(1970, 0, 4 + a)), w = g("div", `${o.dayHead ?? "ec-day-head"} ec-month-scroller-day-head`, r.format(u), [
+    const a = (i + s) % 7, u = new Date(Date.UTC(1970, 0, 4 + a)), w = h("div", `${o.dayHead ?? "ec-day-head"} ec-month-scroller-day-head`, r.format(u), [
       ["data-day", String(a)]
     ]);
     n.append(w);
@@ -1552,35 +1574,35 @@ function $o(n, t) {
 function pt(n, t, e, o, i, r = {}) {
   const s = i.get("options"), a = s.theme, u = s.firstDay ?? 0, w = ne($(t));
   it(w, u);
-  const v = ne($(e)), h = [];
+  const v = ne($(e)), g = [];
   for (; w < v; ) {
-    const D = Uo(w);
+    const M = Uo(w);
     if (!o.find((f) => ye(f.weekStart, w))) {
-      const f = g("div", "ec-month-scroller-row", "", [
+      const f = h("div", "ec-month-scroller-row", "", [
         ["data-week-start", wt(w)]
-      ]), y = g("div", "ec-month-scroller-cells"), l = ne(/* @__PURE__ */ new Date());
-      for (const b of D) {
-        const T = ye(ne($(b)), l), C = g(
+      ]), y = h("div", "ec-month-scroller-cells"), l = ne(/* @__PURE__ */ new Date());
+      for (const b of M) {
+        const T = ye(ne($(b)), l), x = h(
           "div",
           `${a.day ?? "ec-day"} ec-month-scroller-cell${T ? " ec-today" : ""}`,
           "",
           [
             ["data-date", wt(b)]
           ]
-        ), _ = g("div", "ec-day-number", String(b.getUTCDate()));
-        C.append(_), y.append(C);
+        ), S = h("div", "ec-day-number", String(b.getUTCDate()));
+        x.append(S), y.append(x);
       }
-      f.append(y), h.push({ rowEl: f, weekStart: $(w), monthAnchor: null });
+      f.append(y), g.push({ rowEl: f, weekStart: $(w), monthAnchor: null });
     }
     se(w, 7);
   }
   if (r.prepend) {
-    for (let D = h.length - 1; D >= 0; --D)
-      n.insertBefore(h[D].rowEl, n.firstChild);
-    o.unshift(...h);
+    for (let M = g.length - 1; M >= 0; --M)
+      n.insertBefore(g[M].rowEl, n.firstChild);
+    o.unshift(...g);
   } else {
-    for (const D of h) n.append(D.rowEl);
-    o.push(...h);
+    for (const M of g) n.append(M.rowEl);
+    o.push(...g);
   }
   Bo(o, s);
 }
@@ -1594,16 +1616,16 @@ function Bo(n, t) {
   for (const i of n) {
     const r = i.weekStart, s = `${r.getUTCFullYear()}-${r.getUTCMonth()}`, a = s !== o, u = i.rowEl.querySelector(".ec-month-scroller-month-banner");
     if (a && !u) {
-      const w = g("div", "ec-month-scroller-month-banner", ""), v = e.formatToParts(r), h = g(
+      const w = h("div", "ec-month-scroller-month-banner", ""), v = e.formatToParts(r), g = h(
         "span",
         "ec-month-scroller-month-name",
         v.filter((c) => c.type === "month").map((c) => c.value).join("")
-      ), D = g(
+      ), M = h(
         "span",
         "ec-month-scroller-month-year",
         v.filter((c) => c.type === "year").map((c) => c.value).join("")
       );
-      w.append(h, g("span", "", " "), D), i.rowEl.insertBefore(w, i.rowEl.firstChild), i.monthAnchor = $(r);
+      w.append(g, h("span", "", " "), M), i.rowEl.insertBefore(w, i.rowEl.firstChild), i.monthAnchor = $(r);
     } else !a && u && (u.remove(), i.monthAnchor = null);
     o = s;
   }
@@ -1624,34 +1646,34 @@ function qe(n, t, e) {
         w.replaceChildren(v);
       }
       for (const w of u.children) {
-        const v = de(w.getAttribute("data-date")), h = $(v);
-        se(h);
-        const D = r.filter((b) => b.start < h && b.end > v);
-        if (!D.length) continue;
-        const c = g("div", i.events ?? "ec-events"), f = typeof o.dayMaxEvents == "number" ? o.dayMaxEvents : 3, y = D.slice(0, f), l = D.slice(f);
+        const v = de(w.getAttribute("data-date")), g = $(v);
+        se(g);
+        const M = r.filter((b) => b.start < g && b.end > v);
+        if (!M.length) continue;
+        const c = h("div", i.events ?? "ec-events"), f = typeof o.dayMaxEvents == "number" ? o.dayMaxEvents : 3, y = M.slice(0, f), l = M.slice(f);
         for (const b of y) {
-          const T = g("div", i.event ?? "ec-event", "", [
+          const T = h("div", i.event ?? "ec-event", "", [
             ["data-event-id", b.id]
           ]);
-          if (b.backgroundColor && (T.style.backgroundColor = b.backgroundColor), T.append(g("span", "ec-event-dot")), !b.allDay) {
-            const C = new Intl.DateTimeFormat(o.locale, {
+          if (b.backgroundColor && (T.style.backgroundColor = b.backgroundColor), T.append(h("span", "ec-event-dot")), !b.allDay) {
+            const x = new Intl.DateTimeFormat(o.locale, {
               timeZone: "UTC",
               ...o.eventTimeFormat
             }).format(b.start);
-            T.append(g("time", i.eventTime ?? "ec-event-time", C + " "));
+            T.append(h("time", i.eventTime ?? "ec-event-time", x + " "));
           }
-          T.append(g("span", i.eventTitle ?? "ec-event-title", b.title || "")), t.get("selectedEventId") === b.id && T.classList.add("ec-event-selected"), T.addEventListener("click", (C) => {
-            document.querySelectorAll(".ec-event.ec-event-selected").forEach((E) => E.classList.remove("ec-event-selected")), T.classList.add("ec-event-selected"), t.set("selectedEventId", b.id);
-            const _ = new Date(
+          T.append(h("span", i.eventTitle ?? "ec-event-title", b.title || "")), t.get("selectedEventId") === b.id && T.classList.add("ec-event-selected"), T.addEventListener("click", (x) => {
+            document.querySelectorAll(".ec-event.ec-event-selected").forEach((_) => _.classList.remove("ec-event-selected")), T.classList.add("ec-event-selected"), t.set("selectedEventId", b.id);
+            const S = new Date(
               b.start.getUTCFullYear(),
               b.start.getUTCMonth(),
               b.start.getUTCDate()
             );
-            e?.(_), s?.("eventClick", { event: b, jsEvent: C, view: t.get("view") }), C.stopPropagation();
-          }), T.addEventListener("dblclick", (C) => s?.("eventDoubleClick", { event: b, jsEvent: C, view: t.get("view"), el: T })), T.addEventListener("mouseenter", (C) => s?.("eventMouseEnter", { event: b, jsEvent: C, view: t.get("view") })), T.addEventListener("mouseleave", (C) => s?.("eventMouseLeave", { event: b, jsEvent: C, view: t.get("view") })), c.append(T);
+            e?.(S), s?.("eventClick", { event: b, jsEvent: x, view: t.get("view") }), x.stopPropagation();
+          }), T.addEventListener("dblclick", (x) => s?.("eventDoubleClick", { event: b, jsEvent: x, view: t.get("view"), el: T })), T.addEventListener("mouseenter", (x) => s?.("eventMouseEnter", { event: b, jsEvent: x, view: t.get("view") })), T.addEventListener("mouseleave", (x) => s?.("eventMouseLeave", { event: b, jsEvent: x, view: t.get("view") })), c.append(T);
         }
         if (l.length) {
-          const b = g("button", "ec-more-link", `+${l.length} more`, [
+          const b = h("button", "ec-more-link", `+${l.length} more`, [
             ["type", "button"],
             ["data-more-link", "true"],
             ["data-date", wt(v)]
@@ -1678,34 +1700,34 @@ function zo(n, t, e, { onDateChange: o }) {
   se(s, -Math.floor(Ve / 2) * 7);
   let a = $(s);
   se(a, Ve * 7);
-  let u = null, w = !1, v = null, h = 140;
-  function D() {
-    u?.(), i.style.setProperty("--ec-col-w", `${h}px`);
-    const E = Yo(t, s, a, h);
-    u = e(i, E);
+  let u = null, w = !1, v = null, g = 140;
+  function M() {
+    u?.(), i.style.setProperty("--ec-col-w", `${g}px`);
+    const _ = Yo(t, s, a, g);
+    u = e(i, _);
   }
-  D(), requestAnimationFrame(() => {
-    const E = ne(de(t.get("options").date));
-    c(E);
+  M(), requestAnimationFrame(() => {
+    const _ = ne(de(t.get("options").date));
+    c(_);
   });
-  function c(E) {
-    const A = f(E);
+  function c(_) {
+    const A = f(_);
     if (A < 0) return;
-    const O = y(), R = Math.max(
+    const P = y(), R = Math.max(
       0,
-      A * h + O - (i.clientWidth - h) / 2
+      A * g + P - (i.clientWidth - g) / 2
     );
     w = !0, i.scrollLeft = R, requestAnimationFrame(() => {
       w = !1;
     });
   }
-  function f(E) {
-    const A = ne($(E));
-    let O = 0;
+  function f(_) {
+    const A = ne($(_));
+    let P = 0;
     const R = $(s);
     for (; R < a; ) {
-      if (ye(R, A)) return O;
-      se(R), ++O;
+      if (ye(R, A)) return P;
+      se(R), ++P;
     }
     return -1;
   }
@@ -1717,17 +1739,17 @@ function zo(n, t, e, { onDateChange: o }) {
   };
   i.addEventListener("scroll", l, { passive: !0 });
   function b() {
-    const E = i.scrollLeft, A = i.clientWidth, O = i.scrollWidth;
-    if (O - (E + A) < Bt) {
-      $(a), se(a, $t * 7), w = !0, D(), requestAnimationFrame(() => {
+    const _ = i.scrollLeft, A = i.clientWidth, P = i.scrollWidth;
+    if (P - (_ + A) < Bt) {
+      $(a), se(a, $t * 7), w = !0, M(), requestAnimationFrame(() => {
         w = !1;
       });
       return;
     }
-    if (E < Bt) {
+    if (_ < Bt) {
       se(s, -$t * 7);
-      const R = E, V = O;
-      w = !0, D(), requestAnimationFrame(() => {
+      const R = _, V = P;
+      w = !0, M(), requestAnimationFrame(() => {
         const z = i.scrollWidth - V;
         i.scrollLeft = R + z, w = !1;
       });
@@ -1735,10 +1757,10 @@ function zo(n, t, e, { onDateChange: o }) {
   }
   function T() {
     if (w) return;
-    const E = y(), A = i.scrollLeft + i.clientWidth / 2, O = Math.floor((A - E) / h);
-    if (O < 0) return;
+    const _ = y(), A = i.scrollLeft + i.clientWidth / 2, P = Math.floor((A - _) / g);
+    if (P < 0) return;
     const R = $(s);
-    se(R, O);
+    se(R, P);
     const V = t.get("options").date, z = ne(de(V));
     if (ye(R, z)) return;
     w = !0;
@@ -1747,21 +1769,21 @@ function zo(n, t, e, { onDateChange: o }) {
       w = !1;
     });
   }
-  const C = t.on("change:currentRange", () => {
+  const x = t.on("change:currentRange", () => {
     if (w) return;
-    const E = ne(de(t.get("options").date));
-    E < s || E >= a ? (s = Ut(E, r), se(s, -Math.floor(Ve / 2) * 7), a = $(s), se(a, Ve * 7), D(), requestAnimationFrame(() => c(E))) : c(E);
-  }), _ = t.onAny(({ key: E }) => {
-    if (E === "filteredEvents") {
-      const A = i.scrollLeft, O = i.scrollTop;
-      w = !0, D(), requestAnimationFrame(() => {
-        i.scrollLeft = A, i.scrollTop = O, w = !1;
+    const _ = ne(de(t.get("options").date));
+    _ < s || _ >= a ? (s = Ut(_, r), se(s, -Math.floor(Ve / 2) * 7), a = $(s), se(a, Ve * 7), M(), requestAnimationFrame(() => c(_))) : c(_);
+  }), S = t.onAny(({ key: _ }) => {
+    if (_ === "filteredEvents") {
+      const A = i.scrollLeft, P = i.scrollTop;
+      w = !0, M(), requestAnimationFrame(() => {
+        i.scrollLeft = A, i.scrollTop = P, w = !1;
       });
     }
   });
   return {
     destroy() {
-      _?.(), C?.(), clearTimeout(v), u?.(), n.replaceChildren();
+      S?.(), x?.(), clearTimeout(v), u?.(), n.replaceChildren();
     }
   };
 }
@@ -1777,19 +1799,19 @@ function Yo(n, t, e, o) {
   u.set("activeRange", { start: i, end: r }), u.set("currentRange", { start: i, end: r }), u.set("viewDates", s);
   const v = { ...n.get("options"), columnWidth: o };
   u.set("options", v);
-  const h = /* @__PURE__ */ new Map();
+  const g = /* @__PURE__ */ new Map();
   return {
     get(c) {
       return u.has(c) ? u.get(c) : n.get(c);
     },
     set(c, f) {
       u.set(c, f);
-      const y = h.get(`change:${c}`);
+      const y = g.get(`change:${c}`);
       if (y) for (const l of y) l({ key: c, value: f });
     },
     on(c, f) {
-      let y = h.get(c);
-      y || (y = /* @__PURE__ */ new Set(), h.set(c, y)), y.add(f);
+      let y = g.get(c);
+      y || (y = /* @__PURE__ */ new Set(), g.set(c, y)), y.add(f);
       const l = n.on?.(c, (b) => {
         ["activeRange", "currentRange", "viewDates", "options"].includes(b.key) || f(b);
       });
@@ -1808,7 +1830,7 @@ function yn(n) {
   const t = [], e = n?.extendedProps?.confirmationState;
   return e === "tentative" && t.push("ec-event-tentative"), e === "confirmed" && t.push("ec-event-confirmed"), e === "cancelled" && t.push("ec-event-cancelled"), n?.extendedProps?.conflict === !0 && t.push("ec-event-conflict"), n?.extendedProps?.rrule && t.push("ec-event-recurring"), t;
 }
-function De(n) {
+function Me(n) {
   const t = n?.extendedProps?.dataAttrs;
   if (!t || typeof t != "object") return [];
   const e = [];
@@ -1864,119 +1886,119 @@ function Wt(n, t) {
 }
 function ht(n, t) {
   const e = () => {
-    const i = t.get("options"), r = i.theme, s = Xo(t), a = ke(s, i.hiddenDays ?? []), u = 7 - (i.hiddenDays?.length ?? 0), w = g("div", `${r.grid} ec-day-grid`, "", [
+    const i = t.get("options"), r = i.theme, s = Xo(t), a = ke(s, i.hiddenDays ?? []), u = 7 - (i.hiddenDays?.length ?? 0), w = h("div", `${r.grid} ec-day-grid`, "", [
       ["data-grid", "day-grid"]
     ]);
     w.style.setProperty("--ec-cols", String(u));
-    const v = g("div", r.colHead, "", [
+    const v = h("div", r.colHead, "", [
       ["data-row", "header"]
     ]);
-    i.weekNumbers && v.append(g("div", r.weekNumber, ""));
-    const h = new Intl.DateTimeFormat(i.locale, { timeZone: "UTC", ...i.dayHeaderFormat }), D = i.dayHeaderDensity, c = D ? t.get("filteredEvents") ?? [] : [], f = (C) => {
-      const _ = $(C);
-      return se(_), c.filter((E) => E.start < _ && E.end > C).length;
+    i.weekNumbers && v.append(h("div", r.weekNumber, ""));
+    const g = new Intl.DateTimeFormat(i.locale, { timeZone: "UTC", ...i.dayHeaderFormat }), M = i.dayHeaderDensity, c = M ? t.get("filteredEvents") ?? [] : [], f = (x) => {
+      const S = $(x);
+      return se(S), c.filter((_) => _.start < S && _.end > x).length;
     };
-    for (const C of a.slice(0, u)) {
-      const _ = g("div", r.dayHead, h.format(C), [
-        ["data-day", String(C.getUTCDay())]
+    for (const x of a.slice(0, u)) {
+      const S = h("div", r.dayHead, g.format(x), [
+        ["data-day", String(x.getUTCDay())]
       ]);
-      if (D) {
-        const E = f(C);
-        if (E > 0)
-          if (typeof D == "function") {
-            const A = D({ date: C, count: E, max: 3 }), O = g("span", "ec-day-head-density");
-            typeof A == "string" ? O.textContent = A : A?.html ? O.innerHTML = A.html : A?.domNodes && A.domNodes.forEach((R) => O.append(R)), _.append(O);
+      if (M) {
+        const _ = f(x);
+        if (_ > 0)
+          if (typeof M == "function") {
+            const A = M({ date: x, count: _, max: 3 }), P = h("span", "ec-day-head-density");
+            typeof A == "string" ? P.textContent = A : A?.html ? P.innerHTML = A.html : A?.domNodes && A.domNodes.forEach((R) => P.append(R)), S.append(P);
           } else {
-            const A = g("span", "ec-day-head-density");
-            for (let O = 0; O < Math.min(3, E); ++O)
-              A.append(g("span", "ec-day-head-dot"));
-            _.append(A);
+            const A = h("span", "ec-day-head-density");
+            for (let P = 0; P < Math.min(3, _); ++P)
+              A.append(h("span", "ec-day-head-dot"));
+            S.append(A);
           }
       }
-      v.append(_);
+      v.append(S);
     }
     w.append(v), w.style.setProperty(
       "--ec-cols-with-week",
       String(u + (i.weekNumbers ? 1 : 0))
     );
-    let y = g("div", "", "", [["data-row", "days"]]);
+    let y = h("div", "", "", [["data-row", "days"]]);
     const l = Vo(), b = t.get("currentRange"), T = new Intl.DateTimeFormat(i.locale, { timeZone: "UTC", ...i.dayCellFormat ?? { day: "numeric" } });
-    for (let C = 0; C < a.length; ++C) {
-      C > 0 && C % u === 0 && (w.append(y), y = g("div", "", "", [["data-row", "days"]]));
-      const _ = a[C];
-      if (i.weekNumbers && C % u === 0) {
-        const N = An(_, i.firstDay ?? 0), K = Pn(N, i.weekNumberContent, _), H = g("div", r.weekNumber, "", [
+    for (let x = 0; x < a.length; ++x) {
+      x > 0 && x % u === 0 && (w.append(y), y = h("div", "", "", [["data-row", "days"]]));
+      const S = a[x];
+      if (i.weekNumbers && x % u === 0) {
+        const N = An(S, i.firstDay ?? 0), K = Pn(N, i.weekNumberContent, S), H = h("div", r.weekNumber, "", [
           ["data-week", String(N)]
         ]);
         typeof K == "string" ? H.textContent = K : K?.html ? H.innerHTML = K.html : K?.domNodes && H.replaceChildren(...K.domNodes), y.append(H);
       }
-      const E = [r.day];
-      !b || _ >= b.start && _ < b.end || E.push(r.otherMonth), ye(_, l) && E.push(r.today);
-      const O = g("div", E.filter(Boolean).join(" "), "", [
-        ["data-date", _.toISOString().substring(0, 10)]
-      ]), R = g("div", "ec-day-number", T.format(_));
-      if (O.append(R), i.dayCellContent) {
-        const N = typeof i.dayCellContent == "function" ? i.dayCellContent({ date: _, view: t.get("view") }) : i.dayCellContent;
+      const _ = [r.day];
+      !b || S >= b.start && S < b.end || _.push(r.otherMonth), ye(S, l) && _.push(r.today);
+      const P = h("div", _.filter(Boolean).join(" "), "", [
+        ["data-date", S.toISOString().substring(0, 10)]
+      ]), R = h("div", "ec-day-number", T.format(S));
+      if (P.append(R), i.dayCellContent) {
+        const N = typeof i.dayCellContent == "function" ? i.dayCellContent({ date: S, view: t.get("view") }) : i.dayCellContent;
         typeof N == "string" ? R.innerText = N : N?.html ? R.innerHTML = N.html : N?.domNodes && R.replaceChildren(...N.domNodes);
       }
-      const V = t.get("filteredEvents") ?? [], z = qo(V, _);
+      const V = t.get("filteredEvents") ?? [], z = qo(V, S);
       if (z.length) {
-        const N = g("div", r.events), K = typeof i.dayMaxEvents == "number" ? i.dayMaxEvents : 1 / 0, H = z.slice(0, K), F = z.slice(K);
+        const N = h("div", r.events), K = typeof i.dayMaxEvents == "number" ? i.dayMaxEvents : 1 / 0, H = z.slice(0, K), F = z.slice(K);
         for (const k of H) {
           if (k.display === "background") {
-            const S = g("div", r.bgEvent, "", [
+            const C = h("div", r.bgEvent, "", [
               ["data-event-id", k.id],
-              ...De(k)
-            ]), M = k.backgroundColor ?? i.eventBackgroundColor ?? i.eventColor;
-            M && (S.style.backgroundColor = M), O.append(S);
+              ...Me(k)
+            ]), D = k.backgroundColor ?? i.eventBackgroundColor ?? i.eventColor;
+            D && (C.style.backgroundColor = D), P.append(C);
             continue;
           }
-          const P = [r.event], X = i.eventClassNames;
+          const O = [r.event], X = i.eventClassNames;
           if (typeof X == "function") {
-            const S = X({ event: k });
-            S && P.push(...Array.isArray(S) ? S : [S]);
-          } else X && P.push(...Array.isArray(X) ? X : [X]);
-          P.push(...k.classNames), P.push(...yn(k));
+            const C = X({ event: k });
+            C && O.push(...Array.isArray(C) ? C : [C]);
+          } else X && O.push(...Array.isArray(X) ? X : [X]);
+          O.push(...k.classNames), O.push(...yn(k));
           const L = ze(k, i);
-          L && P.push(...L.classNames);
+          L && O.push(...L.classNames);
           const Y = wn(k, i, t.get("_pendingAppearIds"));
-          Y && P.push(Y);
+          Y && O.push(Y);
           const Q = i.dayCellEventStyle === "stripe";
-          Q && P.push("ec-event-stripe");
-          const m = g("div", P.filter(Boolean).join(" "), "", [
+          Q && O.push("ec-event-stripe");
+          const m = h("div", O.filter(Boolean).join(" "), "", [
             ["data-event-id", k.id],
-            ...De(k)
+            ...Me(k)
           ]), I = k.backgroundColor ?? L?.color ?? i.eventBackgroundColor ?? i.eventColor, p = k.textColor ?? i.eventTextColor;
           if (I && m.style.setProperty("--ec-event-color", I), p && (m.style.color = p), i.eventContent) {
-            const S = i.eventContent, M = typeof S == "function" ? S({ event: k, timeText: Wt(k, i), view: t.get("view") }) : S;
-            typeof M == "string" ? m.innerText = M : M?.html ? m.innerHTML = M.html : M?.domNodes && m.replaceChildren(...M.domNodes);
+            const C = i.eventContent, D = typeof C == "function" ? C({ event: k, timeText: Wt(k, i), view: t.get("view") }) : C;
+            typeof D == "string" ? m.innerText = D : D?.html ? m.innerHTML = D.html : D?.domNodes && m.replaceChildren(...D.domNodes);
           } else if (Q)
-            k.extendedProps?.rrule && m.append(bt()), m.append(g("span", r.eventTitle, k.title || ""));
+            k.extendedProps?.rrule && m.append(bt()), m.append(h("span", r.eventTitle, k.title || ""));
           else {
-            const S = g("span", "ec-event-dot"), M = Wt(k, i);
-            M && i.displayEventEnd !== !1 ? m.append(S, g("time", r.eventTime, M + " ")) : m.append(S), k.extendedProps?.rrule && m.append(bt()), m.append(g("span", r.eventTitle, k.title || ""));
+            const C = h("span", "ec-event-dot"), D = Wt(k, i);
+            D && i.displayEventEnd !== !1 ? m.append(C, h("time", r.eventTime, D + " ")) : m.append(C), k.extendedProps?.rrule && m.append(bt()), m.append(h("span", r.eventTitle, k.title || ""));
           }
           const d = t.get("fire");
-          t.get("selectedEventId") === k.id && m.classList.add("ec-event-selected"), m.addEventListener("click", (S) => {
-            document.querySelectorAll(".ec-event.ec-event-selected").forEach((M) => M.classList.remove("ec-event-selected")), m.classList.add("ec-event-selected"), t.set("selectedEventId", k.id), d?.("eventClick", { event: k, jsEvent: S, view: t.get("view") });
-          }), m.addEventListener("dblclick", (S) => d?.("eventDoubleClick", { event: k, jsEvent: S, view: t.get("view"), el: m })), m.addEventListener("mouseenter", (S) => d?.("eventMouseEnter", { event: k, jsEvent: S, view: t.get("view") })), m.addEventListener("mouseleave", (S) => d?.("eventMouseLeave", { event: k, jsEvent: S, view: t.get("view") })), queueMicrotask(() => d?.("eventDidMount", { event: k, el: m, view: t.get("view") })), N.append(m);
+          t.get("selectedEventId") === k.id && m.classList.add("ec-event-selected"), m.addEventListener("click", (C) => {
+            document.querySelectorAll(".ec-event.ec-event-selected").forEach((D) => D.classList.remove("ec-event-selected")), m.classList.add("ec-event-selected"), t.set("selectedEventId", k.id), d?.("eventClick", { event: k, jsEvent: C, view: t.get("view") });
+          }), m.addEventListener("dblclick", (C) => d?.("eventDoubleClick", { event: k, jsEvent: C, view: t.get("view"), el: m })), m.addEventListener("mouseenter", (C) => d?.("eventMouseEnter", { event: k, jsEvent: C, view: t.get("view") })), m.addEventListener("mouseleave", (C) => d?.("eventMouseLeave", { event: k, jsEvent: C, view: t.get("view") })), queueMicrotask(() => d?.("eventDidMount", { event: k, el: m, view: t.get("view") })), N.append(m);
         }
         if (F.length) {
-          const k = typeof i.moreLinkContent == "function" ? i.moreLinkContent({ num: F.length, date: _ }) : i.moreLinkContent ?? `+${F.length} more`, P = g(
+          const k = typeof i.moreLinkContent == "function" ? i.moreLinkContent({ num: F.length, date: S }) : i.moreLinkContent ?? `+${F.length} more`, O = h(
             "button",
             "ec-more-link",
             typeof k == "object" && k?.html ? "" : k,
             [
               ["type", "button"],
               ["data-more-link", "true"],
-              ["data-date", _.toISOString().substring(0, 10)]
+              ["data-date", S.toISOString().substring(0, 10)]
             ]
           );
-          typeof k == "object" && k?.html && (P.innerHTML = k.html), P.addEventListener("click", () => Zo(t, _, z)), N.append(P);
+          typeof k == "object" && k?.html && (O.innerHTML = k.html), O.addEventListener("click", () => Zo(t, S, z)), N.append(O);
         }
-        O.append(N);
+        P.append(N);
       }
-      y.append(O);
+      y.append(P);
     }
     w.append(y), n.replaceChildren(w);
   };
@@ -2001,31 +2023,31 @@ function Vo() {
   return ne(/* @__PURE__ */ new Date());
 }
 function Zo(n, t, e) {
-  const o = n.get("options"), i = o.theme, r = new Intl.DateTimeFormat(o.locale, { timeZone: "UTC", ...o.dayPopoverFormat }), s = g("div", `${i.popup} ec-day-popover`, "", [
+  const o = n.get("options"), i = o.theme, r = new Intl.DateTimeFormat(o.locale, { timeZone: "UTC", ...o.dayPopoverFormat }), s = h("div", `${i.popup} ec-day-popover`, "", [
     ["data-popover", "day"],
     ["data-date", t.toISOString().substring(0, 10)]
-  ]), a = g("div", "ec-popup-header");
-  a.append(g("div", "ec-popup-title", r.format(t)));
-  const u = o.buttonText?.close ?? "Close", w = g("button", "ec-popup-close", u, [
+  ]), a = h("div", "ec-popup-header");
+  a.append(h("div", "ec-popup-title", r.format(t)));
+  const u = o.buttonText?.close ?? "Close", w = h("button", "ec-popup-close", u, [
     ["type", "button"],
     ["aria-label", "Close"]
   ]);
   a.append(w), s.append(a);
-  const v = g("div", i.events);
-  for (const D of e) {
-    const c = g("div", i.event, "", [
-      ["data-event-id", D.id],
-      ...De(D)
+  const v = h("div", i.events);
+  for (const M of e) {
+    const c = h("div", i.event, "", [
+      ["data-event-id", M.id],
+      ...Me(M)
     ]);
-    D.backgroundColor && c.style.setProperty("--ec-event-color", D.backgroundColor), c.append(g("span", "ec-event-dot"));
-    const f = D.allDay ? "" : new Intl.DateTimeFormat(o.locale, { timeZone: "UTC", ...o.eventTimeFormat }).format(D.start);
-    f && c.append(g("time", i.eventTime, f + " ")), c.append(g("span", i.eventTitle, D.title || "")), v.append(c);
+    M.backgroundColor && c.style.setProperty("--ec-event-color", M.backgroundColor), c.append(h("span", "ec-event-dot"));
+    const f = M.allDay ? "" : new Intl.DateTimeFormat(o.locale, { timeZone: "UTC", ...o.eventTimeFormat }).format(M.start);
+    f && c.append(h("time", i.eventTime, f + " ")), c.append(h("span", i.eventTitle, M.title || "")), v.append(c);
   }
   s.append(v), document.body.append(s);
-  const h = () => s.remove();
-  w.addEventListener("click", h), setTimeout(() => {
-    document.addEventListener("click", function D(c) {
-      s.contains(c.target) || (h(), document.removeEventListener("click", D, !0));
+  const g = () => s.remove();
+  w.addEventListener("click", g), setTimeout(() => {
+    document.addEventListener("click", function M(c) {
+      s.contains(c.target) || (g(), document.removeEventListener("click", M, !0));
     }, !0);
   }, 0);
 }
@@ -2084,7 +2106,7 @@ function bn(n, t, e, o, i) {
   n = $(n);
   const s = $(n);
   for (ve(n, o.min), ve(s, o.max); n < s; )
-    r.push([Ie(n), i.format(n)]), ve(n, t, e);
+    r.push([Oe(n), i.format(n)]), ve(n, t, e);
   const a = Ln((n - s) / 1e3 / ge(t));
   return a && a !== e && (r.at(-1)[2] = e - a), r;
 }
@@ -2097,14 +2119,14 @@ function Tn(n, t, e, o, i) {
       at(ge(s), ge(a) + vt)
     ), w = _e(e?.eventFilter) ? e.eventFilter : (v) => !Un(v.display);
     e: for (const v of o) {
-      const h = ve($(v), r), D = ve($(v), s), c = ve($(v), a), f = ve($(v), u);
+      const g = ve($(v), r), M = ve($(v), s), c = ve($(v), a), f = ve($(v), u);
       for (const y of i)
         if (!y.allDay && w(y) && y.start < f && y.end > c) {
-          if (y.start < h) {
+          if (y.start < g) {
             const l = at((y.start - v) / 1e3, ge(a));
             l < ge(r) && (r.seconds = l);
           }
-          if (y.end > D) {
+          if (y.end > M) {
             const l = Lt((y.end - v) / 1e3, ge(u));
             l > ge(s) && (s.seconds = l);
           }
@@ -2123,155 +2145,155 @@ function zt(n, t) {
     if (!u) return;
     const w = n.querySelector('[data-row="body"]');
     w && (e = w.scrollTop);
-    const v = ke(u, s.hiddenDays ?? []), h = g("div", `${a.grid} ec-time-grid`, "", [
+    const v = ke(u, s.hiddenDays ?? []), g = h("div", `${a.grid} ec-time-grid`, "", [
       ["data-grid", "time-grid"]
     ]);
-    h.style.setProperty("--ec-cols", String(v.length));
-    const D = g("div", `${a.colHead}`, "", [
+    g.style.setProperty("--ec-cols", String(v.length));
+    const M = h("div", `${a.colHead}`, "", [
       ["data-row", "header"]
     ]);
-    D.append(g("div", `${a.sidebar} ec-corner`));
+    M.append(h("div", `${a.sidebar} ec-corner`));
     const c = new Intl.DateTimeFormat(s.locale, { timeZone: "UTC", ...s.dayHeaderFormat }), f = s.dayHeaderDensity, y = f ? t.get("filteredEvents") ?? [] : [], l = (H) => {
       const F = $(H);
       return se(F), y.filter((k) => k.start < F && k.end > H).length;
     };
     for (const H of v) {
-      const F = g("div", a.dayHead, c.format(H), [
+      const F = h("div", a.dayHead, c.format(H), [
         ["data-day", String(H.getUTCDay())]
       ]);
       if (f) {
         const k = l(H);
         if (k > 0)
           if (typeof f == "function") {
-            const P = f({ date: H, count: k, max: 3 }), X = g("span", "ec-day-head-density");
-            typeof P == "string" ? X.textContent = P : P?.html ? X.innerHTML = P.html : P?.domNodes && P.domNodes.forEach((L) => X.append(L)), F.append(X);
+            const O = f({ date: H, count: k, max: 3 }), X = h("span", "ec-day-head-density");
+            typeof O == "string" ? X.textContent = O : O?.html ? X.innerHTML = O.html : O?.domNodes && O.domNodes.forEach((L) => X.append(L)), F.append(X);
           } else {
-            const P = g("span", "ec-day-head-density");
+            const O = h("span", "ec-day-head-density");
             for (let X = 0; X < Math.min(3, k); ++X)
-              P.append(g("span", "ec-day-head-dot"));
-            F.append(P);
+              O.append(h("span", "ec-day-head-dot"));
+            F.append(O);
           }
       }
-      D.append(F);
+      M.append(F);
     }
-    h.append(D);
+    g.append(M);
     const b = t.get("filteredEvents") ?? [];
     if (s.allDaySlot) {
-      const H = g("div", a.allDay, "", [
+      const H = h("div", a.allDay, "", [
         ["data-row", "all-day"]
-      ]), F = g("div", a.sidebar + " ec-all-day-label"), k = s.allDayContent;
+      ]), F = h("div", a.sidebar + " ec-all-day-label"), k = s.allDayContent;
       if (typeof k == "function") {
         const Y = k({ view: t.get("view") });
         typeof Y == "string" ? F.textContent = Y : Y?.html && (F.innerHTML = Y.html);
       } else typeof k == "string" ? F.textContent = k : k?.html ? F.innerHTML = k.html : F.textContent = "all-day";
       H.append(F);
-      const P = g("div", "ec-all-day-cols");
-      P.style.setProperty("--ec-cols", String(v.length));
+      const O = h("div", "ec-all-day-cols");
+      O.style.setProperty("--ec-cols", String(v.length));
       const X = [];
       for (const Y of v) {
-        const Q = g("div", `${a.day} ec-all-day-cell`, "", [
+        const Q = h("div", `${a.day} ec-all-day-cell`, "", [
           ["data-date", Y.toISOString().substring(0, 10)]
         ]);
-        P.append(Q), X.push(Q);
+        O.append(Q), X.push(Q);
       }
       const L = b.filter((Y) => Y.allDay);
       for (const Y of L) {
         let Q = -1, m = -1;
-        for (let M = 0; M < v.length; ++M) {
-          const x = v[M], G = $(x);
-          se(G), Y.start < G && Y.end > x && (Q === -1 && (Q = M), m = M);
+        for (let D = 0; D < v.length; ++D) {
+          const E = v[D], G = $(E);
+          se(G), Y.start < G && Y.end > E && (Q === -1 && (Q = D), m = D);
         }
         if (Q === -1) continue;
-        const I = m - Q + 1, p = g("div", a.event, "", [
+        const I = m - Q + 1, p = h("div", a.event, "", [
           ["data-event-id", Y.id],
-          ...De(Y)
+          ...Me(Y)
         ]), d = Y.backgroundColor;
-        d && p.style.setProperty("--ec-event-color", d), Y.textColor && (p.style.color = Y.textColor), p.style.position = "absolute", p.style.left = "1px", p.style.right = "auto", p.style.top = "2px", p.style.width = `calc(${I * 100}% + ${I - 1}px - 2px)`, p.style.overflow = "hidden", p.append(g("div", a.eventTitle, Y.title || ""));
-        const S = t.get("fire");
-        t.get("selectedEventId") === Y.id && p.classList.add("ec-event-selected"), p.addEventListener("click", (M) => {
-          document.querySelectorAll(".ec-event.ec-event-selected").forEach((x) => x.classList.remove("ec-event-selected")), p.classList.add("ec-event-selected"), t.set("selectedEventId", Y.id), S?.("eventClick", { event: Y, jsEvent: M, view: t.get("view") });
-        }), p.addEventListener("dblclick", (M) => S?.("eventDoubleClick", { event: Y, jsEvent: M, view: t.get("view"), el: p })), X[Q].append(p);
+        d && p.style.setProperty("--ec-event-color", d), Y.textColor && (p.style.color = Y.textColor), p.style.position = "absolute", p.style.left = "1px", p.style.right = "auto", p.style.top = "2px", p.style.width = `calc(${I * 100}% + ${I - 1}px - 2px)`, p.style.overflow = "hidden", p.append(h("div", a.eventTitle, Y.title || ""));
+        const C = t.get("fire");
+        t.get("selectedEventId") === Y.id && p.classList.add("ec-event-selected"), p.addEventListener("click", (D) => {
+          document.querySelectorAll(".ec-event.ec-event-selected").forEach((E) => E.classList.remove("ec-event-selected")), p.classList.add("ec-event-selected"), t.set("selectedEventId", Y.id), C?.("eventClick", { event: Y, jsEvent: D, view: t.get("view") });
+        }), p.addEventListener("dblclick", (D) => C?.("eventDoubleClick", { event: Y, jsEvent: D, view: t.get("view"), el: p })), X[Q].append(p);
       }
-      H.append(P), h.append(H);
+      H.append(O), g.append(H);
     }
-    const T = g("div", "ec-time-body", "", [
+    const T = h("div", "ec-time-body", "", [
       ["data-row", "body"]
-    ]), C = Tn(
+    ]), x = Tn(
       s.slotMinTime,
       s.slotMaxTime,
       s.flexibleSlotTimeLimits,
       v,
       b
-    ), _ = {
+    ), S = {
       format: (H) => new Intl.DateTimeFormat(s.locale, { timeZone: "UTC", ...s.slotLabelFormat }).format(H)
-    }, E = Qo(s.slotLabelInterval, s.slotDuration), A = bn(
+    }, _ = Qo(s.slotLabelInterval, s.slotDuration), A = bn(
       u.start,
       s.slotDuration,
-      E,
-      C,
-      _
-    ), O = g("div", a.sidebar);
+      _,
+      x,
+      S
+    ), P = h("div", a.sidebar);
     for (const [H, F] of A) {
-      const k = g("div", a.slot, "");
+      const k = h("div", a.slot, "");
       if (k.style.height = `${s.slotHeight}px`, F) {
-        const P = /* @__PURE__ */ new Date(H + "Z"), X = P.getUTCHours();
-        if (P.getUTCMinutes() === 0) if (X === 12)
-          k.append(g("span", "ec-slot-hour", "Noon"));
+        const O = /* @__PURE__ */ new Date(H + "Z"), X = O.getUTCHours();
+        if (O.getUTCMinutes() === 0) if (X === 12)
+          k.append(h("span", "ec-slot-hour", "Noon"));
         else {
           const Y = X % 12 || 12, Q = X >= 12 ? "pm" : "am";
-          k.append(g("span", "ec-slot-hour", String(Y))), k.append(g("span", "ec-slot-period", Q));
+          k.append(h("span", "ec-slot-hour", String(Y))), k.append(h("span", "ec-slot-period", Q));
         }
       }
-      O.append(k);
+      P.append(k);
     }
-    T.append(O);
-    const R = g("div", a.grid + " ec-days");
+    T.append(P);
+    const R = h("div", a.grid + " ec-days");
     R.style.setProperty("--ec-cols", String(v.length)), s.columnWidth && R.style.setProperty("--ec-col-w", `${s.columnWidth}px`);
     for (const H of v) {
-      const F = g("div", `${a.day} ec-time-col`, "", [
+      const F = h("div", `${a.day} ec-time-col`, "", [
         ["data-date", H.toISOString().substring(0, 10)]
       ]);
-      for (let x = 0; x < A.length; ++x) {
-        const G = g("div", a.slot);
+      for (let E = 0; E < A.length; ++E) {
+        const G = h("div", a.slot);
         G.style.height = `${s.slotHeight}px`, F.append(G);
       }
-      const k = g("div", "ec-event-overlay"), P = Jo(b, H).filter((x) => !x.allDay), X = ne($(H)), L = $(X);
+      const k = h("div", "ec-event-overlay"), O = Jo(b, H).filter((E) => !E.allDay), X = ne($(H)), L = $(X);
       se(L);
       const Y = /* @__PURE__ */ new Map();
-      for (const x of P) {
-        const G = x.start < X, U = x.end > L;
-        Y.set(x, {
-          visStart: G ? X : x.start,
-          visEnd: U ? L : x.end,
+      for (const E of O) {
+        const G = E.start < X, U = E.end > L;
+        Y.set(E, {
+          visStart: G ? X : E.start,
+          visEnd: U ? L : E.end,
           startsBefore: G,
           endsAfter: U
         });
       }
-      const Q = P.filter((x) => x.display !== "background").map((x) => ({
-        start: Y.get(x).visStart,
-        end: Y.get(x).visEnd,
-        event: x
+      const Q = O.filter((E) => E.display !== "background").map((E) => ({
+        start: Y.get(E).visStart,
+        end: Y.get(E).visEnd,
+        event: E
       })), m = ln(Q), I = /* @__PURE__ */ new Map();
-      for (const x of Q) I.set(x.event, m.get(x));
-      const p = 16, d = Se(s.slotDuration) / 60, S = Se(C.min) / 60, M = s.slotHeight / d;
-      for (const x of P) {
-        const G = Y.get(x), { visStart: U, visEnd: q, startsBefore: Z, endsAfter: J } = G, B = (U.getTime() - X.getTime()) / 6e4 - S, j = (q.getTime() - X.getTime()) / 6e4 - S;
-        if (x.display === "background") {
-          const le = ["ec-bg-event"], Me = s.eventClassNames;
-          if (typeof Me == "function") {
-            const Te = Me({ event: x });
+      for (const E of Q) I.set(E.event, m.get(E));
+      const p = 16, d = Se(s.slotDuration) / 60, C = Se(x.min) / 60, D = s.slotHeight / d;
+      for (const E of O) {
+        const G = Y.get(E), { visStart: U, visEnd: q, startsBefore: Z, endsAfter: J } = G, B = (U.getTime() - X.getTime()) / 6e4 - C, j = (q.getTime() - X.getTime()) / 6e4 - C;
+        if (E.display === "background") {
+          const le = ["ec-bg-event"], De = s.eventClassNames;
+          if (typeof De == "function") {
+            const Te = De({ event: E });
             Te && le.push(...Array.isArray(Te) ? Te : [Te]);
-          } else Me && le.push(...Array.isArray(Me) ? Me : [Me]);
-          x.classNames && le.push(...Array.isArray(x.classNames) ? x.classNames : [x.classNames]);
-          const me = g("div", le.filter(Boolean).join(" "), "", [
-            ["data-event-id", x.id],
-            ...De(x)
+          } else De && le.push(...Array.isArray(De) ? De : [De]);
+          E.classNames && le.push(...Array.isArray(E.classNames) ? E.classNames : [E.classNames]);
+          const me = h("div", le.filter(Boolean).join(" "), "", [
+            ["data-event-id", E.id],
+            ...Me(E)
           ]);
-          me.style.position = "absolute", me.style.top = `${B * M}px`, me.style.height = `${Math.max((j - B) * M, 12)}px`, me.style.left = "0", me.style.right = "0", me.style.zIndex = "0", x.backgroundColor && (me.style.background = x.backgroundColor);
+          me.style.position = "absolute", me.style.top = `${B * D}px`, me.style.height = `${Math.max((j - B) * D, 12)}px`, me.style.left = "0", me.style.right = "0", me.style.zIndex = "0", E.backgroundColor && (me.style.background = E.backgroundColor);
           const xt = s.eventContent;
           if (typeof xt == "function") {
-            const Te = xt({ event: x });
-            typeof Te == "string" ? me.textContent = Te : Te?.html ? me.innerHTML = Te.html : Te?.domNodes && Te.domNodes.forEach((Mn) => me.append(Mn));
+            const Te = xt({ event: E });
+            typeof Te == "string" ? me.textContent = Te : Te?.html ? me.innerHTML = Te.html : Te?.domNodes && Te.domNodes.forEach((Dn) => me.append(Dn));
           }
           k.append(me);
           continue;
@@ -2280,53 +2302,53 @@ function zt(n, t) {
         Z && W.push("ec-event-continues-from"), J && W.push("ec-event-continues-to");
         const te = s.eventClassNames;
         if (typeof te == "function") {
-          const le = te({ event: x });
+          const le = te({ event: E });
           le && W.push(...Array.isArray(le) ? le : [le]);
         } else te && W.push(...Array.isArray(te) ? te : [te]);
-        x.classNames && W.push(...Array.isArray(x.classNames) ? x.classNames : [x.classNames]), W.push(...yn(x));
-        const ie = ze(x, s);
+        E.classNames && W.push(...Array.isArray(E.classNames) ? E.classNames : [E.classNames]), W.push(...yn(E));
+        const ie = ze(E, s);
         ie && W.push(...ie.classNames);
-        const ce = wn(x, s, t.get("_pendingAppearIds"));
+        const ce = wn(E, s, t.get("_pendingAppearIds"));
         ce && W.push(ce);
-        const ee = g("div", W.filter(Boolean).join(" "), "", [
-          ["data-event-id", x.id],
-          ["data-event-start", x.start.toISOString()],
-          ["data-event-end", x.end.toISOString()],
-          ...De(x)
-        ]), ue = I.get(x) ?? 0;
-        ee.style.position = "absolute", ee.style.top = `${B * M}px`;
-        const ae = Math.max((j - B) * M, 12);
+        const ee = h("div", W.filter(Boolean).join(" "), "", [
+          ["data-event-id", E.id],
+          ["data-event-start", E.start.toISOString()],
+          ["data-event-end", E.end.toISOString()],
+          ...Me(E)
+        ]), ue = I.get(E) ?? 0;
+        ee.style.position = "absolute", ee.style.top = `${B * D}px`;
+        const ae = Math.max((j - B) * D, 12);
         ee.style.height = `${ae}px`, ae < 36 && ee.classList.add("ec-event-compact"), ee.style.left = ue === 0 ? "0" : `${ue * p}px`, ee.style.right = "0", ue > 0 && (ee.style.zIndex = String(ue + 1));
-        const oe = x.backgroundColor ?? ie?.color;
+        const oe = E.backgroundColor ?? ie?.color;
         oe && ee.style.setProperty("--ec-event-color", oe);
-        const we = g("div", a.eventTitle);
-        x.extendedProps?.rrule && we.append(bt()), we.append(document.createTextNode(x.title || "")), ee.append(we);
-        const fe = g("div", a.eventTime ?? "ec-event-time");
+        const we = h("div", a.eventTitle);
+        E.extendedProps?.rrule && we.append(bt()), we.append(document.createTextNode(E.title || "")), ee.append(we);
+        const fe = h("div", a.eventTime ?? "ec-event-time");
         if (fe.innerHTML = jo, fe.append(document.createTextNode(Sn(U, q, s))), ee.append(fe), s.editable && s.eventDurationEditable !== !1) {
           if (!J) {
-            const le = g("div", `${a.resizer ?? "ec-resizer"} ec-resizer-end`, "", [
+            const le = h("div", `${a.resizer ?? "ec-resizer"} ec-resizer-end`, "", [
               ["data-resizer", "end"]
             ]);
             ee.append(le);
           }
           if (s.eventResizableFromStart && !Z) {
-            const le = g("div", `${a.resizer ?? "ec-resizer"} ec-resizer-start`, "", [
+            const le = h("div", `${a.resizer ?? "ec-resizer"} ec-resizer-start`, "", [
               ["data-resizer", "start"]
             ]);
             ee.append(le);
           }
         }
         const be = t.get("fire");
-        t.get("selectedEventId") === x.id && ee.classList.add("ec-event-selected"), ee.addEventListener("click", (le) => {
-          document.querySelectorAll(".ec-event.ec-event-selected").forEach((Me) => Me.classList.remove("ec-event-selected")), ee.classList.add("ec-event-selected"), t.set("selectedEventId", x.id), be?.("eventClick", { event: x, jsEvent: le, view: t.get("view") });
-        }), ee.addEventListener("dblclick", (le) => be?.("eventDoubleClick", { event: x, jsEvent: le, view: t.get("view"), el: ee })), ee.addEventListener("mouseenter", (le) => be?.("eventMouseEnter", { event: x, jsEvent: le, view: t.get("view") })), ee.addEventListener("mouseleave", (le) => be?.("eventMouseLeave", { event: x, jsEvent: le, view: t.get("view") })), queueMicrotask(() => be?.("eventDidMount", { event: x, el: ee, view: t.get("view") })), k.append(ee);
+        t.get("selectedEventId") === E.id && ee.classList.add("ec-event-selected"), ee.addEventListener("click", (le) => {
+          document.querySelectorAll(".ec-event.ec-event-selected").forEach((De) => De.classList.remove("ec-event-selected")), ee.classList.add("ec-event-selected"), t.set("selectedEventId", E.id), be?.("eventClick", { event: E, jsEvent: le, view: t.get("view") });
+        }), ee.addEventListener("dblclick", (le) => be?.("eventDoubleClick", { event: E, jsEvent: le, view: t.get("view"), el: ee })), ee.addEventListener("mouseenter", (le) => be?.("eventMouseEnter", { event: E, jsEvent: le, view: t.get("view") })), ee.addEventListener("mouseleave", (le) => be?.("eventMouseLeave", { event: E, jsEvent: le, view: t.get("view") })), queueMicrotask(() => be?.("eventDidMount", { event: E, el: ee, view: t.get("view") })), k.append(ee);
       }
       if (F.style.position = "relative", F.append(k), s.nowIndicator) {
-        const x = ne(de(/* @__PURE__ */ new Date()));
-        if (ye(x, ne($(H)))) {
-          const U = g("div", a.nowIndicator, "", [
+        const E = ne(de(/* @__PURE__ */ new Date()));
+        if (ye(E, ne($(H)))) {
+          const U = h("div", a.nowIndicator, "", [
             ["data-now-indicator", ""]
-          ]), q = Se(C.min) / 60, Z = Se(s.slotDuration) / 60, J = s.slotHeight / Z;
+          ]), q = Se(x.min) / 60, Z = Se(s.slotDuration) / 60, J = s.slotHeight / Z;
           U.style.position = "absolute", U.style.left = "0", U.style.right = "0", U.style.height = "2px", U.style.background = "#dc2626", U.style.zIndex = "5";
           const B = (j) => {
             const W = j instanceof Date ? j : de(/* @__PURE__ */ new Date()), te = W.getUTCHours() * 60 + W.getUTCMinutes() - q;
@@ -2337,14 +2359,14 @@ function zt(n, t) {
       }
       R.append(F);
     }
-    T.append(R), h.append(T), n.replaceChildren(h);
-    const V = Se(C.min) / 60, z = Se(C.max) / 60, N = Se(s.slotDuration) / 60, K = s.slotHeight / N;
+    T.append(R), g.append(T), n.replaceChildren(g);
+    const V = Se(x.min) / 60, z = Se(x.max) / 60, N = Se(s.slotDuration) / 60, K = s.slotHeight / N;
     if (e != null)
       T.scrollTop = e;
     else {
-      const H = /* @__PURE__ */ new Date(), F = ne(/* @__PURE__ */ new Date()), k = v.some((X) => ye(F, ne($(X)))), P = H.getHours() * 60 + H.getMinutes();
-      if (k && P >= V && P <= z) {
-        const X = (P - V) * K, L = T.clientHeight || 0;
+      const H = /* @__PURE__ */ new Date(), F = ne(/* @__PURE__ */ new Date()), k = v.some((X) => ye(F, ne($(X)))), O = H.getHours() * 60 + H.getMinutes();
+      if (k && O >= V && O <= z) {
+        const X = (O - V) * K, L = T.clientHeight || 0;
         T.scrollTop = Math.max(0, X - L / 2), e = T.scrollTop;
       } else if (s.scrollTime) {
         const L = (Se(s.scrollTime) / 60 - V) * K;
@@ -2375,7 +2397,7 @@ function Qo(n, t) {
 function Sn(n, t, e) {
   const o = e?.eventTimeFormat || { hour: "numeric", minute: "2-digit" }, i = new Intl.DateTimeFormat(e?.locale, { timeZone: "UTC", ...o });
   if (!t || n.getTime() === t.getTime()) return i.format(n);
-  const r = i.formatToParts(n), s = i.formatToParts(t), a = r.find((y) => y.type === "dayPeriod")?.value, u = s.find((y) => y.type === "dayPeriod")?.value, w = n.getMinutes() === 0, v = t.getMinutes() === 0, h = (y, l, b) => y.filter((T) => !(l && T.type === "dayPeriod")).filter((T) => !(l && T.type === "literal" && T.value.trim() === "" && T === y[y.length - 1])).filter((T, C, _) => b ? !(T.type === "minute" || T.type === "literal" && T.value === ":") : !0).map((T) => T.value).join(""), c = h(r, a && u && a === u, w), f = h(s, !1, v);
+  const r = i.formatToParts(n), s = i.formatToParts(t), a = r.find((y) => y.type === "dayPeriod")?.value, u = s.find((y) => y.type === "dayPeriod")?.value, w = n.getMinutes() === 0, v = t.getMinutes() === 0, g = (y, l, b) => y.filter((T) => !(l && T.type === "dayPeriod")).filter((T) => !(l && T.type === "literal" && T.value.trim() === "" && T === y[y.length - 1])).filter((T, x, S) => b ? !(T.type === "minute" || T.type === "literal" && T.value === ":") : !0).map((T) => T.value).join(""), c = g(r, a && u && a === u, w), f = g(s, !1, v);
   return `${c.trim()} – ${f.trim()}`;
 }
 const jo = '<svg class="ec-clock-icon" viewBox="0 0 12 12" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><circle cx="6" cy="6" r="4.5"/><path d="M6 3.5 V6 L7.7 7" stroke-linecap="round"/></svg>', ei = {
@@ -2438,9 +2460,9 @@ function Ze(n, t) {
   const e = () => {
     const i = t.get("options"), r = i.theme, s = t.get("activeRange");
     if (!s) return;
-    const a = ke(s, i.hiddenDays ?? []), u = t.get("filteredEvents") ?? [], w = g("div", `${r.grid} ec-list`, "", [
+    const a = ke(s, i.hiddenDays ?? []), u = t.get("filteredEvents") ?? [], w = h("div", `${r.grid} ec-list`, "", [
       ["data-grid", "list"]
-    ]), v = new Intl.DateTimeFormat(i.locale, { timeZone: "UTC", ...i.listDayFormat }), h = new Intl.DateTimeFormat(i.locale, { timeZone: "UTC", ...i.listDaySideFormat }), D = new Intl.DateTimeFormat(i.locale, { timeZone: "UTC", ...i.eventTimeFormat });
+    ]), v = new Intl.DateTimeFormat(i.locale, { timeZone: "UTC", ...i.listDayFormat }), g = new Intl.DateTimeFormat(i.locale, { timeZone: "UTC", ...i.listDaySideFormat }), M = new Intl.DateTimeFormat(i.locale, { timeZone: "UTC", ...i.eventTimeFormat });
     let c = 0;
     for (const f of a) {
       const y = $(f);
@@ -2448,27 +2470,27 @@ function Ze(n, t) {
       const l = u.filter((T) => T.start < y && T.end > f);
       if (!l.length) continue;
       c += l.length;
-      const b = g("div", r.dayHead, "", [
+      const b = h("div", r.dayHead, "", [
         ["data-row", "day-header"],
         ["data-date", f.toISOString().substring(0, 10)]
       ]);
-      b.append(g("span", "", v.format(f))), b.append(g("span", r.daySide, h.format(f))), w.append(b);
+      b.append(h("span", "", v.format(f))), b.append(h("span", r.daySide, g.format(f))), w.append(b);
       for (const T of l) {
-        const C = [r.event], _ = i.eventClassNames;
-        if (typeof _ == "function") {
-          const z = _({ event: T });
-          z && C.push(...Array.isArray(z) ? z : [z]);
-        } else _ && C.push(...Array.isArray(_) ? _ : [_]);
-        T.classNames && C.push(...Array.isArray(T.classNames) ? T.classNames : [T.classNames]);
-        const E = ze(T, i);
-        E && C.push(...E.classNames);
-        const A = g("div", C.filter(Boolean).join(" "), "", [
+        const x = [r.event], S = i.eventClassNames;
+        if (typeof S == "function") {
+          const z = S({ event: T });
+          z && x.push(...Array.isArray(z) ? z : [z]);
+        } else S && x.push(...Array.isArray(S) ? S : [S]);
+        T.classNames && x.push(...Array.isArray(T.classNames) ? T.classNames : [T.classNames]);
+        const _ = ze(T, i);
+        _ && x.push(..._.classNames);
+        const A = h("div", x.filter(Boolean).join(" "), "", [
           ["data-event-id", T.id],
-          ...De(T)
-        ]), O = T.backgroundColor ?? E?.color;
-        O && A.style.setProperty("--ec-event-color", O), A.append(g("span", r.eventTag));
-        const R = T.allDay ? "all-day" : D.format(T.start);
-        A.append(g("time", r.eventTime, R)), A.append(g("span", r.eventTitle, T.title || ""));
+          ...Me(T)
+        ]), P = T.backgroundColor ?? _?.color;
+        P && A.style.setProperty("--ec-event-color", P), A.append(h("span", r.eventTag));
+        const R = T.allDay ? "all-day" : M.format(T.start);
+        A.append(h("time", r.eventTime, R)), A.append(h("span", r.eventTitle, T.title || ""));
         const V = t.get("fire");
         t.get("selectedEventId") === T.id && A.classList.add("ec-event-selected"), A.addEventListener("click", (z) => {
           document.querySelectorAll(".ec-event.ec-event-selected").forEach((N) => N.classList.remove("ec-event-selected")), A.classList.add("ec-event-selected"), t.set("selectedEventId", T.id), V?.("eventClick", { event: T, jsEvent: z, view: t.get("view") });
@@ -2476,7 +2498,7 @@ function Ze(n, t) {
       }
     }
     if (c === 0) {
-      const f = g("div", r.noEvents), y = i.noEventsContent;
+      const f = h("div", r.noEvents), y = i.noEventsContent;
       if (typeof y == "function") {
         const l = y();
         typeof l == "string" ? f.textContent = l : l?.html && (f.innerHTML = l.html);
@@ -2578,7 +2600,7 @@ function Yt(n, t) {
   const e = () => {
     const i = t.get("options"), r = i.theme, s = t.get("activeRange"), a = t.get("resources") ?? i.resources ?? [];
     if (!s || !a.length) {
-      n.replaceChildren(g(
+      n.replaceChildren(h(
         "div",
         r.noEvents,
         "No resources configured"
@@ -2586,75 +2608,75 @@ function Yt(n, t) {
       return;
     }
     const u = ke(s, i.hiddenDays ?? []), w = t.get("filteredEvents") ?? [];
-    let v = a.filter((_) => _.visible !== !1);
-    i.filterResourcesWithEvents && (v = a.filter((_) => w.some((E) => E.resourceIds.includes(_.id))));
-    const h = g("div", `${r.grid} ec-resource ec-time-grid`, "", [
+    let v = a.filter((S) => S.visible !== !1);
+    i.filterResourcesWithEvents && (v = a.filter((S) => w.some((_) => _.resourceIds.includes(S.id))));
+    const g = h("div", `${r.grid} ec-resource ec-time-grid`, "", [
       ["data-grid", "resource-time-grid"]
     ]);
-    h.style.setProperty("--ec-cols", String(u.length * v.length));
-    const D = g("div", r.colHead, "", [["data-row", "header"]]);
-    D.append(g("div", `${r.sidebar} ec-corner`));
+    g.style.setProperty("--ec-cols", String(u.length * v.length));
+    const M = h("div", r.colHead, "", [["data-row", "header"]]);
+    M.append(h("div", `${r.sidebar} ec-corner`));
     const c = new Intl.DateTimeFormat(i.locale, { timeZone: "UTC", ...i.dayHeaderFormat });
-    for (const _ of u)
-      for (const E of v) {
-        const A = g("div", r.dayHead, "", [
-          ["data-day", String(_.getUTCDay())],
-          ["data-resource-id", E.id]
-        ]), O = g("div", "", c.format(_)), R = g("div", r.resourceLabel, "", [
+    for (const S of u)
+      for (const _ of v) {
+        const A = h("div", r.dayHead, "", [
+          ["data-day", String(S.getUTCDay())],
+          ["data-resource-id", _.id]
+        ]), P = h("div", "", c.format(S)), R = h("div", r.resourceLabel, "", [
           ["data-resource-label", ""]
         ]), V = i.resourceLabelContent;
-        let z = E.title;
+        let z = _.title;
         if (typeof V == "function") {
-          const N = V({ resource: E });
+          const N = V({ resource: _ });
           typeof N == "string" ? z = N : N?.html && (R.innerHTML = N.html, z = null);
         }
-        z !== null && (R.textContent = z), typeof i.resourceLabelDidMount == "function" && queueMicrotask(() => i.resourceLabelDidMount({ resource: E, el: R })), u.length > 1 ? i.datesAboveResources ? A.append(O, R) : A.append(R, O) : A.append(R), D.append(A);
+        z !== null && (R.textContent = z), typeof i.resourceLabelDidMount == "function" && queueMicrotask(() => i.resourceLabelDidMount({ resource: _, el: R })), u.length > 1 ? i.datesAboveResources ? A.append(P, R) : A.append(R, P) : A.append(R), M.append(A);
       }
-    h.append(D);
-    const f = g("div", "ec-time-body", "", [["data-row", "body"]]), y = Tn(
+    g.append(M);
+    const f = h("div", "ec-time-body", "", [["data-row", "body"]]), y = Tn(
       i.slotMinTime,
       i.slotMaxTime,
       i.flexibleSlotTimeLimits,
       u,
       w
     ), l = {
-      format: (_) => new Intl.DateTimeFormat(i.locale, { timeZone: "UTC", ...i.slotLabelFormat }).format(_)
+      format: (S) => new Intl.DateTimeFormat(i.locale, { timeZone: "UTC", ...i.slotLabelFormat }).format(S)
     }, b = bn(
       s.start,
       i.slotDuration,
       1,
       y,
       l
-    ), T = g("div", r.sidebar);
-    for (const [_, E] of b) {
-      const A = g("div", r.slot, E);
+    ), T = h("div", r.sidebar);
+    for (const [S, _] of b) {
+      const A = h("div", r.slot, _);
       A.style.height = `${i.slotHeight}px`, T.append(A);
     }
     f.append(T);
-    const C = g("div", `${r.grid} ec-days`);
-    C.style.setProperty("--ec-cols", String(u.length * v.length));
-    for (const _ of u)
-      for (const E of v) {
-        const A = g("div", `${r.day} ec-time-col`, "", [
-          ["data-date", _.toISOString().substring(0, 10)],
-          ["data-resource-id", E.id]
+    const x = h("div", `${r.grid} ec-days`);
+    x.style.setProperty("--ec-cols", String(u.length * v.length));
+    for (const S of u)
+      for (const _ of v) {
+        const A = h("div", `${r.day} ec-time-col`, "", [
+          ["data-date", S.toISOString().substring(0, 10)],
+          ["data-resource-id", _.id]
         ]);
         for (let L = 0; L < b.length; ++L) {
-          const Y = g("div", r.slot);
+          const Y = h("div", r.slot);
           Y.style.height = `${i.slotHeight}px`, A.append(Y);
         }
-        const O = mt(i.slotDuration) / 60, R = mt(y.min) / 60, V = mt(y.max) / 60, z = i.slotHeight / O, N = Cn(E.workingHours, _);
+        const P = mt(i.slotDuration) / 60, R = mt(y.min) / 60, V = mt(y.max) / 60, z = i.slotHeight / P, N = Cn(_.workingHours, S);
         for (const L of N) {
           const Y = Math.max(L.startMin, R), Q = Math.min(L.endMin, V);
           if (Q <= Y) continue;
-          const m = g("div", "ec-resource-offhours");
+          const m = h("div", "ec-resource-offhours");
           m.style.position = "absolute", m.style.left = "0", m.style.right = "0", m.style.top = `${(Y - R) * z}px`, m.style.height = `${(Q - Y) * z}px`, m.style.pointerEvents = "none", m.style.zIndex = "0", A.append(m);
         }
-        const K = g("div", "ec-event-overlay"), H = $(_);
+        const K = h("div", "ec-event-overlay"), H = $(S);
         se(H);
         const F = w.filter(
-          (L) => !L.allDay && L.start < H && L.end > _ && (L.resourceIds.length === 0 || L.resourceIds.includes(E.id))
-        ), k = F.filter((L) => L.display !== "background"), P = ln(k), X = 16;
+          (L) => !L.allDay && L.start < H && L.end > S && (L.resourceIds.length === 0 || L.resourceIds.includes(_.id))
+        ), k = F.filter((L) => L.display !== "background"), O = ln(k), X = 16;
         for (const L of F) {
           const Y = Gt(L.start) - R, Q = Gt(L.end) - R;
           if (L.display === "background") {
@@ -2664,9 +2686,9 @@ function Yt(n, t) {
               j && q.push(...Array.isArray(j) ? j : [j]);
             } else Z && q.push(...Array.isArray(Z) ? Z : [Z]);
             L.classNames && q.push(...Array.isArray(L.classNames) ? L.classNames : [L.classNames]);
-            const J = g("div", q.filter(Boolean).join(" "), "", [
+            const J = h("div", q.filter(Boolean).join(" "), "", [
               ["data-event-id", L.id],
-              ...De(L)
+              ...Me(L)
             ]);
             J.style.position = "absolute", J.style.top = `${Y * z}px`, J.style.height = `${Math.max((Q - Y) * z, 12)}px`, J.style.left = "0", J.style.right = "0", J.style.zIndex = "0", L.backgroundColor && (J.style.background = L.backgroundColor);
             const B = i.eventContent;
@@ -2685,23 +2707,23 @@ function Yt(n, t) {
           L.classNames && m.push(...Array.isArray(L.classNames) ? L.classNames : [L.classNames]);
           const p = ze(L, i);
           p && m.push(...p.classNames);
-          const d = g("div", m.filter(Boolean).join(" "), "", [
+          const d = h("div", m.filter(Boolean).join(" "), "", [
             ["data-event-id", L.id],
-            ...De(L)
-          ]), S = P.get(L) ?? 0;
+            ...Me(L)
+          ]), C = O.get(L) ?? 0;
           d.style.position = "absolute", d.style.top = `${Y * z}px`;
-          const M = Math.max((Q - Y) * z, 12);
-          d.style.height = `${M}px`, M < 36 && d.classList.add("ec-event-compact"), d.style.left = S === 0 ? "0" : `${S * X}px`, d.style.right = "0", S > 0 && (d.style.zIndex = String(S + 1));
-          const x = L.backgroundColor ?? p?.color ?? E.eventBackgroundColor;
-          x && d.style.setProperty("--ec-event-color", x), d.append(g("div", r.eventTitle, L.title || ""));
-          const G = g("div", r.eventTime ?? "ec-event-time");
+          const D = Math.max((Q - Y) * z, 12);
+          d.style.height = `${D}px`, D < 36 && d.classList.add("ec-event-compact"), d.style.left = C === 0 ? "0" : `${C * X}px`, d.style.right = "0", C > 0 && (d.style.zIndex = String(C + 1));
+          const E = L.backgroundColor ?? p?.color ?? _.eventBackgroundColor;
+          E && d.style.setProperty("--ec-event-color", E), d.append(h("div", r.eventTitle, L.title || ""));
+          const G = h("div", r.eventTime ?? "ec-event-time");
           G.innerHTML = '<svg class="ec-clock-icon" viewBox="0 0 12 12" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><circle cx="6" cy="6" r="4.5"/><path d="M6 3.5 V6 L7.7 7" stroke-linecap="round"/></svg>', G.append(document.createTextNode(Sn(L.start, L.end, i))), d.append(G);
           const U = t.get("fire");
-          d.addEventListener("click", (q) => U?.("eventClick", { event: L, jsEvent: q, view: t.get("view"), resource: E })), d.addEventListener("dblclick", (q) => U?.("eventDoubleClick", { event: L, jsEvent: q, view: t.get("view"), resource: E, el: d })), d.addEventListener("mouseenter", (q) => U?.("eventMouseEnter", { event: L, jsEvent: q, view: t.get("view"), resource: E })), d.addEventListener("mouseleave", (q) => U?.("eventMouseLeave", { event: L, jsEvent: q, view: t.get("view"), resource: E })), queueMicrotask(() => U?.("eventDidMount", { event: L, el: d, view: t.get("view"), resource: E })), K.append(d);
+          d.addEventListener("click", (q) => U?.("eventClick", { event: L, jsEvent: q, view: t.get("view"), resource: _ })), d.addEventListener("dblclick", (q) => U?.("eventDoubleClick", { event: L, jsEvent: q, view: t.get("view"), resource: _, el: d })), d.addEventListener("mouseenter", (q) => U?.("eventMouseEnter", { event: L, jsEvent: q, view: t.get("view"), resource: _ })), d.addEventListener("mouseleave", (q) => U?.("eventMouseLeave", { event: L, jsEvent: q, view: t.get("view"), resource: _ })), queueMicrotask(() => U?.("eventDidMount", { event: L, el: d, view: t.get("view"), resource: _ })), K.append(d);
         }
-        A.style.position = "relative", A.append(K), C.append(A);
+        A.style.position = "relative", A.append(K), x.append(A);
       }
-    f.append(C), h.append(f), n.replaceChildren(h);
+    f.append(x), g.append(f), n.replaceChildren(g);
   };
   e();
   const o = t.onAny(({ key: i }) => {
@@ -2795,61 +2817,61 @@ function ii({
 }) {
   const r = /* @__PURE__ */ new Map(), s = [];
   if (Array.isArray(t))
-    for (const h of t) {
-      const D = String(h.id), c = o.get(D);
-      r.set(D, {
-        id: D,
-        title: h.title ?? "",
-        color: h.color,
-        resourceIds: Array.isArray(h.resourceIds) ? h.resourceIds.map(String) : [],
-        action: h.action,
-        expanded: c ?? h.expanded ?? !0
-      }), s.push(D);
+    for (const g of t) {
+      const M = String(g.id), c = o.get(M);
+      r.set(M, {
+        id: M,
+        title: g.title ?? "",
+        color: g.color,
+        resourceIds: Array.isArray(g.resourceIds) ? g.resourceIds.map(String) : [],
+        action: g.action,
+        expanded: c ?? g.expanded ?? !0
+      }), s.push(M);
     }
   if (e)
-    for (const h of n) {
-      const D = h[e] ?? h.extendedProps?.[e];
-      if (D == null || D === "") continue;
-      const c = String(D);
+    for (const g of n) {
+      const M = g[e] ?? g.extendedProps?.[e];
+      if (M == null || M === "") continue;
+      const c = String(M);
       if (!r.has(c)) {
         const y = o.get(c);
         r.set(c, {
           id: c,
-          title: h[`${e}Title`] ?? h.extendedProps?.[`${e}Title`] ?? c,
-          color: h[`${e}Color`] ?? h.extendedProps?.[`${e}Color`],
+          title: g[`${e}Title`] ?? g.extendedProps?.[`${e}Title`] ?? c,
+          color: g[`${e}Color`] ?? g.extendedProps?.[`${e}Color`],
           resourceIds: [],
           expanded: y ?? !0
         }), s.push(c);
       }
       const f = r.get(c);
-      f.resourceIds.includes(h.id) || f.resourceIds.push(h.id);
+      f.resourceIds.includes(g.id) || f.resourceIds.push(g.id);
     }
   const a = /* @__PURE__ */ new Set();
-  for (const h of r.values()) for (const D of h.resourceIds) a.add(D);
+  for (const g of r.values()) for (const M of g.resourceIds) a.add(M);
   const u = [];
-  for (const h of s) {
-    const D = r.get(h);
-    if (D && (u.push({ kind: "group", group: D }), !!D.expanded))
-      for (const c of D.resourceIds) {
+  for (const g of s) {
+    const M = r.get(g);
+    if (M && (u.push({ kind: "group", group: M }), !!M.expanded))
+      for (const c of M.resourceIds) {
         const f = n.find((y) => y.id === c);
-        f && u.push({ kind: "resource", resource: f, group: D });
+        f && u.push({ kind: "resource", resource: f, group: M });
       }
   }
-  const w = n.filter((h) => !a.has(h.id));
+  const w = n.filter((g) => !a.has(g.id));
   if (w.length === 0) return { layout: u, groupsById: r };
   if (s.length > 0 && i) {
-    const h = "__ungrouped", D = o.get(h), c = {
-      id: h,
+    const g = "__ungrouped", M = o.get(g), c = {
+      id: g,
       title: i,
       color: void 0,
       resourceIds: w.map((f) => f.id),
-      expanded: D ?? !0,
+      expanded: M ?? !0,
       synthetic: !0
     };
-    if (r.set(h, c), u.push({ kind: "group", group: c }), c.expanded)
+    if (r.set(g, c), u.push({ kind: "group", group: c }), c.expanded)
       for (const f of w) u.push({ kind: "resource", resource: f, group: c });
   } else
-    for (const h of w) u.push({ kind: "resource", resource: h, group: null });
+    for (const g of w) u.push({ kind: "resource", resource: g, group: null });
   return { layout: u, groupsById: r };
 }
 function Fe(n, t) {
@@ -2860,74 +2882,74 @@ function Fe(n, t) {
     o && (o(), o = null);
     const s = t.get("options"), a = s.theme, u = t.get("activeRange"), w = t.get("resources") ?? s.resources ?? [];
     if (!u) return;
-    const v = ke(u, s.hiddenDays ?? []), h = t.get("filteredEvents") ?? [], D = s.slotMode === "hours" ? "hours" : "days", c = Xt(s.slotMinTime) / 3600, f = Xt(s.slotMaxTime) / 3600, y = D === "hours" ? Math.max(1, Math.round(f - c)) : 1, l = D === "hours" ? s.slotWidth ?? 48 : s.slotWidth ?? 140, b = v.length * y, T = b * l, C = (p) => {
+    const v = ke(u, s.hiddenDays ?? []), g = t.get("filteredEvents") ?? [], M = s.slotMode === "hours" ? "hours" : "days", c = Xt(s.slotMinTime) / 3600, f = Xt(s.slotMaxTime) / 3600, y = M === "hours" ? Math.max(1, Math.round(f - c)) : 1, l = M === "hours" ? s.slotWidth ?? 48 : s.slotWidth ?? 140, b = v.length * y, T = b * l, x = (p) => {
       const d = v.findIndex((q) => {
         const Z = $(q);
         return se(Z), p < Z && p >= q;
       });
-      if (D === "days")
+      if (M === "days")
         return d === -1 ? p < v[0] ? 0 : T : d * l;
-      let S = d;
-      if (S === -1)
+      let C = d;
+      if (C === -1)
         return p < v[0] ? 0 : T;
-      const M = ne($(v[S])), x = (p.getTime() - M.getTime()) / 6e4, U = Math.max(c * 60, Math.min(f * 60, x)) / 60 - c;
-      return S * y * l + U * l;
-    }, _ = g("div", `${a.grid} ec-timeline ec-resource ec-timeline-mode-${D}`, "", [
+      const D = ne($(v[C])), E = (p.getTime() - D.getTime()) / 6e4, U = Math.max(c * 60, Math.min(f * 60, E)) / 60 - c;
+      return C * y * l + U * l;
+    }, S = h("div", `${a.grid} ec-timeline ec-resource ec-timeline-mode-${M}`, "", [
       ["data-grid", "resource-timeline"],
-      ["data-slot-mode", D]
+      ["data-slot-mode", M]
     ]);
-    s.dayHeaderTodayStyle === "circle" && _.classList.add("ec-day-head-today-circle");
-    const E = t.get("rowHeight");
-    E && _.style.setProperty("--ec-timeline-row-h", `${E}px`);
-    const A = g("div", a.colHead, "", [["data-row", "header"]]), O = g("div", `${a.rowHead} ec-corner`);
-    A.append(O);
-    const R = g("div", a.slots);
+    s.dayHeaderTodayStyle === "circle" && S.classList.add("ec-day-head-today-circle");
+    const _ = t.get("rowHeight");
+    _ && S.style.setProperty("--ec-timeline-row-h", `${_}px`);
+    const A = h("div", a.colHead, "", [["data-row", "header"]]), P = h("div", `${a.rowHead} ec-corner`);
+    A.append(P);
+    const R = h("div", a.slots);
     R.style.width = `${T}px`;
     const V = new Intl.DateTimeFormat(s.locale, { timeZone: "UTC", ...s.dayHeaderFormat }), z = ne(de(/* @__PURE__ */ new Date()));
     for (const p of v) {
-      const d = ye(z, ne($(p))), S = g("div", `${a.dayHead}${d ? " ec-day-head-today" : ""}`, "", [
+      const d = ye(z, ne($(p))), C = h("div", `${a.dayHead}${d ? " ec-day-head-today" : ""}`, "", [
         ["data-day", String(p.getUTCDay())],
         ["data-date", p.toISOString().substring(0, 10)]
       ]);
       if (s.dayHeaderTodayStyle === "circle" && d) {
-        const M = V.format(p), x = p.getUTCDate(), G = M.indexOf(String(x));
+        const D = V.format(p), E = p.getUTCDate(), G = D.indexOf(String(E));
         if (G >= 0) {
-          const U = M.slice(0, G), q = M.slice(G + String(x).length);
-          U && S.append(document.createTextNode(U));
-          const Z = g("span", "ec-day-head-today-disc", String(x));
-          S.append(Z), q && S.append(document.createTextNode(q));
+          const U = D.slice(0, G), q = D.slice(G + String(E).length);
+          U && C.append(document.createTextNode(U));
+          const Z = h("span", "ec-day-head-today-disc", String(E));
+          C.append(Z), q && C.append(document.createTextNode(q));
         } else
-          S.textContent = M;
+          C.textContent = D;
       } else
-        S.textContent = V.format(p);
-      S.style.width = `${l * y}px`, R.append(S);
+        C.textContent = V.format(p);
+      C.style.width = `${l * y}px`, R.append(C);
     }
-    if (A.append(R), D === "hours") {
-      const p = new Intl.DateTimeFormat(s.locale, { timeZone: "UTC", hour: "numeric" }), d = g("div", `${a.colHead} ec-timeline-hour-head`, "", [
+    if (A.append(R), M === "hours") {
+      const p = new Intl.DateTimeFormat(s.locale, { timeZone: "UTC", hour: "numeric" }), d = h("div", `${a.colHead} ec-timeline-hour-head`, "", [
         ["data-row", "hour-header"]
       ]);
-      d.append(g("div", a.rowHead));
-      const S = g("div", `${a.slots} ec-timeline-hour-strip`);
-      S.style.width = `${T}px`;
-      for (let M = 0; M < v.length; ++M)
-        for (let x = 0; x < y; ++x) {
-          const G = $(v[M]);
-          G.setUTCHours(c + x, 0, 0, 0);
-          const U = g("div", `${a.dayHead} ec-hour-head`, p.format(G), [
-            ["data-hour", String(c + x)]
+      d.append(h("div", a.rowHead));
+      const C = h("div", `${a.slots} ec-timeline-hour-strip`);
+      C.style.width = `${T}px`;
+      for (let D = 0; D < v.length; ++D)
+        for (let E = 0; E < y; ++E) {
+          const G = $(v[D]);
+          G.setUTCHours(c + E, 0, 0, 0);
+          const U = h("div", `${a.dayHead} ec-hour-head`, p.format(G), [
+            ["data-hour", String(c + E)]
           ]);
-          U.style.width = `${l}px`, S.append(U);
+          U.style.width = `${l}px`, C.append(U);
         }
-      d.append(S), _.append(A, d);
+      d.append(C), S.append(A, d);
     } else
-      _.append(A);
+      S.append(A);
     const N = w.filter((p) => (Re(p)?.level ?? 0) === 0);
     if (s.resourceExpand !== void 0) {
-      const p = (d, S) => {
-        const M = Re(d);
-        if (M) {
-          (s.resourceExpand === "all" || s.resourceExpand === !0 || typeof s.resourceExpand == "number" && S < s.resourceExpand) && (d.expanded = !0);
-          for (const x of M.children) p(x, S + 1);
+      const p = (d, C) => {
+        const D = Re(d);
+        if (D) {
+          (s.resourceExpand === "all" || s.resourceExpand === !0 || typeof s.resourceExpand == "number" && C < s.resourceExpand) && (d.expanded = !0);
+          for (const E of D.children) p(E, C + 1);
         }
       };
       for (const d of N) p(d, 0);
@@ -2943,8 +2965,8 @@ function Fe(n, t) {
     const F = /* @__PURE__ */ new Map();
     for (const p of H.values())
       for (const d of p.resourceIds) F.set(d, p);
-    const k = (p) => F.get(p.id) ?? null, P = g("div", "ec-timeline-body", "", [["data-row", "body"]]);
-    P.style.position = "relative";
+    const k = (p) => F.get(p.id) ?? null, O = h("div", "ec-timeline-body", "", [["data-row", "body"]]);
+    O.style.position = "relative";
     let X = -1;
     for (let p = 0; p < v.length; p++)
       if (ye(z, ne($(v[p])))) {
@@ -2952,83 +2974,83 @@ function Fe(n, t) {
         break;
       }
     if (X >= 0) {
-      const p = X * y * l, d = l * y, S = g("div", "ec-timeline-today-band", "", [
+      const p = X * y * l, d = l * y, C = h("div", "ec-timeline-today-band", "", [
         ["data-today-band", ""]
       ]);
-      if (S.style.position = "absolute", S.style.top = "0", S.style.bottom = "0", S.style.left = `calc(var(--ec-timeline-rowhead-w, 160px) + ${p}px)`, S.style.width = `${d}px`, S.style.pointerEvents = "none", S.style.zIndex = "0", P.append(S), s.nowIndicator) {
-        const M = g("div", "ec-timeline-now-line", "", [
+      if (C.style.position = "absolute", C.style.top = "0", C.style.bottom = "0", C.style.left = `calc(var(--ec-timeline-rowhead-w, 160px) + ${p}px)`, C.style.width = `${d}px`, C.style.pointerEvents = "none", C.style.zIndex = "0", O.append(C), s.nowIndicator) {
+        const D = h("div", "ec-timeline-now-line", "", [
           ["data-now-indicator", ""]
         ]);
-        M.style.position = "absolute", M.style.top = "0", M.style.bottom = "0", M.style.width = "2px", M.style.background = "var(--ec-now-indicator-color, #dc2626)", M.style.pointerEvents = "none", M.style.zIndex = "1";
-        const x = v[X], G = (U) => {
-          const Z = ((U instanceof Date ? U : de(/* @__PURE__ */ new Date())).getTime() - x.getTime()) / 6e4;
+        D.style.position = "absolute", D.style.top = "0", D.style.bottom = "0", D.style.width = "2px", D.style.background = "var(--ec-now-indicator-color, #dc2626)", D.style.pointerEvents = "none", D.style.zIndex = "1";
+        const E = v[X], G = (U) => {
+          const Z = ((U instanceof Date ? U : de(/* @__PURE__ */ new Date())).getTime() - E.getTime()) / 6e4;
           let J;
-          D === "hours" ? J = (Math.max(c * 60, Math.min(f * 60, Z)) - c * 60) / 60 * l : J = Math.max(0, Math.min(1440, Z)) / 1440 * l, M.style.left = `calc(var(--ec-timeline-rowhead-w, 160px) + ${p + J}px)`;
+          M === "hours" ? J = (Math.max(c * 60, Math.min(f * 60, Z)) - c * 60) / 60 * l : J = Math.max(0, Math.min(1440, Z)) / 1440 * l, D.style.left = `calc(var(--ec-timeline-rowhead-w, 160px) + ${p + J}px)`;
         };
-        G(t.get("now")), P.append(M), o = t.on("change:now", ({ value: U }) => G(U));
+        G(t.get("now")), O.append(D), o = t.on("change:now", ({ value: U }) => G(U));
       }
     }
     const L = t.get("suggestedSlot");
     if (L?.start && L?.end) {
-      const p = C(L.start), d = C(L.end);
+      const p = x(L.start), d = x(L.end);
       if (!(d <= 0 || p >= T)) {
-        const S = g("div", "ec-suggested-slot", "", [
+        const C = h("div", "ec-suggested-slot", "", [
           ["data-suggested-slot", ""],
           ["data-resource-id", L.resourceId ?? ""]
         ]);
-        S.style.left = `calc(var(--ec-timeline-rowhead-w, 160px) + ${Math.max(0, p)}px)`, S.style.width = `${Math.max(8, Math.min(T, d) - Math.max(0, p))}px`, S.style.top = "4px", S.style.bottom = "4px", S.style.pointerEvents = "auto", S.addEventListener("click", (M) => {
+        C.style.left = `calc(var(--ec-timeline-rowhead-w, 160px) + ${Math.max(0, p)}px)`, C.style.width = `${Math.max(8, Math.min(T, d) - Math.max(0, p))}px`, C.style.top = "4px", C.style.bottom = "4px", C.style.pointerEvents = "auto", C.addEventListener("click", (D) => {
           t.get("fire")?.("suggestedSlotClick", {
             start: L.start,
             end: L.end,
             resourceId: L.resourceId,
-            jsEvent: M,
+            jsEvent: D,
             view: t.get("view")
           });
-        }), P.append(S);
+        }), O.append(C);
       }
     }
     const Y = t.get("mode"), Q = Y && typeof s.cellAffordanceWhen == "function" && s.cellAffordanceWhen(Y), m = (p) => {
-      const d = g("div", `ec-timeline-row ${a.groupHeader}`, "", [
+      const d = h("div", `ec-timeline-row ${a.groupHeader}`, "", [
         ["data-row", "group-header"],
         ["data-group-id", p.id],
         ["data-expanded", p.expanded ? "true" : "false"]
-      ]), S = g("div", `${a.rowHead} ec-group-head`), M = g("button", a.groupHeaderToggle, "", [
+      ]), C = h("div", `${a.rowHead} ec-group-head`), D = h("button", a.groupHeaderToggle, "", [
         ["type", "button"],
         ["aria-label", p.expanded ? "Collapse" : "Expand"],
         ["aria-expanded", String(p.expanded)]
       ]);
-      M.innerHTML = p.expanded ? s.icons.collapse?.html ?? "−" : s.icons.expand?.html ?? "+", M.addEventListener("click", () => {
+      D.innerHTML = p.expanded ? s.icons.collapse?.html ?? "−" : s.icons.expand?.html ?? "+", D.addEventListener("click", () => {
         const J = !p.expanded;
         e.set(p.id, J), p.expanded = J, t.get("fire")?.(J ? "groupExpand" : "groupCollapse", {
           groupId: p.id,
           view: t.get("view")
         }), i();
-      }), S.append(M);
-      const x = g("span", a.groupHeaderSwatch);
-      p.color && (x.style.background = p.color), S.append(x), S.append(g("span", a.groupHeaderName, p.title)), S.append(g("span", a.groupHeaderCount, `${p.resourceIds.length}`));
-      const G = g("span", a.groupHeaderAction, "", [
+      }), C.append(D);
+      const E = h("span", a.groupHeaderSwatch);
+      p.color && (E.style.background = p.color), C.append(E), C.append(h("span", a.groupHeaderName, p.title)), C.append(h("span", a.groupHeaderCount, `${p.resourceIds.length}`));
+      const G = h("span", a.groupHeaderAction, "", [
         ["data-group-header-action", ""]
       ]), U = s.groupHeaderContent;
       if (typeof U == "function") {
         const J = U({ group: p, view: t.get("view") });
         typeof J == "string" ? G.textContent = J : J?.html ? G.innerHTML = J.html : J?.domNodes && J.domNodes.forEach((B) => G.append(B));
       }
-      S.append(G), d.append(S);
-      const q = g("div", "ec-group-header-strip");
-      q.style.width = `${T}px`, d.append(q), P.append(d);
+      C.append(G), d.append(C);
+      const q = h("div", "ec-group-header-strip");
+      q.style.width = `${T}px`, d.append(q), O.append(d);
       const Z = s.groupHeaderDidMount;
       typeof Z == "function" && queueMicrotask(() => Z({ group: p, el: d, view: t.get("view") }));
     }, I = (p, d) => {
-      const S = Re(p);
-      if (S?.hidden || p.visible === !1) return;
-      const M = g("div", "ec-timeline-row", "", [
+      const C = Re(p);
+      if (C?.hidden || p.visible === !1) return;
+      const D = h("div", "ec-timeline-row", "", [
         ["data-resource-id", p.id],
         ["data-depth", String(d)]
-      ]), x = g("div", a.rowHead, "", [["data-resource-label", ""]]);
-      x.style.setProperty("--ec-row-head-indent", `${d * 16}px`);
-      const G = S?.children?.length > 0;
+      ]), E = h("div", a.rowHead, "", [["data-resource-label", ""]]);
+      E.style.setProperty("--ec-row-head-indent", `${d * 16}px`);
+      const G = C?.children?.length > 0;
       if (G) {
-        const B = g("button", a.expander, "", [
+        const B = h("button", a.expander, "", [
           ["type", "button"],
           ["data-toolbar-action", "expand"]
         ]);
@@ -3043,17 +3065,17 @@ function Fe(n, t) {
               }
           };
           j(p, !p.expanded), i();
-        }), x.append(B);
+        }), E.append(B);
       }
-      x.append(g("span", "", p.title)), M.append(x);
-      const U = g("div", "ec-timeline-ribbon");
+      E.append(h("span", "", p.title)), D.append(E);
+      const U = h("div", "ec-timeline-ribbon");
       if (U.style.position = "relative", U.style.minHeight = "30px", U.style.width = `${T}px`, p.workingHours)
         for (let B = 0; B < v.length; ++B) {
           const j = v[B], W = Cn(p.workingHours, j);
           if (W.length !== 0) {
-            if (D === "days") {
+            if (M === "days") {
               if (W.length === 1 && W[0].startMin === 0 && W[0].endMin === 1440) {
-                const ie = g("div", "ec-resource-offhours");
+                const ie = h("div", "ec-resource-offhours");
                 ie.style.position = "absolute", ie.style.top = "0", ie.style.bottom = "0", ie.style.left = `${B * l}px`, ie.style.width = `${l}px`, ie.style.pointerEvents = "none", U.append(ie);
               }
               continue;
@@ -3063,41 +3085,41 @@ function Fe(n, t) {
               if (ce <= ie) continue;
               const ee = (B * y + (ie - c)) * l, ue = (ce - ie) * l;
               if (ue <= 0) continue;
-              const ae = g("div", "ec-resource-offhours");
+              const ae = h("div", "ec-resource-offhours");
               ae.style.position = "absolute", ae.style.top = "0", ae.style.bottom = "0", ae.style.left = `${ee}px`, ae.style.width = `${ue}px`, ae.style.pointerEvents = "none", U.append(ae);
             }
           }
         }
-      if (D === "hours" && s.lunchHour != null) {
+      if (M === "hours" && s.lunchHour != null) {
         const B = Number(s.lunchHour);
         if (Number.isFinite(B) && B >= c && B < f)
           for (let j = 0; j < v.length; ++j) {
-            const W = g("div", "ec-timeline-lunch-band"), te = (j * y + (B - c)) * l;
+            const W = h("div", "ec-timeline-lunch-band"), te = (j * y + (B - c)) * l;
             W.style.position = "absolute", W.style.top = "0", W.style.bottom = "0", W.style.left = `${te}px`, W.style.width = `${l}px`, W.style.pointerEvents = "none", U.append(W);
           }
       }
-      const q = g("div", "ec-timeline-cells");
+      const q = h("div", "ec-timeline-cells");
       q.style.position = "absolute", q.style.inset = "0", q.style.display = "grid", q.style.gridTemplateColumns = `repeat(${b}, ${l}px)`, q.style.pointerEvents = "none";
       const Z = t.get("fire");
       for (let B = 0; B < v.length; ++B) {
         const j = v[B];
         for (let W = 0; W < y; ++W) {
           const te = $(j);
-          D === "hours" && te.setUTCHours(c + W, 0, 0, 0);
-          const ie = W === 0, ce = D === "days" && B > 0 && B % 7 === 0 && W === 0, ee = g(
+          M === "hours" && te.setUTCHours(c + W, 0, 0, 0);
+          const ie = W === 0, ce = M === "days" && B > 0 && B % 7 === 0 && W === 0, ee = h(
             "div",
             `ec-timeline-cell${ie ? " ec-timeline-cell-day-edge" : ""}${ce ? " ec-timeline-cell-week-edge" : ""}${Q ? " ec-timeline-cell-affordance" : ""}`,
             "",
             [
               ["data-date", j.toISOString().substring(0, 10)],
               ["data-day", String(j.getUTCDay())],
-              ...D === "hours" ? [["data-hour", String(c + W)]] : []
+              ...M === "hours" ? [["data-hour", String(c + W)]] : []
             ]
           );
           ee.style.pointerEvents = "auto";
           const ue = s.emptyCellAddButton || Q;
           if (ue) {
-            const ae = g("span", "ec-timeline-cell-add", "+");
+            const ae = h("span", "ec-timeline-cell-add", "+");
             if (typeof ue == "function") {
               const oe = ue({ date: te, resource: p, group: k(p) });
               typeof oe == "string" ? ae.textContent = oe : oe?.html ? ae.innerHTML = oe.html : oe?.domNodes && (ae.textContent = "", oe.domNodes.forEach((we) => ae.append(we)));
@@ -3116,9 +3138,9 @@ function Fe(n, t) {
         }
       }
       U.append(q);
-      const J = h.filter((B) => B.resourceIds.length === 0 || B.resourceIds.includes(p.id));
+      const J = g.filter((B) => B.resourceIds.length === 0 || B.resourceIds.includes(p.id));
       for (const B of J) {
-        const j = C(B.start), W = C(B.end);
+        const j = x(B.start), W = x(B.end);
         if (W <= 0 || j >= T) continue;
         const te = Math.max(0, j), ie = Math.min(T, W), ce = Math.max(l / 4, ie - te), ee = [a.event], ue = s.eventClassNames;
         if (typeof ue == "function") {
@@ -3128,9 +3150,9 @@ function Fe(n, t) {
         B.classNames && ee.push(...Array.isArray(B.classNames) ? B.classNames : [B.classNames]);
         const ae = ze(B, s);
         ae && ee.push(...ae.classNames);
-        const oe = g("div", ee.filter(Boolean).join(" "), B.title || "", [
+        const oe = h("div", ee.filter(Boolean).join(" "), B.title || "", [
           ["data-event-id", B.id],
-          ...De(B)
+          ...Me(B)
         ]);
         oe.style.position = "absolute", oe.style.left = `${te}px`, oe.style.width = `${ce}px`;
         const we = B.backgroundColor ?? ae?.color;
@@ -3138,7 +3160,7 @@ function Fe(n, t) {
           const be = oe.getBoundingClientRect().width;
           oe.classList.toggle("ec-event-narrow", be < Number(s.eventNarrowThreshold ?? 60));
         }).observe(oe), s.editable && s.eventDurationEditable !== !1) {
-          const fe = g(
+          const fe = h(
             "div",
             `${s.theme.resizer ?? "ec-resizer"} ec-resizer-x ec-resizer-x-end`,
             "",
@@ -3148,7 +3170,7 @@ function Fe(n, t) {
             ]
           );
           if (oe.append(fe), s.eventResizableFromStart) {
-            const be = g(
+            const be = h(
               "div",
               `${s.theme.resizer ?? "ec-resizer"} ec-resizer-x ec-resizer-x-start`,
               "",
@@ -3162,12 +3184,12 @@ function Fe(n, t) {
         }
         oe.addEventListener("click", (fe) => Z?.("eventClick", { event: B, jsEvent: fe, view: t.get("view"), resource: p })), oe.addEventListener("dblclick", (fe) => Z?.("eventDoubleClick", { event: B, jsEvent: fe, view: t.get("view"), resource: p, el: oe })), oe.addEventListener("mouseenter", (fe) => Z?.("eventMouseEnter", { event: B, jsEvent: fe, view: t.get("view"), resource: p })), oe.addEventListener("mouseleave", (fe) => Z?.("eventMouseLeave", { event: B, jsEvent: fe, view: t.get("view"), resource: p })), queueMicrotask(() => Z?.("eventDidMount", { event: B, el: oe, view: t.get("view"), resource: p })), U.append(oe);
       }
-      if (M.append(U), P.append(M), p.expanded && G)
-        for (const B of S.children) I(B, d + 1);
+      if (D.append(U), O.append(D), p.expanded && G)
+        for (const B of C.children) I(B, d + 1);
     };
     for (const p of K)
       p.kind === "group" ? m(p.group) : I(p.resource, 0);
-    _.append(P), s.allowPinchZoom && si(P, t, s), n.replaceChildren(_);
+    S.append(O), s.allowPinchZoom && si(O, t, s), n.replaceChildren(S);
   };
   i();
   const r = t.onAny(({ key: s }) => {
@@ -3373,7 +3395,7 @@ function ai(n) {
   }
   return t;
 }
-function Mt({ state: n, options: t, event: e, kind: o, detailExtras: i, updateAttrs: r }) {
+function Dt({ state: n, options: t, event: e, kind: o, detailExtras: i, updateAttrs: r }) {
   const s = rt(e), a = t.confirmEventChange;
   if (typeof a == "function" && s.isSeriesMember) {
     Promise.resolve(a({
@@ -3457,15 +3479,15 @@ function vi(n, t) {
   const i = /* @__PURE__ */ new WeakMap(), r = (m) => m.closest?.("[data-event-id]"), s = (m, I) => {
     const p = typeof document < "u" && document.elementsFromPoint ? document.elementsFromPoint(m, I) : [];
     for (const d of p) {
-      const S = d.closest?.("[data-date]");
-      if (S && n.contains(S)) return S;
+      const C = d.closest?.("[data-date]");
+      if (C && n.contains(C)) return C;
     }
     return null;
   }, a = (m, I) => {
     const p = typeof document < "u" && document.elementsFromPoint ? document.elementsFromPoint(m, I) : [];
     for (const d of p) {
-      const S = d.closest?.(".ec-time-col");
-      if (S && n.contains(S)) return S;
+      const C = d.closest?.(".ec-time-col");
+      if (C && n.contains(C)) return C;
     }
     return null;
   }, u = (m) => {
@@ -3473,13 +3495,13 @@ function vi(n, t) {
     if (!I.editable && !I.eventStartEditable || m.button !== void 0 && m.button !== 0 || m.target.closest?.(".ec-resizer")) return;
     const p = r(m.target);
     if (!p) return;
-    const d = m.pointerType === "touch", S = p.getAttribute("data-event-id"), M = (t.get("filteredEvents") ?? []).find((ee) => ee.id === S);
-    if (!M) return;
-    const x = p.closest("[data-date]"), G = p.closest(".ec-time-col"), U = G?.getBoundingClientRect(), q = p.getBoundingClientRect(), Z = he(I.slotDuration) / 60 || 30, B = (I.slotHeight ?? 22) / Z, j = he(I.snapDuration) / 60 || Z, W = he(I.slotMinTime) / 60 || 0, te = U ? (m.clientY - U.top) / B : null, ie = M.start.getUTCHours() * 60 + M.start.getUTCMinutes(), ce = M.end.getUTCHours() * 60 + M.end.getUTCMinutes() + (M.end.getTime() < M.start.getTime() ? 1440 : 0);
+    const d = m.pointerType === "touch", C = p.getAttribute("data-event-id"), D = (t.get("filteredEvents") ?? []).find((ee) => ee.id === C);
+    if (!D) return;
+    const E = p.closest("[data-date]"), G = p.closest(".ec-time-col"), U = G?.getBoundingClientRect(), q = p.getBoundingClientRect(), Z = he(I.slotDuration) / 60 || 30, B = (I.slotHeight ?? 22) / Z, j = he(I.snapDuration) / 60 || Z, W = he(I.slotMinTime) / 60 || 0, te = U ? (m.clientY - U.top) / B : null, ie = D.start.getUTCHours() * 60 + D.start.getUTCMinutes(), ce = D.end.getUTCHours() * 60 + D.end.getUTCMinutes() + (D.end.getTime() < D.start.getTime() ? 1440 : 0);
     if (e = {
-      event: M,
+      event: D,
       sourceChip: p,
-      sourceDateStr: x?.getAttribute("data-date"),
+      sourceDateStr: E?.getAttribute("data-date"),
       sourceTimeCol: G,
       sourceColRect: U,
       startTimeOfDayMin: te,
@@ -3523,25 +3545,25 @@ function vi(n, t) {
       }
       e.captured = !0;
     }
-    d && (b(), C(m, p), p.classList.contains("ec-event-editing") && document.body.classList.add("ec-dragging"));
+    d && (b(), x(m, p), p.classList.contains("ec-event-editing") && document.body.classList.add("ec-dragging"));
   }, w = (m) => {
-    e && (e.touch && E(m.clientX, m.clientY), D(m, m.clientX, m.clientY));
+    e && (e.touch && _(m.clientX, m.clientY), M(m, m.clientX, m.clientY));
   }, v = (m) => {
     if (!e?.touch) return;
     const I = V(m);
-    I && D(m, I.clientX, I.clientY);
-  }, h = (m) => {
+    I && M(m, I.clientX, I.clientY);
+  }, g = (m) => {
     r(m.target)?.classList.contains("ec-event-editing") && (m.cancelable && m.preventDefault(), m.stopPropagation?.(), m.stopImmediatePropagation?.());
   };
-  function D(m, I, p) {
+  function M(m, I, p) {
     if (!e) return;
     const d = e.touch && e.sourceChip.classList.contains("ec-event-editing");
     if (d && (m.cancelable && m.preventDefault(), m.stopPropagation?.(), m.stopImmediatePropagation?.(), document.body.classList.add("ec-dragging")), e.touch && !d) return;
     e.lastX = I, e.lastY = p;
-    const S = I - e.startX, M = p - e.startY, x = t.get("options"), G = x.eventDragMinDistance ?? 5;
-    if (!e.moved && S * S + M * M < G * G) return;
+    const C = I - e.startX, D = p - e.startY, E = t.get("options"), G = E.eventDragMinDistance ?? 5;
+    if (!e.moved && C * C + D * D < G * G) return;
     if (!e.moved) {
-      if (_(), e.moved = !0, !e.touch && e.sourceChip.setPointerCapture && e.pointerId !== void 0)
+      if (S(), e.moved = !0, !e.touch && e.sourceChip.setPointerCapture && e.pointerId !== void 0)
         try {
           e.sourceChip.setPointerCapture(e.pointerId), e.captured = !0;
         } catch {
@@ -3556,11 +3578,11 @@ function vi(n, t) {
         const ce = te[ie];
         W.style.setProperty(ce, te.getPropertyValue(ce), te.getPropertyPriority(ce));
       }
-      W.classList.add(x.theme.ghost ?? "ec-ghost"), W.style.position = "fixed", W.style.pointerEvents = "none", W.style.opacity = "0.85", W.style.zIndex = "1000", W.style.margin = "0", W.style.right = "auto", W.style.bottom = "auto", W.style.width = `${e.chipWidth}px`, W.style.height = `${e.chipHeight}px`, W.style.left = `${I - e.grabOffsetX}px`, W.style.top = `${p - e.grabOffsetY}px`, e.ghost = W, document.body.appendChild(W), e.sourceChip.style.opacity = "0.4", document.body.classList.add("ec-dragging"), N(e);
+      W.classList.add(E.theme.ghost ?? "ec-ghost"), W.style.position = "fixed", W.style.pointerEvents = "none", W.style.opacity = "0.85", W.style.zIndex = "1000", W.style.margin = "0", W.style.right = "auto", W.style.bottom = "auto", W.style.width = `${e.chipWidth}px`, W.style.height = `${e.chipHeight}px`, W.style.left = `${I - e.grabOffsetX}px`, W.style.top = `${p - e.grabOffsetY}px`, e.ghost = W, document.body.appendChild(W), e.sourceChip.style.opacity = "0.4", document.body.classList.add("ec-dragging"), N(e);
     }
     const U = (p - e.startY) / e.pxPerMin, q = e.originalStartMin + U, Z = Math.round(q / e.snapMins) * e.snapMins, B = (Z - e.originalStartMin) * e.pxPerMin;
-    Dn(e, p, () => {
-      D({
+    Mn(e, p, () => {
+      M({
         cancelable: !1,
         preventDefault() {
         },
@@ -3605,29 +3627,29 @@ function vi(n, t) {
   function y(m, I, p) {
     if (!e) return;
     const d = e;
-    e = null, _(), P(d), d.pointerCancelWatchdog && (clearTimeout(d.pointerCancelWatchdog), d.pointerCancelWatchdog = null);
-    const S = t.get("pagerApi");
-    if (S?.abortStepDuringDrag)
+    e = null, S(), O(d), d.pointerCancelWatchdog && (clearTimeout(d.pointerCancelWatchdog), d.pointerCancelWatchdog = null);
+    const C = t.get("pagerApi");
+    if (C?.abortStepDuringDrag)
       try {
-        S.abortStepDuringDrag();
+        C.abortStepDuringDrag();
       } catch {
       }
     if (T(), tt(d), document.body.classList.remove("ec-dragging"), d.dayOffsetBadge && d.dayOffsetBadge.remove(), K(d), F(d), d.ghost && d.ghost.remove(), d.sourceChip && (d.sourceChip.style.opacity = ""), !d.moved) return;
-    const x = s(I, p)?.getAttribute("data-date"), G = a(I, p);
+    const E = s(I, p)?.getAttribute("data-date"), G = a(I, p);
     if (t.get("fire")?.("eventDragStop", {
       event: d.event,
       jsEvent: m,
       view: t.get("view")
-    }), et(t), !x) return;
+    }), et(t), !E) return;
     const U = t.get("options"), q = he(U.slotDuration) / 60 || 30, Z = he(U.snapDuration) / 60 || q, B = (U.slotHeight ?? 22) / q;
     let j, W, te;
     if (d.sourceTimeCol && G) {
       const oe = (p - d.startY) / B, we = d.originalStartMin + oe, be = Math.round(we / Z) * Z - d.originalStartMin, le = (/* @__PURE__ */ new Date(d.sourceDateStr + "T00:00:00Z")).getTime();
-      te = (/* @__PURE__ */ new Date(x + "T00:00:00Z")).getTime() - le + be * 6e4;
+      te = (/* @__PURE__ */ new Date(E + "T00:00:00Z")).getTime() - le + be * 6e4;
     } else {
-      if (x === d.sourceDateStr) return;
+      if (E === d.sourceDateStr) return;
       const oe = (/* @__PURE__ */ new Date(d.sourceDateStr + "T00:00:00Z")).getTime();
-      te = (/* @__PURE__ */ new Date(x + "T00:00:00Z")).getTime() - oe;
+      te = (/* @__PURE__ */ new Date(E + "T00:00:00Z")).getTime() - oe;
     }
     if (te === 0) return;
     j = new Date(d.event.start.getTime() + te), W = new Date(d.event.end.getTime() + te);
@@ -3647,7 +3669,7 @@ function vi(n, t) {
         ce = !0;
       }
     };
-    t.get("fire")?.("eventDrop", ae), !ce && Mt({
+    t.get("fire")?.("eventDrop", ae), !ce && Dt({
       state: t,
       options: t.get("options"),
       event: d.event,
@@ -3667,8 +3689,8 @@ function vi(n, t) {
   function T() {
     l && (l = !1, document.removeEventListener("touchmove", v, !0), document.removeEventListener("touchend", f, !0), document.removeEventListener("touchcancel", f, !0));
   }
-  function C(m, I) {
-    _();
+  function x(m, I) {
+    S();
     const d = t.get("options").eventLongPressDelay ?? li;
     o = {
       chip: I,
@@ -3676,25 +3698,25 @@ function vi(n, t) {
       startY: m.clientY,
       moved: !1,
       timer: setTimeout(() => {
-        !o || o.chip !== I || o.moved || !e || e.sourceChip !== I || (o = null, A(I), O(I), document.body.classList.add("ec-dragging"), typeof navigator < "u" && navigator.vibrate && navigator.vibrate(15));
+        !o || o.chip !== I || o.moved || !e || e.sourceChip !== I || (o = null, A(I), P(I), document.body.classList.add("ec-dragging"), typeof navigator < "u" && navigator.vibrate && navigator.vibrate(15));
       }, d)
     };
   }
-  function _() {
+  function S() {
     o && (clearTimeout(o.timer), o = null);
   }
-  function E(m, I) {
+  function _(m, I) {
     if (!o) return;
     const p = m - o.startX, d = I - o.startY;
-    p * p + d * d > Zt * Zt && (o.moved = !0, _());
+    p * p + d * d > Zt * Zt && (o.moved = !0, S());
   }
   function A(m) {
-    const I = m.getAttribute("data-event-id"), p = I && typeof CSS < "u" && CSS.escape ? CSS.escape(I) : I, d = I ? Array.from(n.querySelectorAll?.(`[data-event-id="${p}"]`) ?? []) : [m], S = new Set(d);
-    n.querySelectorAll?.(".ec-event.ec-event-editing").forEach((M) => {
-      S.has(M) || M.classList.remove("ec-event-editing");
-    }), d.forEach((M) => M.classList.add("ec-event-editing"));
+    const I = m.getAttribute("data-event-id"), p = I && typeof CSS < "u" && CSS.escape ? CSS.escape(I) : I, d = I ? Array.from(n.querySelectorAll?.(`[data-event-id="${p}"]`) ?? []) : [m], C = new Set(d);
+    n.querySelectorAll?.(".ec-event.ec-event-editing").forEach((D) => {
+      C.has(D) || D.classList.remove("ec-event-editing");
+    }), d.forEach((D) => D.classList.add("ec-event-editing"));
   }
-  function O(m) {
+  function P(m) {
     i.set(m, Date.now() + 800);
   }
   function R(m) {
@@ -3709,7 +3731,7 @@ function vi(n, t) {
   }
   function V(m) {
     const I = m.touches?.[0] ?? null;
-    return I && E(I.clientX, I.clientY), m.touches?.[0] ?? null;
+    return I && _(I.clientX, I.clientY), m.touches?.[0] ?? null;
   }
   function z(m) {
     return m.changedTouches?.[0] ?? null;
@@ -3738,15 +3760,15 @@ function vi(n, t) {
     if (!p) return;
     const d = n.querySelectorAll?.("[data-ec-draft-start-label]") ?? [];
     for (const G of d) G !== m.draftStartLabel && G.remove();
-    const S = (Math.round(I) % 60 + 60) % 60;
-    if (S === 0) {
+    const C = (Math.round(I) % 60 + 60) % 60;
+    if (C === 0) {
       m.draftStartLabel?.remove(), m.draftStartLabel = null;
       return;
     }
-    let M = m.draftStartLabel;
-    (!M || M.parentNode !== p) && (M?.remove(), M = document.createElement("span"), M.dataset.ecDraftStartLabel = "", M.className = "ec-draft-start-label", M.style.position = "absolute", M.style.right = "0.5rem", M.style.fontSize = "0.7rem", M.style.fontWeight = "600", M.style.color = "var(--ec-text-color, #1a1a1a)", M.style.fontVariantNumeric = "tabular-nums", M.style.lineHeight = "1", M.style.pointerEvents = "none", M.style.zIndex = "3", p.appendChild(M), m.draftStartLabel = M);
-    const x = (I - m.slotMinMin) * m.pxPerMin - 6;
-    M.style.top = `${x}px`, M.textContent = `:${String(S).padStart(2, "0")}`;
+    let D = m.draftStartLabel;
+    (!D || D.parentNode !== p) && (D?.remove(), D = document.createElement("span"), D.dataset.ecDraftStartLabel = "", D.className = "ec-draft-start-label", D.style.position = "absolute", D.style.right = "0.5rem", D.style.fontSize = "0.7rem", D.style.fontWeight = "600", D.style.color = "var(--ec-text-color, #1a1a1a)", D.style.fontVariantNumeric = "tabular-nums", D.style.lineHeight = "1", D.style.pointerEvents = "none", D.style.zIndex = "3", p.appendChild(D), m.draftStartLabel = D);
+    const E = (I - m.slotMinMin) * m.pxPerMin - 6;
+    D.style.top = `${E}px`, D.textContent = `:${String(C).padStart(2, "0")}`;
   }
   function F(m) {
     m?.draftStartLabel?.remove(), m && (m.draftStartLabel = null);
@@ -3757,28 +3779,28 @@ function vi(n, t) {
     if (!e || !e.touch || !e.sourceChip?.classList.contains("ec-event-editing") || e.swapping) return;
     const p = t.get("pagerApi");
     if (!p || typeof p.stepDuringDrag != "function" || (t.get("viewDates") ?? []).length !== 1) return;
-    const S = p.element;
-    if (!S) return;
-    const M = S.getBoundingClientRect(), x = M.width || S.offsetWidth || 0;
-    if (!x) return;
-    if (I < M.top || I > M.bottom) {
-      P(e), e.edgeHoldFirstFired = !1;
+    const C = p.element;
+    if (!C) return;
+    const D = C.getBoundingClientRect(), E = D.width || C.offsetWidth || 0;
+    if (!E) return;
+    if (I < D.top || I > D.bottom) {
+      O(e), e.edgeHoldFirstFired = !1;
       return;
     }
     const G = Math.max(
       ui,
-      Math.min(fi, x * di)
-    ), U = m <= M.left + G, q = m >= M.right - G, Z = U ? -1 : q ? 1 : 0;
+      Math.min(fi, E * di)
+    ), U = m <= D.left + G, q = m >= D.right - G, Z = U ? -1 : q ? 1 : 0;
     if (Z === 0) {
-      P(e), e.edgeHoldFirstFired = !1;
+      O(e), e.edgeHoldFirstFired = !1;
       return;
     }
     if (e.edgeHoldDirection === Z && e.edgeHoldTimer) return;
-    e.edgeHoldDirection !== Z && (e.edgeHoldFirstFired = !1), P(e), e.edgeHoldDirection = Z;
+    e.edgeHoldDirection !== Z && (e.edgeHoldFirstFired = !1), O(e), e.edgeHoldDirection = Z;
     const J = e.edgeHoldFirstFired ? hi : pi;
     e.edgeHoldTimer = setTimeout(() => X(Z), J);
   }
-  function P(m) {
+  function O(m) {
     m && (m.edgeHoldTimer && (clearTimeout(m.edgeHoldTimer), m.edgeHoldTimer = null), m.edgeHoldDirection = 0);
   }
   async function X(m) {
@@ -3809,19 +3831,19 @@ function vi(n, t) {
     }
     let p = m.dayOffsetBadge;
     p || (p = document.createElement("div"), p.className = "ec-day-offset-badge", p.setAttribute("aria-hidden", "true"), p.style.position = "absolute", p.style.top = "6px", p.style.right = "8px", p.style.padding = "2px 6px", p.style.borderRadius = "999px", p.style.background = "rgba(15, 23, 42, 0.78)", p.style.color = "#fff", p.style.fontSize = "11px", p.style.fontWeight = "600", p.style.lineHeight = "1", p.style.letterSpacing = "0.01em", p.style.pointerEvents = "none", p.style.zIndex = "2", m.ghost.appendChild(p), m.dayOffsetBadge = p);
-    const d = Math.abs(I), S = d === 1 ? "day" : "days";
-    p.textContent = I > 0 ? `+${I} ${S}` : `−${d} ${S}`;
+    const d = Math.abs(I), C = d === 1 ? "day" : "days";
+    p.textContent = I > 0 ? `+${I} ${C}` : `−${d} ${C}`;
   }
   const Y = (m) => {
     m.target.closest?.("[data-event-id]") && m.preventDefault();
   }, Q = (m) => {
     m.target.closest?.("[data-event-id]") && m.preventDefault();
   };
-  return n.addEventListener("pointerdown", u), n.addEventListener("touchstart", h, { passive: !1, capture: !0 }), n.addEventListener("click", R, !0), n.addEventListener("contextmenu", Y, !0), n.addEventListener("dragstart", Q, !0), document.addEventListener("pointermove", w, { passive: !1 }), document.addEventListener("pointerup", c), document.addEventListener("pointercancel", c), () => {
-    n.removeEventListener("pointerdown", u), n.removeEventListener("touchstart", h, !0), n.removeEventListener("click", R, !0), n.removeEventListener("contextmenu", Y, !0), n.removeEventListener("dragstart", Q, !0), document.removeEventListener("pointermove", w), document.removeEventListener("pointerup", c), document.removeEventListener("pointercancel", c), T(), _(), e && (P(e), e.dayOffsetBadge?.remove(), K(e), F(e)), e?.ghost && e.ghost.remove(), tt(e);
+  return n.addEventListener("pointerdown", u), n.addEventListener("touchstart", g, { passive: !1, capture: !0 }), n.addEventListener("click", R, !0), n.addEventListener("contextmenu", Y, !0), n.addEventListener("dragstart", Q, !0), document.addEventListener("pointermove", w, { passive: !1 }), document.addEventListener("pointerup", c), document.addEventListener("pointercancel", c), () => {
+    n.removeEventListener("pointerdown", u), n.removeEventListener("touchstart", g, !0), n.removeEventListener("click", R, !0), n.removeEventListener("contextmenu", Y, !0), n.removeEventListener("dragstart", Q, !0), document.removeEventListener("pointermove", w), document.removeEventListener("pointerup", c), document.removeEventListener("pointercancel", c), T(), S(), e && (O(e), e.dayOffsetBadge?.remove(), K(e), F(e)), e?.ghost && e.ghost.remove(), tt(e);
   };
 }
-function Dn(n, t, e) {
+function Mn(n, t, e) {
   const o = n.scrollEl ?? n.sourceChip?.closest?.('[data-row="body"]') ?? n.chip?.closest?.('[data-row="body"]') ?? null;
   if (!o) return;
   n.scrollEl = o;
@@ -3840,8 +3862,8 @@ function Dn(n, t, e) {
       n.autoScrollRaf = null;
       return;
     }
-    const w = n.scrollEl, v = w.scrollTop, h = Math.max(0, w.scrollHeight - w.clientHeight), D = Math.max(0, Math.min(h, v + n.autoScrollSpeed)), c = D - v;
-    c && Math.sign(c) === Math.sign(n.autoScrollSpeed) && (w.scrollTop = D, n.startY -= c, e?.(c)), n.autoScrollRaf = requestAnimationFrame(u);
+    const w = n.scrollEl, v = w.scrollTop, g = Math.max(0, w.scrollHeight - w.clientHeight), M = Math.max(0, Math.min(g, v + n.autoScrollSpeed)), c = M - v;
+    c && Math.sign(c) === Math.sign(n.autoScrollSpeed) && (w.scrollTop = M, n.startY -= c, e?.(c)), n.autoScrollRaf = requestAnimationFrame(u);
   };
   n.autoScrollRaf = requestAnimationFrame(u);
 }
@@ -3855,13 +3877,13 @@ function yi(n, t) {
     if (!b.editable && !b.eventDurationEditable || l.button !== void 0 && l.button !== 0) return;
     const T = l.target.closest?.(".ec-resizer");
     if (!T || !n.contains(T)) return;
-    const C = T.closest("[data-event-id]");
-    if (!C) return;
-    const _ = l.pointerType === "touch";
-    if (_ && !C.classList.contains("ec-event-editing")) return;
-    const E = C.getAttribute("data-event-id"), A = (t.get("filteredEvents") ?? []).find((K) => K.id === E);
+    const x = T.closest("[data-event-id]");
+    if (!x) return;
+    const S = l.pointerType === "touch";
+    if (S && !x.classList.contains("ec-event-editing")) return;
+    const _ = x.getAttribute("data-event-id"), A = (t.get("filteredEvents") ?? []).find((K) => K.id === _);
     if (!A) return;
-    const O = he(b.slotDuration) / 60 || 30, R = he(b.snapDuration) / 60 || O, V = (b.slotHeight ?? 22) / O, N = Array.from(n.querySelectorAll(`[data-event-id="${typeof CSS < "u" && CSS.escape ? CSS.escape(E) : E}"]`)).map((K) => {
+    const P = he(b.slotDuration) / 60 || 30, R = he(b.snapDuration) / 60 || P, V = (b.slotHeight ?? 22) / P, N = Array.from(n.querySelectorAll(`[data-event-id="${typeof CSS < "u" && CSS.escape ? CSS.escape(_) : _}"]`)).map((K) => {
       const H = K.closest(".ec-time-col");
       return H ? {
         el: K,
@@ -3872,29 +3894,29 @@ function yi(n, t) {
       } : null;
     }).filter(Boolean);
     if (e = {
-      chip: C,
+      chip: x,
       handleSide: T.getAttribute("data-resizer") === "start" ? "start" : "end",
       event: A,
       startY: l.clientY,
-      originalTopPx: parseFloat(C.style.top || "0") || 0,
-      originalHeightPx: parseFloat(C.style.height || "0") || C.getBoundingClientRect().height,
+      originalTopPx: parseFloat(x.style.top || "0") || 0,
+      originalHeightPx: parseFloat(x.style.height || "0") || x.getBoundingClientRect().height,
       pxPerMin: V,
-      slotMins: O,
+      slotMins: P,
       snapMins: R,
       moved: !1,
-      sourceCol: C.closest(".ec-time-col"),
+      sourceCol: x.closest(".ec-time-col"),
       previewChips: [],
       segments: N,
-      touch: _,
+      touch: S,
       pointerId: l.pointerId,
       lastX: l.clientX,
       lastY: l.clientY
-    }, C.classList.add("ec-resizing-y"), C.classList.add("ec-resizing"), document.body.classList.add("ec-resizing-active"), T.setPointerCapture && l.pointerId !== void 0)
+    }, x.classList.add("ec-resizing-y"), x.classList.add("ec-resizing"), document.body.classList.add("ec-resizing-active"), T.setPointerCapture && l.pointerId !== void 0)
       try {
         T.setPointerCapture(l.pointerId);
       } catch {
       }
-    _ && D(), t.get("fire")?.("eventResizeStart", { event: A, jsEvent: l, view: t.get("view") }), l.cancelable && l.preventDefault(), l.stopPropagation();
+    S && M(), t.get("fire")?.("eventResizeStart", { event: A, jsEvent: l, view: t.get("view") }), l.cancelable && l.preventDefault(), l.stopPropagation();
   }, i = (l) => {
     e && s(l, l.clientX, l.clientY);
   }, r = (l) => {
@@ -3905,14 +3927,14 @@ function yi(n, t) {
   function s(l, b, T) {
     if (!e) return;
     e.lastX = b, e.lastY = T;
-    const C = T - e.startY, _ = Math.round(C / e.pxPerMin / e.snapMins) * e.snapMins;
-    _ !== 0 && (e.moved = !0);
-    let E = null;
+    const x = T - e.startY, S = Math.round(x / e.pxPerMin / e.snapMins) * e.snapMins;
+    S !== 0 && (e.moved = !0);
+    let _ = null;
     const A = typeof document < "u" && document.elementsFromPoint ? document.elementsFromPoint(b, T) : [];
     for (const N of A) {
       const K = N.closest?.(".ec-time-col");
       if (K && n.contains(K)) {
-        E = K;
+        _ = K;
         break;
       }
     }
@@ -3920,7 +3942,7 @@ function yi(n, t) {
     e.previewChips = [];
     for (const N of e.segments)
       N.el.style.display = N.originalDisplay, N.el.style.top = `${N.originalTop}px`, N.el.style.height = `${N.originalHeight}px`;
-    const O = e.sourceCol?.parentElement, R = O ? Array.from(O.children).filter((N) => N.classList?.contains("ec-time-col")) : [], V = e.sourceCol ? R.indexOf(e.sourceCol) : -1, z = E ? R.indexOf(E) : -1;
+    const P = e.sourceCol?.parentElement, R = P ? Array.from(P.children).filter((N) => N.classList?.contains("ec-time-col")) : [], V = e.sourceCol ? R.indexOf(e.sourceCol) : -1, z = _ ? R.indexOf(_) : -1;
     if (e.handleSide === "end" && z >= 0 && V >= 0 && z < V)
       for (const N of e.segments) {
         const K = R.indexOf(N.col);
@@ -3928,33 +3950,33 @@ function yi(n, t) {
           if (K > z)
             N.el.style.display = "none";
           else {
-            const H = E.getBoundingClientRect(), F = T - H.top, k = Math.round(F / e.pxPerMin / e.snapMins) * e.snapMins * e.pxPerMin, P = N.originalTop + e.snapMins * e.pxPerMin, X = Math.max(P, k);
+            const H = _.getBoundingClientRect(), F = T - H.top, k = Math.round(F / e.pxPerMin / e.snapMins) * e.snapMins * e.pxPerMin, O = N.originalTop + e.snapMins * e.pxPerMin, X = Math.max(O, k);
             N.el.style.height = `${X - N.originalTop}px`;
           }
       }
-    else if (e.handleSide === "end" && E && e.sourceCol && E !== e.sourceCol) {
+    else if (e.handleSide === "end" && _ && e.sourceCol && _ !== e.sourceCol) {
       const N = e.sourceCol.getBoundingClientRect().height;
       if (e.chip.style.height = `${Math.max(e.snapMins * e.pxPerMin, N - e.originalTopPx - 2)}px`, V >= 0 && z > V) {
         for (let F = V + 1; F < z; ++F)
           e.previewChips.push(a(R[F], 0, R[F].getBoundingClientRect().height - 2, e));
-        const K = E.getBoundingClientRect(), H = Math.max(
+        const K = _.getBoundingClientRect(), H = Math.max(
           e.snapMins * e.pxPerMin,
           Math.round((T - K.top) / e.pxPerMin / e.snapMins) * e.snapMins * e.pxPerMin
         );
-        e.previewChips.push(a(E, 0, H, e));
+        e.previewChips.push(a(_, 0, H, e));
       }
     } else if (e.handleSide === "end") {
-      const N = Math.max(e.snapMins * e.pxPerMin, e.originalHeightPx + _ * e.pxPerMin);
+      const N = Math.max(e.snapMins * e.pxPerMin, e.originalHeightPx + S * e.pxPerMin);
       e.chip.style.height = `${N}px`;
     } else {
       const N = Math.max(
         -e.originalTopPx,
         // can't go above col start
-        Math.min(e.originalHeightPx - e.snapMins * e.pxPerMin, _ * e.pxPerMin)
+        Math.min(e.originalHeightPx - e.snapMins * e.pxPerMin, S * e.pxPerMin)
       );
       e.chip.style.top = `${e.originalTopPx + N}px`, e.chip.style.height = `${e.originalHeightPx - N}px`;
     }
-    Dn(e, T, () => {
+    Mn(e, T, () => {
       s({
         cancelable: !1,
         preventDefault() {
@@ -3966,9 +3988,9 @@ function yi(n, t) {
       }, e.lastX, e.lastY);
     }), l.cancelable && l.preventDefault();
   }
-  function a(l, b, T, C) {
-    const _ = C.chip.cloneNode(!0);
-    return _.querySelectorAll(".ec-resizer").forEach((A) => A.remove()), _.classList.add("ec-event-preview"), _.style.position = "absolute", _.style.top = `${b}px`, _.style.height = `${T}px`, _.style.left = "0", _.style.right = "0", _.style.opacity = "0.6", _.style.pointerEvents = "none", (l.querySelector(".ec-event-overlay") ?? l).appendChild(_), _;
+  function a(l, b, T, x) {
+    const S = x.chip.cloneNode(!0);
+    return S.querySelectorAll(".ec-resizer").forEach((A) => A.remove()), S.classList.add("ec-event-preview"), S.style.position = "absolute", S.style.top = `${b}px`, S.style.height = `${T}px`, S.style.left = "0", S.style.right = "0", S.style.opacity = "0.6", S.style.pointerEvents = "none", (l.querySelector(".ec-event-overlay") ?? l).appendChild(S), S;
   }
   const u = (l) => {
     e?.touch && l.type === "pointercancel" || v(l, l.clientX, l.clientY);
@@ -3979,17 +4001,17 @@ function yi(n, t) {
   };
   function v(l, b, T) {
     if (!e) return;
-    const C = e;
-    e = null, c(), tt(C), C.chip.classList.remove("ec-resizing-y"), C.chip.classList.remove("ec-resizing"), document.body.classList.remove("ec-resizing-active");
-    for (const L of C.previewChips) L.remove();
-    if (C.previewChips = [], !C.moved) {
-      for (const L of C.segments)
+    const x = e;
+    e = null, c(), tt(x), x.chip.classList.remove("ec-resizing-y"), x.chip.classList.remove("ec-resizing"), document.body.classList.remove("ec-resizing-active");
+    for (const L of x.previewChips) L.remove();
+    if (x.previewChips = [], !x.moved) {
+      for (const L of x.segments)
         L.el.style.display = L.originalDisplay, L.el.style.top = `${L.originalTop}px`, L.el.style.height = `${L.originalHeight}px`;
-      t.get("fire")?.("eventResizeStop", { event: C.event, jsEvent: l, view: t.get("view") }), et(t);
+      t.get("fire")?.("eventResizeStop", { event: x.event, jsEvent: l, view: t.get("view") }), et(t);
       return;
     }
-    const _ = T - C.startY, A = Math.round(_ / C.pxPerMin / C.snapMins) * C.snapMins * 6e4;
-    let O = new Date(C.event.start.getTime()), R = new Date(C.event.end.getTime());
+    const S = T - x.startY, A = Math.round(S / x.pxPerMin / x.snapMins) * x.snapMins * 6e4;
+    let P = new Date(x.event.start.getTime()), R = new Date(x.event.end.getTime());
     const V = (() => {
       const L = typeof document < "u" && document.elementsFromPoint ? document.elementsFromPoint(b, T) : [];
       for (const Y of L) {
@@ -3997,22 +4019,22 @@ function yi(n, t) {
         if (Q && n.contains(Q)) return Q;
       }
       return null;
-    })(), z = C.chip.closest(".ec-time-col"), N = V?.getAttribute("data-date"), K = z?.getAttribute("data-date");
+    })(), z = x.chip.closest(".ec-time-col"), N = V?.getAttribute("data-date"), K = z?.getAttribute("data-date");
     if (V && z && N !== K) {
-      const L = t.get("options"), Y = he(L.slotMinTime) / 60 || 0, Q = V.getBoundingClientRect(), m = T - Q.top, p = Math.max(0, Math.round(m / C.pxPerMin / C.snapMins) * C.snapMins) + Y;
-      C.handleSide === "end" ? (R = /* @__PURE__ */ new Date(N + "T00:00:00Z"), R.setUTCMinutes(R.getUTCMinutes() + p), R <= O && (R = new Date(O.getTime() + C.snapMins * 6e4))) : (O = /* @__PURE__ */ new Date(N + "T00:00:00Z"), O.setUTCMinutes(O.getUTCMinutes() + p), O >= R && (O = new Date(R.getTime() - C.snapMins * 6e4)));
-    } else C.handleSide === "end" ? (R = new Date(R.getTime() + A), R <= O && (R = new Date(O.getTime() + C.snapMins * 6e4))) : (O = new Date(O.getTime() + A), O >= R && (O = new Date(R.getTime() - C.snapMins * 6e4)));
+      const L = t.get("options"), Y = he(L.slotMinTime) / 60 || 0, Q = V.getBoundingClientRect(), m = T - Q.top, p = Math.max(0, Math.round(m / x.pxPerMin / x.snapMins) * x.snapMins) + Y;
+      x.handleSide === "end" ? (R = /* @__PURE__ */ new Date(N + "T00:00:00Z"), R.setUTCMinutes(R.getUTCMinutes() + p), R <= P && (R = new Date(P.getTime() + x.snapMins * 6e4))) : (P = /* @__PURE__ */ new Date(N + "T00:00:00Z"), P.setUTCMinutes(P.getUTCMinutes() + p), P >= R && (P = new Date(R.getTime() - x.snapMins * 6e4)));
+    } else x.handleSide === "end" ? (R = new Date(R.getTime() + A), R <= P && (R = new Date(P.getTime() + x.snapMins * 6e4))) : (P = new Date(P.getTime() + A), P >= R && (P = new Date(R.getTime() - x.snapMins * 6e4)));
     let H = !1;
-    t.get("fire")?.("eventResizeStop", { event: C.event, jsEvent: l, view: t.get("view") }), et(t);
-    const F = { ...C.event, start: C.event.start, end: C.event.end }, k = rt(C.event), P = C.handleSide === "end" ? { milliseconds: A, days: 0 } : { milliseconds: 0, days: 0 }, X = C.handleSide === "start" ? { milliseconds: A, days: 0 } : { milliseconds: 0, days: 0 };
+    t.get("fire")?.("eventResizeStop", { event: x.event, jsEvent: l, view: t.get("view") }), et(t);
+    const F = { ...x.event, start: x.event.start, end: x.event.end }, k = rt(x.event), O = x.handleSide === "end" ? { milliseconds: A, days: 0 } : { milliseconds: 0, days: 0 }, X = x.handleSide === "start" ? { milliseconds: A, days: 0 } : { milliseconds: 0, days: 0 };
     if (t.get("fire")?.("eventResize", {
-      event: C.event,
+      event: x.event,
       oldEvent: F,
-      newStart: O,
+      newStart: P,
       newEnd: R,
       jsEvent: l,
       view: t.get("view"),
-      endDelta: P,
+      endDelta: O,
       startDelta: X,
       isOccurrence: k.isSeriesMember,
       seriesId: k.seriesId,
@@ -4020,29 +4042,29 @@ function yi(n, t) {
         H = !0;
       }
     }), H) {
-      for (const L of C.segments)
+      for (const L of x.segments)
         L.el.style.display = L.originalDisplay, L.el.style.top = `${L.originalTop}px`, L.el.style.height = `${L.originalHeight}px`;
       return;
     }
-    Mt({
+    Dt({
       state: t,
       options: t.get("options"),
-      event: C.event,
+      event: x.event,
       kind: "resize",
-      detailExtras: { oldEvent: F, startDelta: X, endDelta: P },
+      detailExtras: { oldEvent: F, startDelta: X, endDelta: O },
       updateAttrs: {
-        id: C.event.id,
-        start: O.toISOString(),
+        id: x.event.id,
+        start: P.toISOString(),
         end: R.toISOString()
       }
     });
   }
-  let h = !1;
-  function D() {
-    h || (h = !0, document.addEventListener("touchmove", r, { passive: !1, capture: !0 }), document.addEventListener("touchend", w, { passive: !1, capture: !0 }), document.addEventListener("touchcancel", w, { passive: !1, capture: !0 }));
+  let g = !1;
+  function M() {
+    g || (g = !0, document.addEventListener("touchmove", r, { passive: !1, capture: !0 }), document.addEventListener("touchend", w, { passive: !1, capture: !0 }), document.addEventListener("touchcancel", w, { passive: !1, capture: !0 }));
   }
   function c() {
-    h && (h = !1, document.removeEventListener("touchmove", r, !0), document.removeEventListener("touchend", w, !0), document.removeEventListener("touchcancel", w, !0));
+    g && (g = !1, document.removeEventListener("touchmove", r, !0), document.removeEventListener("touchend", w, !0), document.removeEventListener("touchcancel", w, !0));
   }
   function f(l) {
     return l.touches?.[0] ?? null;
@@ -4085,18 +4107,18 @@ function wi(n, t) {
     if (!y || !n.contains(y)) return;
     const l = y.getAttribute("data-date");
     if (!l) return;
-    const b = he(f.slotDuration) / 60 || 30, T = he(f.snapDuration) / 60 || b, C = (f.slotHeight ?? 22) / b, _ = he(f.slotMinTime) / 60 || 0, E = y.getBoundingClientRect(), A = c.clientY - E.top, O = Math.max(0, Math.round(A / C / T) * T);
+    const b = he(f.slotDuration) / 60 || 30, T = he(f.snapDuration) / 60 || b, x = (f.slotHeight ?? 22) / b, S = he(f.slotMinTime) / 60 || 0, _ = y.getBoundingClientRect(), A = c.clientY - _.top, P = Math.max(0, Math.round(A / x / T) * T);
     e = {
       sourceCol: y,
       sourceDateStr: l,
-      sourceMinFromTop: O,
+      sourceMinFromTop: P,
       slotMins: b,
       snapMins: T,
-      pxPerMin: C,
-      slotMinMin: _,
+      pxPerMin: x,
+      slotMinMin: S,
       previewChips: [],
       moved: !1
-    }, c.cancelable && c.preventDefault(), document.addEventListener("pointermove", h, { passive: !1 }), document.addEventListener("pointerup", D), document.addEventListener("pointercancel", D);
+    }, c.cancelable && c.preventDefault(), document.addEventListener("pointermove", g, { passive: !1 }), document.addEventListener("pointerup", M), document.addEventListener("pointercancel", M);
   }
   function u(c, f) {
     const y = r(c.clientX, c.clientY) ?? f.sourceCol, l = y.getBoundingClientRect(), b = c.clientY - l.top, T = Math.max(0, Math.round(b / f.pxPerMin / f.snapMins) * f.snapMins);
@@ -4110,20 +4132,20 @@ function wi(n, t) {
     w(c);
     const y = i(c.sourceCol), l = y.indexOf(c.sourceCol), b = y.indexOf(f.col);
     if (l < 0 || b < 0) return;
-    const T = b >= l, C = Math.min(l, b), _ = Math.max(l, b);
-    for (let E = C; E <= _; ++E) {
-      const A = y[E], O = A.getBoundingClientRect().height;
+    const T = b >= l, x = Math.min(l, b), S = Math.max(l, b);
+    for (let _ = x; _ <= S; ++_) {
+      const A = y[_], P = A.getBoundingClientRect().height;
       let R, V;
-      l === b ? (R = Math.min(c.sourceMinFromTop, f.mins), V = Math.max(c.sourceMinFromTop, f.mins), V = Math.max(V, R + c.snapMins)) : T ? E === l ? (R = c.sourceMinFromTop, V = O / c.pxPerMin) : E === b ? (R = 0, V = Math.max(c.snapMins, f.mins)) : (R = 0, V = O / c.pxPerMin) : E === l ? (R = 0, V = Math.max(c.snapMins, c.sourceMinFromTop)) : E === b ? (R = f.mins, V = O / c.pxPerMin) : (R = 0, V = O / c.pxPerMin);
+      l === b ? (R = Math.min(c.sourceMinFromTop, f.mins), V = Math.max(c.sourceMinFromTop, f.mins), V = Math.max(V, R + c.snapMins)) : T ? _ === l ? (R = c.sourceMinFromTop, V = P / c.pxPerMin) : _ === b ? (R = 0, V = Math.max(c.snapMins, f.mins)) : (R = 0, V = P / c.pxPerMin) : _ === l ? (R = 0, V = Math.max(c.snapMins, c.sourceMinFromTop)) : _ === b ? (R = f.mins, V = P / c.pxPerMin) : (R = 0, V = P / c.pxPerMin);
       const z = Math.max(c.snapMins, V - R), N = s(A);
-      if (N.style.top = `${R * c.pxPerMin}px`, N.style.height = `${z * c.pxPerMin}px`, E === C) {
+      if (N.style.top = `${R * c.pxPerMin}px`, N.style.height = `${z * c.pxPerMin}px`, _ === x) {
         const K = T ? c.sourceMinFromTop : f.mins, H = T ? f.mins : c.sourceMinFromTop;
         N.textContent = `${Kt(K + c.slotMinMin)} – ${Kt((H || 1440) + c.slotMinMin)}`;
       }
       c.previewChips.push(N);
     }
   }
-  function h(c) {
+  function g(c) {
     if (!e) return;
     c.clientY - (e.previewChips[0], c.clientY);
     const f = Math.abs(c.clientY - (e.sourceCol.getBoundingClientRect().top + e.sourceMinFromTop * e.pxPerMin));
@@ -4131,30 +4153,30 @@ function wi(n, t) {
     const y = u(c, e);
     v(e, y), c.cancelable && c.preventDefault();
   }
-  function D(c) {
+  function M(c) {
     if (!e) return;
     const f = e;
-    if (e = null, document.removeEventListener("pointermove", h), document.removeEventListener("pointerup", D), document.removeEventListener("pointercancel", D), w(f), !f.moved) return;
+    if (e = null, document.removeEventListener("pointermove", g), document.removeEventListener("pointerup", M), document.removeEventListener("pointercancel", M), w(f), !f.moved) return;
     const y = u(c, f), l = y.col === f.sourceCol, b = y.col.getAttribute("data-date"), T = /* @__PURE__ */ new Date(f.sourceDateStr + "T00:00:00Z");
     T.setUTCMinutes(T.getUTCMinutes() + f.sourceMinFromTop + f.slotMinMin);
-    const C = /* @__PURE__ */ new Date(b + "T00:00:00Z");
-    C.setUTCMinutes(C.getUTCMinutes() + y.mins + f.slotMinMin);
-    let _ = T, E = C;
+    const x = /* @__PURE__ */ new Date(b + "T00:00:00Z");
+    x.setUTCMinutes(x.getUTCMinutes() + y.mins + f.slotMinMin);
+    let S = T, _ = x;
     if (l) {
-      const A = Math.min(f.sourceMinFromTop, y.mins), O = Math.max(f.sourceMinFromTop, y.mins);
-      _ = /* @__PURE__ */ new Date(f.sourceDateStr + "T00:00:00Z"), _.setUTCMinutes(_.getUTCMinutes() + A + f.slotMinMin), E = /* @__PURE__ */ new Date(f.sourceDateStr + "T00:00:00Z"), E.setUTCMinutes(E.getUTCMinutes() + Math.max(O, A + f.snapMins) + f.slotMinMin);
-    } else _ > E && ([_, E] = [E, _]);
+      const A = Math.min(f.sourceMinFromTop, y.mins), P = Math.max(f.sourceMinFromTop, y.mins);
+      S = /* @__PURE__ */ new Date(f.sourceDateStr + "T00:00:00Z"), S.setUTCMinutes(S.getUTCMinutes() + A + f.slotMinMin), _ = /* @__PURE__ */ new Date(f.sourceDateStr + "T00:00:00Z"), _.setUTCMinutes(_.getUTCMinutes() + Math.max(P, A + f.snapMins) + f.slotMinMin);
+    } else S > _ && ([S, _] = [_, S]);
     t.get("fire")?.("dateClick", {
-      date: _,
-      dateStr: _.toISOString().substring(0, 10),
+      date: S,
+      dateStr: S.toISOString().substring(0, 10),
       allDay: !1,
-      end: E,
+      end: _,
       jsEvent: c,
       view: t.get("view")
     });
   }
   return n.addEventListener("pointerdown", a), () => {
-    n.removeEventListener("pointerdown", a), document.removeEventListener("pointermove", h), document.removeEventListener("pointerup", D), document.removeEventListener("pointercancel", D);
+    n.removeEventListener("pointerdown", a), document.removeEventListener("pointermove", g), document.removeEventListener("pointerup", M), document.removeEventListener("pointercancel", M);
   };
 }
 function Kt(n) {
@@ -4173,21 +4195,21 @@ function bi(n, t) {
     const s = r.target.closest("[data-date]");
     if (!s || r.target.closest("[data-event-id], .ec-resizer, [data-more-link], [data-popover-action]")) return;
     if (e?.pointerType === "touch") {
-      const D = n.querySelector('.ec-time-grid [data-row="body"]');
-      if (D && e.scrollTop != null && Math.abs(D.scrollTop - e.scrollTop) > 4 || n.querySelector(".ec-pager.ec-pager-dragging"))
+      const M = n.querySelector('.ec-time-grid [data-row="body"]');
+      if (M && e.scrollTop != null && Math.abs(M.scrollTop - e.scrollTop) > 4 || n.querySelector(".ec-pager.ec-pager-dragging"))
         return;
     }
     const a = s.getAttribute("data-date"), u = t.get("fire"), w = r.target.closest(".ec-time-col");
-    let v, h;
+    let v, g;
     if (w) {
-      const D = t.get("options"), c = he(D.slotDuration) / 60 || 30, f = he(D.snapDuration) / 60 || c, l = (D.slotHeight ?? 22) / c, b = w.getBoundingClientRect(), T = r.clientY - b.top, C = he(D.slotMinTime) / 60 || 0, _ = Math.max(0, Math.round(T / l / f) * f) + C;
-      v = /* @__PURE__ */ new Date(a + "T00:00:00Z"), v.setUTCMinutes(v.getUTCMinutes() + _), h = !1;
+      const M = t.get("options"), c = he(M.slotDuration) / 60 || 30, f = he(M.snapDuration) / 60 || c, l = (M.slotHeight ?? 22) / c, b = w.getBoundingClientRect(), T = r.clientY - b.top, x = he(M.slotMinTime) / 60 || 0, S = Math.max(0, Math.round(T / l / f) * f) + x;
+      v = /* @__PURE__ */ new Date(a + "T00:00:00Z"), v.setUTCMinutes(v.getUTCMinutes() + S), g = !1;
     } else
-      v = /* @__PURE__ */ new Date(a + "T00:00:00Z"), h = !0;
+      v = /* @__PURE__ */ new Date(a + "T00:00:00Z"), g = !0;
     u?.("dateClick", {
       date: v,
-      dateStr: v.toISOString().substring(0, h ? 10 : 16),
-      allDay: h,
+      dateStr: v.toISOString().substring(0, g ? 10 : 16),
+      allDay: g,
       jsEvent: r,
       view: t.get("view")
     });
@@ -4199,36 +4221,36 @@ function bi(n, t) {
 function Ti(n, t) {
   let e = null;
   const o = (v) => {
-    const h = v.closest?.("[data-event-id]");
-    return !h || !h.closest(".ec-timeline-ribbon") ? null : h;
-  }, i = (v, h) => {
-    const D = typeof document < "u" && document.elementsFromPoint ? document.elementsFromPoint(v, h) : [];
-    for (const c of D) {
+    const g = v.closest?.("[data-event-id]");
+    return !g || !g.closest(".ec-timeline-ribbon") ? null : g;
+  }, i = (v, g) => {
+    const M = typeof document < "u" && document.elementsFromPoint ? document.elementsFromPoint(v, g) : [];
+    for (const c of M) {
       const f = c.closest?.(".ec-timeline-ribbon");
       if (f && n.contains(f)) return f;
     }
     return null;
   }, r = (v) => v?.closest?.(".ec-timeline-row"), s = (v) => r(v)?.getAttribute("data-resource-id") ?? null, a = (v) => {
-    const h = t.get("options");
+    const g = t.get("options");
     if (v.button !== void 0 && v.button !== 0) return;
-    const D = o(v.target);
-    if (!D) return;
-    const c = D.closest(".ec-timeline-ribbon"), f = c.getBoundingClientRect(), y = c.querySelectorAll(":scope > .ec-timeline-cells > .ec-timeline-cell"), l = y.length ? f.width / y.length : h.slotWidth ?? 32, b = (t.get("filteredEvents") ?? []).find((_) => _.id === D.getAttribute("data-event-id"));
+    const M = o(v.target);
+    if (!M) return;
+    const c = M.closest(".ec-timeline-ribbon"), f = c.getBoundingClientRect(), y = c.querySelectorAll(":scope > .ec-timeline-cells > .ec-timeline-cell"), l = y.length ? f.width / y.length : g.slotWidth ?? 32, b = (t.get("filteredEvents") ?? []).find((S) => S.id === M.getAttribute("data-event-id"));
     if (!b) return;
-    const T = v.target.closest?.(".ec-resizer"), C = !!T && T.getAttribute("data-resize-axis") === "x";
-    if (!(C && !(h.editable && h.eventDurationEditable !== !1)) && !(!C && !(h.editable || h.eventStartEditable))) {
+    const T = v.target.closest?.(".ec-resizer"), x = !!T && T.getAttribute("data-resize-axis") === "x";
+    if (!(x && !(g.editable && g.eventDurationEditable !== !1)) && !(!x && !(g.editable || g.eventStartEditable))) {
       if (e = {
-        kind: C ? "resize" : "move",
-        side: C ? T.getAttribute("data-resizer") === "start" ? "start" : "end" : null,
-        chip: D,
+        kind: x ? "resize" : "move",
+        side: x ? T.getAttribute("data-resizer") === "start" ? "start" : "end" : null,
+        chip: M,
         event: b,
         ribbon: c,
         ribbonRect: f,
         dayWidth: l,
         sourceResourceId: s(c),
         lastResourceId: s(c),
-        originalLeft: parseFloat(D.style.left || "0") || 0,
-        originalWidth: parseFloat(D.style.width || "0") || D.getBoundingClientRect().width,
+        originalLeft: parseFloat(M.style.left || "0") || 0,
+        originalWidth: parseFloat(M.style.width || "0") || M.getBoundingClientRect().width,
         startX: v.clientX,
         startY: v.clientY,
         lastX: v.clientX,
@@ -4241,9 +4263,9 @@ function Ti(n, t) {
           T.setPointerCapture(v.pointerId);
         } catch {
         }
-      else if (D.setPointerCapture && v.pointerId !== void 0)
+      else if (M.setPointerCapture && v.pointerId !== void 0)
         try {
-          D.setPointerCapture(v.pointerId);
+          M.setPointerCapture(v.pointerId);
         } catch {
         }
       v.cancelable && v.preventDefault(), v.stopPropagation?.();
@@ -4251,14 +4273,14 @@ function Ti(n, t) {
   }, u = (v) => {
     if (!e) return;
     e.lastX = v.clientX, e.lastY = v.clientY;
-    const h = v.clientX - e.startX, D = v.clientY - e.startY, f = t.get("options").eventDragMinDistance ?? 5;
-    if (!e.moved && h * h + D * D < f * f) return;
+    const g = v.clientX - e.startX, M = v.clientY - e.startY, f = t.get("options").eventDragMinDistance ?? 5;
+    if (!e.moved && g * g + M * M < f * f) return;
     e.moved || (e.moved = !0, e.chip.classList.add(e.kind === "resize" ? "ec-resizing-x" : "ec-dragging"), e.chip.style.zIndex = "50", t.get("fire")?.(e.kind === "resize" ? "eventResizeStart" : "eventDragStart", {
       event: e.event,
       jsEvent: v,
       view: t.get("view")
     }));
-    const y = Math.round(h / e.dayWidth);
+    const y = Math.round(g / e.dayWidth);
     if (e.lastDayDelta = y, e.kind === "move")
       e.chip.style.left = `${e.originalLeft + y * e.dayWidth}px`;
     else if (e.side === "end") {
@@ -4278,57 +4300,57 @@ function Ti(n, t) {
     v.cancelable && v.preventDefault();
   }, w = (v) => {
     if (!e) return;
-    const h = e;
-    if (e = null, n.querySelectorAll('.ec-timeline-row[data-row-drop="true"]').forEach((O) => O.removeAttribute("data-row-drop")), h.chip.classList.remove("ec-resizing-x"), h.chip.classList.remove("ec-dragging"), h.chip.style.zIndex = "", !h.moved) return;
-    t.get("fire")?.(h.kind === "resize" ? "eventResizeStop" : "eventDragStop", {
-      event: h.event,
+    const g = e;
+    if (e = null, n.querySelectorAll('.ec-timeline-row[data-row-drop="true"]').forEach((P) => P.removeAttribute("data-row-drop")), g.chip.classList.remove("ec-resizing-x"), g.chip.classList.remove("ec-dragging"), g.chip.style.zIndex = "", !g.moved) return;
+    t.get("fire")?.(g.kind === "resize" ? "eventResizeStop" : "eventDragStop", {
+      event: g.event,
       jsEvent: v,
       view: t.get("view")
     }), et(t);
-    const D = 864e5;
-    let c = new Date(h.event.start.getTime()), f = new Date(h.event.end.getTime()), y = h.event.resourceIds, l = !1;
-    if (h.kind === "move") {
-      if (c = new Date(c.getTime() + h.lastDayDelta * D), f = new Date(f.getTime() + h.lastDayDelta * D), h.lastResourceId && h.lastResourceId !== h.sourceResourceId) {
-        const O = (h.event.resourceIds ?? []).slice(), R = O.indexOf(h.sourceResourceId);
-        R >= 0 ? O[R] = h.lastResourceId : O.push(h.lastResourceId), y = O, l = !0;
+    const M = 864e5;
+    let c = new Date(g.event.start.getTime()), f = new Date(g.event.end.getTime()), y = g.event.resourceIds, l = !1;
+    if (g.kind === "move") {
+      if (c = new Date(c.getTime() + g.lastDayDelta * M), f = new Date(f.getTime() + g.lastDayDelta * M), g.lastResourceId && g.lastResourceId !== g.sourceResourceId) {
+        const P = (g.event.resourceIds ?? []).slice(), R = P.indexOf(g.sourceResourceId);
+        R >= 0 ? P[R] = g.lastResourceId : P.push(g.lastResourceId), y = P, l = !0;
       }
-    } else h.side === "end" ? (f = new Date(f.getTime() + h.lastDayDelta * D), f.getTime() <= c.getTime() && (f = new Date(c.getTime() + D))) : (c = new Date(c.getTime() + h.lastDayDelta * D), c.getTime() >= f.getTime() && (c = new Date(f.getTime() - D)));
+    } else g.side === "end" ? (f = new Date(f.getTime() + g.lastDayDelta * M), f.getTime() <= c.getTime() && (f = new Date(c.getTime() + M))) : (c = new Date(c.getTime() + g.lastDayDelta * M), c.getTime() >= f.getTime() && (c = new Date(f.getTime() - M)));
     let b = !1;
-    const T = { ...h.event, start: h.event.start, end: h.event.end }, C = h.kind === "resize" ? "eventResize" : "eventDrop", _ = rt(h.event), E = {
-      event: h.event,
+    const T = { ...g.event, start: g.event.start, end: g.event.end }, x = g.kind === "resize" ? "eventResize" : "eventDrop", S = rt(g.event), _ = {
+      event: g.event,
       oldEvent: T,
       newStart: c,
       newEnd: f,
       jsEvent: v,
       view: t.get("view"),
-      isOccurrence: _.isSeriesMember,
-      seriesId: _.seriesId,
+      isOccurrence: S.isSeriesMember,
+      seriesId: S.seriesId,
       revert: () => {
         b = !0;
       }
     };
-    if (h.kind === "move")
-      E.delta = { days: h.lastDayDelta, milliseconds: h.lastDayDelta * D }, l && (E.oldResource = h.sourceResourceId, E.newResource = h.lastResourceId, E.newResourceIds = y);
+    if (g.kind === "move")
+      _.delta = { days: g.lastDayDelta, milliseconds: g.lastDayDelta * M }, l && (_.oldResource = g.sourceResourceId, _.newResource = g.lastResourceId, _.newResourceIds = y);
     else {
-      const O = h.lastDayDelta * D;
-      E.endDelta = h.side === "end" ? { milliseconds: O, days: h.lastDayDelta } : { milliseconds: 0, days: 0 }, E.startDelta = h.side === "start" ? { milliseconds: O, days: h.lastDayDelta } : { milliseconds: 0, days: 0 };
+      const P = g.lastDayDelta * M;
+      _.endDelta = g.side === "end" ? { milliseconds: P, days: g.lastDayDelta } : { milliseconds: 0, days: 0 }, _.startDelta = g.side === "start" ? { milliseconds: P, days: g.lastDayDelta } : { milliseconds: 0, days: 0 };
     }
-    if (t.get("fire")?.(C, E), b) return;
+    if (t.get("fire")?.(x, _), b) return;
     const A = {
-      id: h.event.id,
+      id: g.event.id,
       start: c.toISOString(),
       end: f.toISOString()
     };
-    l && (A.resourceIds = y), Mt({
+    l && (A.resourceIds = y), Dt({
       state: t,
       options: t.get("options"),
-      event: h.event,
-      kind: h.kind === "resize" ? "resize" : "drop",
+      event: g.event,
+      kind: g.kind === "resize" ? "resize" : "drop",
       detailExtras: {
         oldEvent: T,
-        delta: E.delta,
-        startDelta: E.startDelta,
-        endDelta: E.endDelta
+        delta: _.delta,
+        startDelta: _.startDelta,
+        endDelta: _.endDelta
       },
       updateAttrs: A
     });
@@ -4355,9 +4377,9 @@ function Si(n, t) {
     if (s(), !c || !f) return;
     const y = Array.from(n.querySelectorAll("[data-date]")), l = y.indexOf(c), b = y.indexOf(f);
     if (l < 0 || b < 0) return;
-    const T = Math.min(l, b), C = Math.max(l, b);
-    for (let _ = T; _ <= C; ++_)
-      y[_].classList.add("ec-select-highlight"), i.push(y[_]);
+    const T = Math.min(l, b), x = Math.max(l, b);
+    for (let S = T; S <= x; ++S)
+      y[S].classList.add("ec-select-highlight"), i.push(y[S]);
   }, u = (c) => {
     const y = t.get("options").selectConstraint;
     if (!y) return !0;
@@ -4387,14 +4409,14 @@ function Si(n, t) {
       }
       w(c, y), c.cancelable && c.preventDefault();
     }
-  }, h = (c) => {
+  }, g = (c) => {
     if (o && (clearTimeout(o.timer), o = null), !e) return;
     const f = c.clientX - e.startX, y = c.clientY - e.startY, l = t.get("options").selectMinDistance ?? 5;
     if (!e.moved && f * f + y * y < l * l) return;
     e.moved = !0;
     const b = r(c.clientX, c.clientY);
     b && (e.lastCell = b, a(e.sourceCell, b), c.cancelable && c.preventDefault());
-  }, D = (c) => {
+  }, M = (c) => {
     if (o && (clearTimeout(o.timer), o = null), !e) return;
     const f = e;
     if (e = null, !f.moved) {
@@ -4402,24 +4424,24 @@ function Si(n, t) {
       return;
     }
     const y = f.lastCell, l = f.sourceDate, b = y.getAttribute("data-date");
-    let T = l <= b ? l : b, C = l <= b ? b : l;
-    const _ = /* @__PURE__ */ new Date(T + "T00:00:00Z"), E = /* @__PURE__ */ new Date(C + "T00:00:00Z"), A = new Date(E.getTime() + 864e5);
-    if (!u(_) || !u(A)) {
+    let T = l <= b ? l : b, x = l <= b ? b : l;
+    const S = /* @__PURE__ */ new Date(T + "T00:00:00Z"), _ = /* @__PURE__ */ new Date(x + "T00:00:00Z"), A = new Date(_.getTime() + 864e5);
+    if (!u(S) || !u(A)) {
       s();
       return;
     }
-    const O = f.sourceCell.closest?.("[data-resource-id]")?.getAttribute("data-resource-id"), R = {
-      start: _,
+    const P = f.sourceCell.closest?.("[data-resource-id]")?.getAttribute("data-resource-id"), R = {
+      start: S,
       end: A,
       allDay: !0,
-      resource: O ?? null,
+      resource: P ?? null,
       jsEvent: c,
       view: t.get("view")
     };
-    t.set("selection", { start: _, end: A, resource: O ?? null }), t.get("fire")?.("select", R), t.get("options").unselectAuto;
+    t.set("selection", { start: S, end: A, resource: P ?? null }), t.get("fire")?.("select", R), t.get("options").unselectAuto;
   };
-  return n.addEventListener("pointerdown", v), document.addEventListener("pointermove", h, { passive: !1 }), document.addEventListener("pointerup", D), document.addEventListener("pointercancel", D), () => {
-    n.removeEventListener("pointerdown", v), document.removeEventListener("pointermove", h), document.removeEventListener("pointerup", D), document.removeEventListener("pointercancel", D), o && clearTimeout(o.timer), s();
+  return n.addEventListener("pointerdown", v), document.addEventListener("pointermove", g, { passive: !1 }), document.addEventListener("pointerup", M), document.addEventListener("pointercancel", M), () => {
+    n.removeEventListener("pointerdown", v), document.removeEventListener("pointermove", g), document.removeEventListener("pointerup", M), document.removeEventListener("pointercancel", M), o && clearTimeout(o.timer), s();
   };
 }
 const Ci = {
@@ -4431,7 +4453,7 @@ const Ci = {
   ResourceTimeline: ri,
   Interaction: ci
 };
-function Di(n) {
+function Mi(n) {
   const t = [];
   for (const e of n)
     if (typeof e == "string") {
@@ -4441,10 +4463,10 @@ function Di(n) {
       t.push(e);
   return t;
 }
-const Mi = () => globalThis.crypto?.randomUUID?.() ?? `o-${Math.random().toString(36).slice(2)}-${Date.now()}`;
+const Di = () => globalThis.crypto?.randomUUID?.() ?? `o-${Math.random().toString(36).slice(2)}-${Date.now()}`;
 class xi {
   constructor(t, { filter: e } = {}) {
-    this.adapter = t, this.filter = typeof e == "function" ? e : null, this.origin = Mi(), this.subscribers = /* @__PURE__ */ new Set(), t && typeof t.onReceive == "function" && t.onReceive((o) => {
+    this.adapter = t, this.filter = typeof e == "function" ? e : null, this.origin = Di(), this.subscribers = /* @__PURE__ */ new Set(), t && typeof t.onReceive == "function" && t.onReceive((o) => {
       if (o?.origin !== this.origin)
         for (const i of this.subscribers) i(o);
     });
@@ -4585,7 +4607,7 @@ function Pi(n, t, e = {}) {
       return console.warn("[stimulus_calendar] unknown broadcast adapter", n), null;
   }
 }
-function Ii({
+function Oi({
   hostEl: n,
   eventId: t,
   serverValue: e,
@@ -4594,38 +4616,38 @@ function Ii({
   buttonText: r,
   onResolve: s
 }) {
-  const a = g("div", "ec-conflict-backdrop", "", [
+  const a = h("div", "ec-conflict-backdrop", "", [
     ["role", "presentation"]
-  ]), u = g("div", "ec-conflict-modal", "", [
+  ]), u = h("div", "ec-conflict-modal", "", [
     ["role", "dialog"],
     ["aria-modal", "true"],
     ["aria-labelledby", "ec-conflict-title"]
-  ]), w = g(
+  ]), w = h(
     "h2",
     "ec-conflict-title",
     r?.conflictTitle ?? "Edit conflict",
     [["id", "ec-conflict-title"]]
-  ), v = g(
+  ), v = h(
     "p",
     "ec-conflict-message",
     r?.conflictMessage ?? "This event was changed by someone else while you were editing it. Pick which version to keep."
-  ), h = g("div", "ec-conflict-values");
-  h.append(
+  ), g = h("div", "ec-conflict-values");
+  g.append(
     Jt("theirs", r?.conflictTheirs ?? "Theirs (server)", e),
     Jt("mine", r?.conflictMine ?? "Yours", o)
   );
-  const D = g("div", "ec-conflict-actions"), c = g(
+  const M = h("div", "ec-conflict-actions"), c = h(
     "button",
     "ec-conflict-action ec-conflict-action-theirs",
     r?.conflictUseTheirs ?? "Use theirs",
     [["type", "button"]]
-  ), f = g(
+  ), f = h(
     "button",
     "ec-conflict-action ec-conflict-action-mine",
     r?.conflictKeepMine ?? "Keep mine",
     [["type", "button"]]
   );
-  D.append(c, f), u.append(w, v, h, D), a.append(u), n.append(a);
+  M.append(c, f), u.append(w, v, g, M), a.append(u), n.append(a);
   let y = !1;
   function l(T) {
     y || (y = !0, document.removeEventListener("keydown", b), a.remove(), s?.({ resolution: T, eventId: t, serverValue: e, clientValue: o }));
@@ -4639,12 +4661,12 @@ function Ii({
   return document.addEventListener("keydown", b), queueMicrotask(() => c.focus?.()), { close: () => l("dismissed"), root: a };
 }
 function Jt(n, t, e) {
-  const o = g("div", `ec-conflict-value ec-conflict-value-${n}`);
-  o.append(g("h3", "ec-conflict-value-label", t));
-  const i = g("pre", "ec-conflict-value-body");
-  return i.textContent = Oi(e), o.append(i), o;
+  const o = h("div", `ec-conflict-value ec-conflict-value-${n}`);
+  o.append(h("h3", "ec-conflict-value-label", t));
+  const i = h("pre", "ec-conflict-value-body");
+  return i.textContent = Ii(e), o.append(i), o;
 }
-function Oi(n) {
+function Ii(n) {
   if (n == null) return "(none)";
   try {
     return JSON.stringify(n, Ri, 2);
@@ -4728,7 +4750,7 @@ const nt = class nt extends En {
   }
   _loadPlugins(t) {
     if (!ot(t) || !t.length) return [];
-    const e = Di(t);
+    const e = Mi(t);
     return eo(e);
   }
   // Install the derived-state pipeline. _recompute() is exposed on `this`
@@ -4797,7 +4819,7 @@ const nt = class nt extends En {
   }
   _showConflictModal(t) {
     this._activeConflictModal && (this._activeConflictModal.close(), this._activeConflictModal = null);
-    const e = this._state.get("options"), o = typeof e.conflictRenderer == "function" ? e.conflictRenderer : Ii, i = String(t.eventId ?? t.event?.id), r = {
+    const e = this._state.get("options"), o = typeof e.conflictRenderer == "function" ? e.conflictRenderer : Oi, i = String(t.eventId ?? t.event?.id), r = {
       hostEl: this.element,
       eventId: i,
       serverValue: t.serverValue ?? t.server_value ?? null,
@@ -4923,7 +4945,7 @@ const nt = class nt extends En {
       return;
     }
     if (typeof t == "function") {
-      const i = Oo(this._mainEl, this._state, t, {
+      const i = Io(this._mainEl, this._state, t, {
         onNavigate: ({ direction: r, date: s }) => {
           s ? this.element.calendarApi?.gotoDate(s) : r > 0 ? this.element.calendarApi?.next() : r < 0 && this.element.calendarApi?.prev();
         }
@@ -5046,11 +5068,11 @@ const nt = class nt extends En {
         const i = t.getEventById(String(e));
         if (!i) return null;
         const r = o || this._root?.querySelector(`[data-event-id="${CSS.escape(String(e))}"]`);
-        return r ? It({ event: i, anchorEl: r, state: this._state }) : null;
+        return r ? Ot({ event: i, anchorEl: r, state: this._state }) : null;
       },
       closeEventPopover: xe,
       isEventPopoverOpen: Co,
-      openEventPopoverId: Do
+      openEventPopoverId: Mo
     };
     this.element.calendarApi = t;
   }
@@ -5131,7 +5153,7 @@ const nt = class nt extends En {
     const t = (e) => {
       const { event: o, el: i } = e.detail ?? {};
       !o || !i || queueMicrotask(() => {
-        e.defaultPrevented || this._state.get("options")?.suppressEventPopover || It({ event: o, anchorEl: i, state: this._state });
+        e.defaultPrevented || this._state.get("options")?.suppressEventPopover || Ot({ event: o, anchorEl: i, state: this._state });
       });
     };
     this.element.addEventListener("calendar:eventDoubleClick", t), this._teardowns.push(() => this.element.removeEventListener("calendar:eventDoubleClick", t)), this._teardowns.push(() => xe());
@@ -5149,8 +5171,8 @@ const nt = class nt extends En {
     const t = this._state.get("options"), e = [], o = Array.isArray(t.eventSources) && t.eventSources.length > 0;
     t.events !== void 0 && !o && e.push(t.events), o && e.push(...t.eventSources);
     const i = this._state.get("activeRange"), r = i ? {
-      start: Ie(i.start, 10),
-      end: Ie(i.end, 10)
+      start: Oe(i.start, 10),
+      end: Oe(i.end, 10)
     } : {}, s = [];
     for (const a of e) {
       const u = await this._resolveSource(a, r);
@@ -5211,7 +5233,7 @@ const nt = class nt extends En {
       if (r && this._root.contains(r)) {
         const s = r.getAttribute("data-date"), a = de(s), u = i.closest?.(".ec-time-col");
         if (u) {
-          const w = u.getBoundingClientRect(), v = this._state.get("options"), h = (v.slotDuration?.seconds ?? 1800) / 60 || 30, D = (v.slotHeight ?? 22) / h, c = Math.max(0, Math.round((e - w.top) / D));
+          const w = u.getBoundingClientRect(), v = this._state.get("options"), g = (v.slotDuration?.seconds ?? 1800) / 60 || 30, M = (v.slotHeight ?? 22) / g, c = Math.max(0, Math.round((e - w.top) / M));
           a.setUTCMinutes(a.getUTCMinutes() + c);
         }
         return a;
@@ -5319,8 +5341,8 @@ _t(nt, "values", {
   broadcast: String,
   broadcastChannel: String
 });
-let Oe = nt;
-Oe.OPTION_KEYS = [
+let Ie = nt;
+Ie.OPTION_KEYS = [
   "view",
   "date",
   "duration",
@@ -5376,7 +5398,7 @@ function Fi(n) {
   return t.start instanceof Date && (t.start = Qt(t.start)), t.end instanceof Date && (t.end = Qt(t.end)), t;
 }
 function Qt(n) {
-  const t = Ie(n, 19), e = Qe(n);
+  const t = Oe(n, 19), e = Qe(n);
   if (e === void 0) return t;
   const o = e >= 0 ? "+" : "-", i = Math.abs(e), r = String(Math.floor(i / 60)).padStart(2, "0"), s = String(i % 60).padStart(2, "0");
   return `${t}${o}${r}:${s}`;
@@ -5384,7 +5406,7 @@ function Qt(n) {
 const Ni = "0.0.0", jt = /* @__PURE__ */ new WeakSet();
 function $i(n) {
   const t = n ?? en.start();
-  return jt.has(t) || (jt.add(t), t.register("calendar", Oe)), t;
+  return jt.has(t) || (jt.add(t), t.register("calendar", Ie)), t;
 }
 const Tt = /* @__PURE__ */ new WeakMap();
 function Bi(n, t = {}) {
@@ -5395,7 +5417,7 @@ function Bi(n, t = {}) {
     [(n.getAttribute("data-controller") || "").trim(), "calendar"].filter(Boolean).join(" ")
   );
   const e = en.start();
-  return e.register("calendar", Oe), Tt.set(n, e), n;
+  return e.register("calendar", Ie), Tt.set(n, e), n;
 }
 function Ui(n) {
   const t = Tt.get(n);
@@ -5405,12 +5427,12 @@ const Wi = {
   start: $i,
   create: Bi,
   destroy: Ui,
-  CalendarController: Oe,
+  CalendarController: Ie,
   VERSION: Ni
 };
 typeof window < "u" && !window.__stimulusCalendarStarted && (window.__stimulusCalendarStarted = !0, window.StimulusCalendar = Wi);
 export {
-  Oe as CalendarController,
+  Ie as CalendarController,
   Ni as VERSION,
   Bi as create,
   Wi as default,
