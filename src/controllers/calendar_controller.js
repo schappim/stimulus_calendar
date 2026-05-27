@@ -992,8 +992,17 @@ export default class CalendarController extends Controller {
   async _refetchEvents() {
     const options = this._state.get('options');
     const sources = [];
-    if (options.events !== undefined) sources.push(options.events);
-    if (Array.isArray(options.eventSources)) sources.push(...options.eventSources);
+    // When BOTH options.events AND options.eventSources are set, the
+    // inline `options.events` array is a first-paint snapshot only —
+    // views fall back to it when state.events is unpopulated, but
+    // re-including it in refetch would duplicate every event against
+    // the URL response (same id, two DOM nodes, dragging one moves
+    // both). When only options.events is set (no eventSources), it
+    // remains a valid refetch source — keeps the single-array source
+    // path working when callers explicitly call refetchEvents().
+    const hasUrlSources = Array.isArray(options.eventSources) && options.eventSources.length > 0;
+    if (options.events !== undefined && !hasUrlSources) sources.push(options.events);
+    if (hasUrlSources) sources.push(...options.eventSources);
 
     const ar = this._state.get('activeRange');
     const params = ar ? {
