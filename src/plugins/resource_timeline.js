@@ -51,6 +51,9 @@ export const ResourceTimelinePlugin = {
       // its "new appointment for crew Y on day Z" sheet pre-filled.
       emptyCellAddButton: undefined,
       cellClick: undefined,
+      // Phase A7 — bars narrower than this (px) get .ec-event-narrow so
+      // per-bar CSS can hide secondary text (time meta, subtitle).
+      eventNarrowThreshold: 60,
     });
     Object.assign(options.buttonText, {
       expand: 'Expand',

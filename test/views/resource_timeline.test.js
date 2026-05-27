@@ -218,6 +218,29 @@ describe('view: resourceTimeline', () => {
     }
   });
 
+  it('applies ec-event-narrow when a bar is below eventNarrowThreshold (Phase A7)', async () => {
+    const el = await mount(`<div data-controller="calendar"
+      data-calendar-plugins-value='["ResourceTimeline"]'
+      data-calendar-view-value="resourceTimelineWeek"
+      data-calendar-date-value="2026-05-25"
+      data-calendar-options-value='{"slotWidth":40,"eventNarrowThreshold":60}'
+      data-calendar-resources-value='[{"id":"r1","title":"Room A"}]'>
+    </div>`);
+    el.calendarApi.addEvent({
+      id:'thin', title:'Hi', resourceIds:['r1'],
+      start:'2026-05-26', end:'2026-05-27', allDay:true,
+    });
+    const thin = el.querySelector('[data-event-id="thin"]');
+    expect(thin.classList.contains('ec-event-narrow')).toBe(true);
+
+    el.calendarApi.addEvent({
+      id:'wide', title:'Multi day', resourceIds:['r1'],
+      start:'2026-05-25', end:'2026-05-30', allDay:true,
+    });
+    const wide = el.querySelector('[data-event-id="wide"]');
+    expect(wide.classList.contains('ec-event-narrow')).toBe(false);
+  });
+
   it('positions an event ribbon at the right day offset', async () => {
     const el = await mount(`<div data-controller="calendar"
       data-calendar-plugins-value='["ResourceTimeline"]'

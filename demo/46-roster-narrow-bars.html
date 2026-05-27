@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>stimulus_calendar — Narrow bars (Phase A7)</title>
+  <link rel="stylesheet" href="../src/styles/calendar.css">
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; margin: 2rem; }
+    .ec { width: 1080px; }
+    h1 { font-size: 1.25rem; }
+    .controls { margin: 0.5rem 0 1rem; display: flex; gap: 0.5rem; align-items: center; }
+    .controls input { width: 5rem; padding: 0.25rem 0.4rem; }
+    .note { color: #475569; font-size: 0.875rem; max-width: 65ch; margin-bottom: 1rem; }
+  </style>
+</head>
+<body>
+  <h1>Narrow bar mode — auto class below threshold</h1>
+  <p class="note">
+    Phase A7. Each bar gets an <code>.ec-event-narrow</code> class as soon
+    as its rendered width is below <code>eventNarrowThreshold</code> (px).
+    Default CSS hides time meta / subtitles; host CSS can hook the same
+    class for any other "tight bar" tweaks. Resize the slotWidth slider
+    to watch bars hop across the threshold (resize observer fires per bar).
+  </p>
+  <div class="controls">
+    <label>slotWidth (px):
+      <input type="range" id="sw" min="40" max="160" value="100" />
+      <span id="swv">100</span>
+    </label>
+    <label>narrowThreshold (px):
+      <input type="range" id="nt" min="30" max="200" value="60" />
+      <span id="ntv">60</span>
+    </label>
+  </div>
+  <div data-controller="calendar"
+       data-calendar-plugins-value='["ResourceTimeline"]'
+       data-calendar-view-value="resourceTimelineWeek"
+       data-calendar-date-value="2026-05-25"
+       data-calendar-options-value='{"slotWidth":100,"eventNarrowThreshold":60}'
+       data-calendar-resources-value='[
+         {"id":"will","title":"Will Tan"},
+         {"id":"mike","title":"Mike O"}
+       ]'>
+  </div>
+  <script type="module">
+    import { Application } from '/node_modules/@hotwired/stimulus/dist/stimulus.js';
+    import CalendarController from '/src/controllers/calendar_controller.js';
+    const app = Application.start();
+    app.register('calendar', CalendarController);
+    await new Promise((r) => setTimeout(r, 80));
+    const el = document.querySelector('[data-controller="calendar"]');
+
+    el.calendarApi.addEvent({ id:'tiny',  title:'1d',         resourceIds:['will'], start:'2026-05-26', end:'2026-05-27', allDay:true });
+    el.calendarApi.addEvent({ id:'two',   title:'2-day job',  resourceIds:['will'], start:'2026-05-28', end:'2026-05-30', allDay:true });
+    el.calendarApi.addEvent({ id:'wide',  title:'Whole week site visit',
+                              resourceIds:['mike'], start:'2026-05-25', end:'2026-05-30', allDay:true });
+
+    const sw  = document.getElementById('sw');
+    const swv = document.getElementById('swv');
+    const nt  = document.getElementById('nt');
+    const ntv = document.getElementById('ntv');
+    sw.addEventListener('input', () => {
+      swv.textContent = sw.value;
+      el.calendarApi.setOption('slotWidth', Number(sw.value));
+    });
+    nt.addEventListener('input', () => {
+      ntv.textContent = nt.value;
+      el.calendarApi.setOption('eventNarrowThreshold', Number(nt.value));
+    });
+  </script>
+</body>
+</html>

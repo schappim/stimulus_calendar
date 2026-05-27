@@ -330,8 +330,25 @@ export function renderResourceTimelineView(container, state) {
         ]);
         chip.style.position = 'absolute';
         chip.style.left = `${Math.max(0, startDayIdx) * dayWidth}px`;
-        chip.style.width = `${Math.max(endIdx - Math.max(0, startDayIdx), 1) * dayWidth}px`;
+        const chipWidthPx = Math.max(endIdx - Math.max(0, startDayIdx), 1) * dayWidth;
+        chip.style.width = `${chipWidthPx}px`;
         if (event.backgroundColor) chip.style.setProperty('--ec-event-color', event.backgroundColor);
+
+        // Phase A7 — narrow auto-class. Apply synchronously off the
+        // computed inline width so the host's first paint already gets
+        // the right classes (no flash of wide-mode content collapsing
+        // when the ResizeObserver lands on the next frame).
+        const narrowAt = Number(options.eventNarrowThreshold ?? 60);
+        if (chipWidthPx < narrowAt) chip.classList.add('ec-event-narrow');
+        if (typeof ResizeObserver !== 'undefined') {
+          const ro = new ResizeObserver(() => {
+            const w = chip.getBoundingClientRect().width;
+            chip.classList.toggle('ec-event-narrow', w < narrowAt);
+          });
+          ro.observe(chip);
+          // The observer follows the chip; it's GC'd when the chip is
+          // removed because nothing else holds a reference to it.
+        }
 
         // Phase A5 — left / right resize handles. Mirrors the TimeGrid
         // chip's resizer convention: data-resizer="start" / "end" with

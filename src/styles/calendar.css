@@ -964,6 +964,22 @@
   align-items: center;
 }
 
+/* Narrow-mode chip styling (Phase A7). When a bar is below
+ * eventNarrowThreshold px wide, hide the time meta and tighten padding
+ * so the title still fits without spilling. Drives both the dense
+ * Month-zoom roster and the regular Week-zoom roster when a one-day
+ * event happens to be only a single slotWidth wide. */
+.ec-timeline .ec-event.ec-event-narrow {
+  padding-left: 0.5rem;
+  padding-right: 0.25rem;
+  font-size: 0.7rem;
+}
+
+.ec-timeline .ec-event.ec-event-narrow .ec-event-time,
+.ec-timeline .ec-event.ec-event-narrow .ec-event-subtitle {
+  display: none;
+}
+
 /* Inset accent strip — matches the time-grid chip's language so a bar
  * dragged onto the timeline reads with the same identity cue, instead
  * of a chunky 3px border-left. */
