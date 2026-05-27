@@ -1615,7 +1615,10 @@
   align-items: center;
   gap: 0.75rem;
   padding: 0.625rem 1rem;
-  border-bottom: 1px solid #f1f5f9;
+  /* Row divider — follow the calendar's border token so dark mode
+   * doesn't paint near-white separators (the previous hardcoded
+   * slate-100 rendered as a glaring line on the dark Agenda view). */
+  border-bottom: 1px solid var(--ec-border-color);
   background: var(--ec-bg-color);
   color: var(--ec-event-title-color);
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI",
