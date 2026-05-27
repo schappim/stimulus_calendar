@@ -117,6 +117,46 @@ export function viewDidMountEffect() {
   };
 }
 
+// loadEvents — invoke `refetch()` whenever the rendered range actually
+// shifts. Solves the URL-event-source bootstrap (the controller exposes
+// `refetchEvents()` but nothing previously auto-called it on initial
+// mount or navigation) AND prevents the post-fetch loop:
+//
+//   refetchEvents → setState('events') → recompute → state.set('activeRange', NEW_AR)
+//   ───────────────── activeRange changes by REFERENCE every recompute,
+//                     because derived.js#activeRange returns a fresh
+//                     `{ start, end }` ─ so `deps: ['activeRange']`
+//                     fires on every recompute, not just when the user
+//                     navigated to a different range.
+//
+// The fix here: dedupe by the time-value content of activeRange, not by
+// reference. A post-fetch recompute that lands on the same window is a
+// no-op; only a genuine prev/next/view-switch/gotoDate triggers a new
+// fetch. Direct `calendarApi.refetchEvents()` calls bypass this effect
+// (they call _refetchEvents directly) so explicit refetches always run.
+export function loadEventsEffect(refetch) {
+  let lastKey = null;
+  return {
+    deps: ['activeRange'],
+    run(state) {
+      const ar = state.get('activeRange');
+      if (!ar?.start || !ar?.end) return;
+      const key = `${ar.start.getTime()}|${ar.end.getTime()}`;
+      if (key === lastKey) return;
+      lastKey = key;
+      // Only fetch when there's something to fetch from — pure inline
+      // `options.events: [...]` arrays don't need a refetch round-trip.
+      const options = state.get('options');
+      const hasUrlSource = Array.isArray(options.eventSources) && options.eventSources.length > 0;
+      const hasFnEvents = typeof options.events === 'function';
+      if (!hasUrlSource && !hasFnEvents) return;
+      // Fire-and-forget; refetch returns a Promise but the effect runner
+      // doesn't await it.
+      refetch();
+    },
+  };
+}
+
 // runEventAllUpdated — fire options.eventAllUpdated + dispatch
 // calendar:eventAllUpdated after every events change, batched with
 // setTimeout so a flurry of updates fires once.

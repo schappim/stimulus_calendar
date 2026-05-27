@@ -4,7 +4,7 @@ import { createPluginState, normalisePlugins } from '../lib/plugins.js';
 import {
   installEffects,
   switchViewEffect, datesSetEffect, viewDidMountEffect,
-  eventAllUpdatedEffect, nowAndTodayEffect, timeZoneChangeEffect,
+  eventAllUpdatedEffect, loadEventsEffect, nowAndTodayEffect, timeZoneChangeEffect,
 } from '../lib/effects.js';
 import {
   currentRange, activeRange, viewDates, viewTitle,
@@ -484,6 +484,11 @@ export default class CalendarController extends Controller {
       datesSetEffect(),
       viewDidMountEffect(),
       eventAllUpdatedEffect(),
+      // Auto-load URL/function event sources on initial mount and on
+      // every genuine range change (prev / next / today / view switch /
+      // gotoDate). Dedupes by activeRange content so the post-fetch
+      // recompute doesn't trigger another fetch.
+      loadEventsEffect(() => this._refetchEvents()),
       timeZoneChangeEffect((k, v) => this.setOption(k, v)),
       nowAndTodayEffect(),
     ]);
