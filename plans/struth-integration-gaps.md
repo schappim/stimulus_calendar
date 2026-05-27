@@ -283,3 +283,52 @@ If we tackle these, dependency-ordered:
 6. S7 (Hotwire Native bridge channel).
 7. S8 (`resource.visible`).
 8. S4, S11, S12, S13 — polish + Phase-14 dependency.
+
+---
+
+## Status (this branch)
+
+Shipped against `main` in dependency order — every item below landed
+with unit + integration tests on the JS side. Search `git log
+--oneline plans/struth-integration-gaps.md` for the chain.
+
+- [x] **S3** — `extendedProps.dataAttrs` passthrough (helper +
+  five-view wiring).
+- [x] **S9** — post-gesture chip-click suppression (capture-phase
+  swallow at the calendar root, armed by `*Stop` fire sites in the
+  Interaction plugin).
+- [x] **S10** — touch-aware `dateClick` gate (suppress when the
+  time-grid body scrolled or the pager is mid-swipe).
+- [x] **S5** — `eventTypes` mapping option + auto
+  `ec-event-type-{slug}` class + color fallback.
+- [x] **S6** — per-resource `workingHours` + `.ec-resource-offhours`
+  bands in both resource views, themable via
+  `--ec-resource-offhours-bg`.
+- [x] **S1** — `confirmEventChange` option, `isOccurrence` + `seriesId`
+  on every eventDrop/eventResize detail, `calendar:eventChangeConfirmed`
+  fired with scope when committed.
+- [x] **S2** — series-aware Turbo Stream ops (`skip-occurrence`,
+  `override-occurrence`) on both the gem helper and the JS adapter,
+  with the latent attribute-hoisting gap in `turbo_stream.js` closed
+  as a side-effect (`readCalendarEventStream` now hoists kebab attrs
+  to camelCase on the message).
+- [x] **S7** — `bridgeActions: true` opt-in + `calendar:bridgeAction`
+  channel for tap-to-call / tap-to-navigate / open-resource. Web
+  fallback preserved (the link's natural href fires when no
+  `preventDefault` is called).
+- [x] **S8** — `resource.visible: false` filters the lane / row out
+  without a refetch.
+
+Open (deferred — not blockers for Struth adoption):
+
+- [ ] **S4** — optimistic update reconciliation (`op="confirm"` /
+  `op="revert"` + `X-Optimistic-Id`). Already tracked in
+  `RAILS.md §4` as the 0.2 work; listing here for visibility, not
+  re-doing.
+- [ ] **S11** — `event.startLocal` / `event.endLocal` boundary
+  helpers. Polish; host can do `calToLocal` today.
+- [ ] **S12** — `eventAppearAnimation` (`fly-in` / `highlight-pulse`).
+  Polish; deferred until visual design exists.
+- [ ] **S13** — Default themable conflict UI for `op="conflict"`.
+  Wants a design pass on the modal shape; deferred until a host
+  asks for the rendered default.
