@@ -557,9 +557,16 @@ function attachEventDragHandler(rootEl, state) {
     let reverted = false;
     const oldEvent = { ...d.event, start: d.event.start, end: d.event.end };
     const series = eventMetaSeriesInfo(d.event);
+    // newStart / newEnd carry the candidate post-drop times so listeners
+    // can persist them without recomputing from `delta`. The event itself
+    // isn't mutated until maybeCommitWithConfirm runs below — by which
+    // point any async host PATCH has already missed the chance to read
+    // the new values off the event.
     const dropDetail = {
       event: d.event,
       oldEvent,
+      newStart,
+      newEnd,
       delta: { days: Math.round(delta / dayMs), milliseconds: delta },
       jsEvent,
       view: state.get('view'),
@@ -1319,6 +1326,8 @@ function attachEventResizeHandler(rootEl, state) {
     state.get('fire')?.('eventResize', {
       event: r.event,
       oldEvent: oldResizeEvent,
+      newStart,
+      newEnd,
       jsEvent,
       view: state.get('view'),
       endDelta,
@@ -1885,9 +1894,15 @@ function attachTimelineBarHandler(rootEl, state) {
     const oldEvent = { ...d.event, start: d.event.start, end: d.event.end };
     const fireName = d.kind === 'resize' ? 'eventResize' : 'eventDrop';
     const tlSeries = eventMetaSeriesInfo(d.event);
+    // newStart / newEnd carry the candidate post-drop times — see the
+    // DayGrid/TimeGrid drop site above for the rationale (host listeners
+    // that want to persist need the new times, but the event isn't
+    // mutated until after the eventDrop dispatch).
     const detail = {
       event: d.event,
       oldEvent,
+      newStart,
+      newEnd,
       jsEvent,
       view: state.get('view'),
       isOccurrence: tlSeries.isSeriesMember,

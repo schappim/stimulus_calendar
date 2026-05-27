@@ -3613,6 +3613,8 @@ function gi(n, t) {
     const ee = { ...d.event, start: d.event.start, end: d.event.end }, ue = rt(d.event), ae = {
       event: d.event,
       oldEvent: ee,
+      newStart: j,
+      newEnd: W,
       delta: { days: Math.round(te / ie), milliseconds: te },
       jsEvent: m,
       view: t.get("view"),
@@ -3983,6 +3985,8 @@ function mi(n, t) {
     if (t.get("fire")?.("eventResize", {
       event: S.event,
       oldEvent: F,
+      newStart: O,
+      newEnd: R,
       jsEvent: l,
       view: t.get("view"),
       endDelta: A,
@@ -4270,6 +4274,8 @@ function wi(n, t) {
     const C = { ...h.event, start: h.event.start, end: h.event.end }, S = h.kind === "resize" ? "eventResize" : "eventDrop", x = rt(h.event), L = {
       event: h.event,
       oldEvent: C,
+      newStart: c,
+      newEnd: f,
       jsEvent: v,
       view: t.get("view"),
       isOccurrence: x.isSeriesMember,
