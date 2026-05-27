@@ -701,12 +701,14 @@
   border: 1px solid var(--ec-border-color);
   border-radius: 0.25rem;
   background: var(--ec-bg-color);
-  /* No internal overflow constraint by default -- the calendar takes
-   * its natural width and the nearest scrolling ancestor (e.g. the
-   * page body) drives sticky positioning. Hosts that want internal
-   * scrolling can wrap with .ec-timeline-scroll-host below or set
-   * overflow:auto on the host element. */
-  overflow: visible;
+  /* overflow:auto so the calendar takes its allocated width
+   * (whatever the host puts on .ec) and any content wider than that
+   * scrolls INSIDE the calendar -- not the body. position:sticky on
+   * .ec-row-head + the [data-row="header"] block resolves against
+   * THIS element, so the row-head and day-axis stay pinned during
+   * scroll. When content fits the host's width no scrollbars appear,
+   * so unconstrained demos still look identical. */
+  overflow: auto;
 }
 
 .ec-timeline {

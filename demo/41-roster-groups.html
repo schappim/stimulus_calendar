@@ -6,25 +6,13 @@
   <link rel="stylesheet" href="../src/styles/calendar.css">
   <style>
     body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; margin: 2rem; }
+    .ec { width: 1080px; }
     h1 { font-size: 1.25rem; }
     .note { color: #475569; font-size: 0.875rem; max-width: 60ch; margin-bottom: 1rem; }
     .actions { margin: 0.5rem 0 1rem; display: flex; gap: 0.5rem; }
     .actions button { padding: 0.4rem 0.75rem; }
     .log { font: 12px/1.4 ui-monospace, monospace; background: #f1f5f9;
            padding: 0.5rem 0.75rem; border-radius: 4px; max-height: 8rem; overflow:auto; }
-
-    /* Bounded scroll host — exercises sticky-left row-head against a
-     * width-constrained scroll container. The calendar itself takes
-     * its natural width (rowhead 160 + days * slotWidth); this
-     * wrapper clips horizontally so the strip needs to scroll. */
-    .scroll-host {
-      width: 720px;
-      max-width: 100%;
-      overflow-x: auto;
-      border: 1px solid #cbd5e1;
-      border-radius: 6px;
-    }
-    .scroll-host .ec { width: max-content; min-width: 720px; }
   </style>
 </head>
 <body>
