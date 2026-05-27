@@ -147,7 +147,16 @@ export function renderTimeGridView(container, state) {
           ['data-event-id', event.id],
           ...eventMetaDataAttrs(event),
         ]);
-        if (event.backgroundColor) chip.style.backgroundColor = event.backgroundColor;
+        // Use the same `--ec-event-color` channel the BODY chip below
+        // sets, instead of inline-setting backgroundColor — that drops
+        // the all-day chip through the same color-mix wash + accent
+        // strip styling, so the title contrast matches the body chips.
+        // Previously the inline backgroundColor pinned the chip to the
+        // full accent (e.g. solid amber), leaving the default dark
+        // title text unreadable against bright fills.
+        const adBgColor = event.backgroundColor;
+        if (adBgColor) chip.style.setProperty('--ec-event-color', adBgColor);
+        if (event.textColor) chip.style.color = event.textColor;
         chip.style.position = 'absolute';
         chip.style.left = '1px';
         chip.style.right = 'auto';
