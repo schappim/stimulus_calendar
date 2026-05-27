@@ -328,6 +328,66 @@ describe('view: resourceTimeline', () => {
     expect(weekEdges.length).toBe(3);
   });
 
+  it('setMode adds data-calendar-mode and fires modeChange (Phase D1)', async () => {
+    const el = await mount(`<div data-controller="calendar"
+      data-calendar-plugins-value='["ResourceTimeline"]'
+      data-calendar-view-value="resourceTimelineWeek"
+      data-calendar-date-value="2026-05-25"
+      data-calendar-resources-value='[{"id":"r1","title":"Will"}]'>
+    </div>`);
+    const events = [];
+    el.addEventListener('calendar:modeChange', (e) => events.push(e.detail));
+    el.calendarApi.setMode('scheduling-x', { jobId: 42 });
+    expect(el.getAttribute('data-calendar-mode')).toBe('scheduling-x');
+    expect(el.calendarApi.getMode()).toBe('scheduling-x');
+    expect(el.calendarApi.getModeContext().jobId).toBe(42);
+    expect(events[0].mode).toBe('scheduling-x');
+    el.calendarApi.clearMode();
+    expect(el.getAttribute('data-calendar-mode')).toBeNull();
+  });
+
+  it('cellAffordanceWhen + mode lights up the affordance class (Phase D2)', async () => {
+    const el = await mount(`<div data-controller="calendar"
+      data-calendar-plugins-value='["ResourceTimeline"]'
+      data-calendar-view-value="resourceTimelineWeek"
+      data-calendar-date-value="2026-05-25"
+      data-calendar-options-value='{"cellAffordanceWhen":"__truthy__"}'
+      data-calendar-resources-value='[{"id":"r1","title":"Will"}]'>
+    </div>`);
+    // The options bundle can't carry a function via JSON, so install
+    // the gate via setOption instead.
+    el.calendarApi.setOption('cellAffordanceWhen', (mode) => mode === 'scheduling-x');
+    el.calendarApi.setMode('scheduling-x', null);
+    await new Promise((r) => queueMicrotask(r));
+    const lit = el.querySelectorAll('.ec-timeline-cell-affordance');
+    expect(lit.length).toBe(7);
+    el.calendarApi.clearMode();
+    await new Promise((r) => queueMicrotask(r));
+    expect(el.querySelectorAll('.ec-timeline-cell-affordance').length).toBe(0);
+  });
+
+  it('setSuggestedSlot paints a slot on the strip pane (Phase D3)', async () => {
+    const el = await mount(`<div data-controller="calendar"
+      data-calendar-plugins-value='["ResourceTimeline"]'
+      data-calendar-view-value="resourceTimelineWeek"
+      data-calendar-date-value="2026-05-25"
+      data-calendar-options-value='{"slotWidth":100}'
+      data-calendar-resources-value='[{"id":"r1","title":"Will"}]'>
+    </div>`);
+    el.calendarApi.setSuggestedSlot({
+      start: '2026-05-27', end: '2026-05-28', resourceId: 'r1',
+    });
+    await new Promise((r) => queueMicrotask(r));
+    const slot = el.querySelector('[data-suggested-slot]');
+    expect(slot).toBeTruthy();
+    expect(slot.getAttribute('data-resource-id')).toBe('r1');
+    const events = [];
+    el.addEventListener('calendar:suggestedSlotClick', (e) => events.push(e.detail));
+    slot.click();
+    expect(events.length).toBe(1);
+    expect(events[0].resourceId).toBe('r1');
+  });
+
   it('positions an event ribbon at the right day offset', async () => {
     const el = await mount(`<div data-controller="calendar"
       data-calendar-plugins-value='["ResourceTimeline"]'

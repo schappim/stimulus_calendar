@@ -247,6 +247,37 @@ export function renderResourceTimelineView(container, state) {
       }
     }
 
+    // ------ Suggested slot (Phase D3) -----------------------------------
+    const suggested = state.get('suggestedSlot');
+    if (suggested?.start && suggested?.end) {
+      const xL = xForDate(suggested.start);
+      const xR = xForDate(suggested.end);
+      if (!(xR <= 0 || xL >= totalWidth)) {
+        const slot = createElement('div', 'ec-suggested-slot', '', [
+          ['data-suggested-slot', ''],
+          ['data-resource-id', suggested.resourceId ?? ''],
+        ]);
+        slot.style.left = `${Math.max(0, xL)}px`;
+        slot.style.width = `${Math.max(8, Math.min(totalWidth, xR) - Math.max(0, xL))}px`;
+        slot.style.top = '4px';
+        slot.style.bottom = '4px';
+        // Anchor to the matching resource row when resourceId is set;
+        // otherwise stretch across all rows in the strip pane.
+        if (suggested.resourceId) {
+          slot.dataset.suggestedAnchor = suggested.resourceId;
+        }
+        // Click → fire suggestedSlotClick with the slot payload.
+        slot.style.pointerEvents = 'auto';
+        slot.addEventListener('click', (jsEvent) => {
+          state.get('fire')?.('suggestedSlotClick', {
+            start: suggested.start, end: suggested.end,
+            resourceId: suggested.resourceId, jsEvent, view: state.get('view'),
+          });
+        });
+        stripsCol.append(slot);
+      }
+    }
+
     // ------ Per-row rendering (both columns in lock-step) ----------------
     const renderGroupHeader = (group) => {
       const headRow = createElement('div', `${theme.groupHeader} ec-group-row-head`, '', [
@@ -375,6 +406,14 @@ export function renderResourceTimelineView(container, state) {
         }
       }
 
+      // Phase D2 — mode-aware affordance. When a mode is active AND
+      // options.cellAffordanceWhen(mode) returns truthy, every empty
+      // cell forces the affordance on (not just on hover) so the user
+      // can see drop targets at a glance.
+      const mode = state.get('mode');
+      const affordanceOn = mode && typeof options.cellAffordanceWhen === 'function'
+        && options.cellAffordanceWhen(mode);
+
       // Cells layer (empty-cell affordance + cellClick).
       const cellsLayer = createElement('div', 'ec-timeline-cells');
       cellsLayer.style.position = 'absolute';
@@ -391,13 +430,13 @@ export function renderResourceTimelineView(container, state) {
           const isDayBoundary = h === 0;
           const isWeekBoundary = slotMode === 'days' && di > 0 && di % 7 === 0 && h === 0;
           const cell = createElement('div',
-            `ec-timeline-cell${isDayBoundary ? ' ec-timeline-cell-day-edge' : ''}${isWeekBoundary ? ' ec-timeline-cell-week-edge' : ''}`, '', [
+            `ec-timeline-cell${isDayBoundary ? ' ec-timeline-cell-day-edge' : ''}${isWeekBoundary ? ' ec-timeline-cell-week-edge' : ''}${affordanceOn ? ' ec-timeline-cell-affordance' : ''}`, '', [
             ['data-date', day.toISOString().substring(0, 10)],
             ['data-day',  String(day.getUTCDay())],
             ...(slotMode === 'hours' ? [['data-hour', String(hourStart + h)]] : []),
           ]);
           cell.style.pointerEvents = 'auto';
-          const addOpt = options.emptyCellAddButton;
+          const addOpt = options.emptyCellAddButton || affordanceOn;
           if (addOpt) {
             const btn = createElement('span', 'ec-timeline-cell-add', '+');
             if (typeof addOpt === 'function') {
@@ -515,7 +554,8 @@ export function renderResourceTimelineView(container, state) {
   render();
   const off = state.onAny(({ key }) => {
     if (['options', 'currentRange', 'activeRange', 'viewDates',
-         'filteredEvents', 'resources', 'rowHeight'].includes(key)) render();
+         'filteredEvents', 'resources', 'rowHeight',
+         'mode', 'suggestedSlot'].includes(key)) render();
   });
 
   return () => {

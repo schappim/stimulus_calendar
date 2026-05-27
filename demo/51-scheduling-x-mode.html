@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>stimulus_calendar — Scheduling-X mode (Phase D)</title>
+  <link rel="stylesheet" href="../src/styles/calendar.css">
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; margin: 2rem; }
+    .ec { width: 1080px; }
+    h1 { font-size: 1.25rem; }
+    .note { color: #475569; font-size: 0.875rem; max-width: 65ch; margin-bottom: 1rem; }
+    .controls { display:flex; gap:0.5rem; align-items:center; margin: 0.5rem 0 1rem; }
+    .controls button { padding:0.4rem 0.85rem; }
+    .controls button[aria-pressed="true"] { background:#fb923c; color:#fff; border-color:#fb923c; }
+    .panel { margin-top:1rem; padding:0.75rem 1rem; background:#f1f5f9; border-radius:6px;
+             font:13px/1.5 ui-monospace,monospace; max-width:60ch; }
+  </style>
+</head>
+<body>
+  <h1>Scheduling-X mode — affordance + suggested slot</h1>
+  <p class="note">
+    Phase D. Toggle scheduling-x mode and every empty cell becomes a
+    drop target (dashed orange). The "Find me a slot" button asks the
+    host to (pretend to) call the smart-slot service and paints the
+    answer as a pulsing suggested slot — click it to fire
+    <code>calendar:suggestedSlotClick</code>.
+  </p>
+  <div class="controls">
+    <button data-act="mode-on">Turn scheduling-x on</button>
+    <button data-act="mode-off">Turn off</button>
+    <button data-act="suggest">Find me a slot</button>
+    <button data-act="clear">Clear suggestion</button>
+  </div>
+  <div data-controller="calendar"
+       data-calendar-plugins-value='["ResourceTimeline","Interaction"]'
+       data-calendar-view-value="resourceTimelineWeek"
+       data-calendar-date-value="2026-05-25"
+       data-calendar-options-value='{"slotWidth":130}'
+       data-calendar-resources-value='[
+         {"id":"will","title":"Will Tan"},
+         {"id":"mike","title":"Mike O"},
+         {"id":"sam","title":"Sam Ng"}
+       ]'
+       data-calendar-resource-groups-value='[
+         {"id":"a","title":"Crew A","color":"#5856d6","resourceIds":["will","mike"],"expanded":true},
+         {"id":"b","title":"Crew B","color":"#34c759","resourceIds":["sam"],"expanded":true}
+       ]'>
+  </div>
+  <div class="panel" id="panel">Mode: (off) — suggested slot: (none)</div>
+  <script type="module">
+    import { Application } from '/node_modules/@hotwired/stimulus/dist/stimulus.js';
+    import CalendarController from '/src/controllers/calendar_controller.js';
+    const app = Application.start();
+    app.register('calendar', CalendarController);
+    await new Promise((r) => setTimeout(r, 80));
+    const el = document.querySelector('[data-controller="calendar"]');
+    el.calendarApi.setOption('cellAffordanceWhen', (m) => m === 'scheduling-x');
+    el.calendarApi.addEvent({ id:'e1', title:'Smith reno', resourceIds:['will'], start:'2026-05-26', end:'2026-05-28', allDay:true, backgroundColor:'#5856d6' });
+    el.calendarApi.addEvent({ id:'e2', title:'Hot water · Lee', resourceIds:['sam'], start:'2026-05-27', end:'2026-05-29', allDay:true, backgroundColor:'#34c759' });
+
+    const panel = document.getElementById('panel');
+    const sync = () => {
+      const m = el.calendarApi.getMode() ?? '(off)';
+      const s = el.calendarApi.getSuggestedSlot();
+      const slot = s ? `${s.start.toISOString().substring(0,10)} → ${s.end.toISOString().substring(0,10)} on ${s.resourceId}` : '(none)';
+      panel.textContent = `Mode: ${m} — suggested slot: ${slot}`;
+    };
+    el.addEventListener('calendar:modeChange', sync);
+    el.addEventListener('calendar:suggestedSlotClick', (e) => {
+      const d = e.detail;
+      el.calendarApi.addEvent({
+        id: `s${Date.now()}`,
+        title: 'New job (from suggestion)',
+        start: d.start.toISOString().substring(0,10),
+        end:   d.end.toISOString().substring(0,10),
+        allDay: true,
+        resourceIds: [d.resourceId],
+        backgroundColor: '#fb923c',
+      });
+      el.calendarApi.clearSuggestedSlot();
+      sync();
+    });
+
+    document.querySelector('[data-act="mode-on"]').onclick  = () => el.calendarApi.setMode('scheduling-x', { jobId: 42 });
+    document.querySelector('[data-act="mode-off"]').onclick = () => el.calendarApi.clearMode();
+    document.querySelector('[data-act="suggest"]').onclick  = () => {
+      el.calendarApi.setSuggestedSlot({
+        start: '2026-05-29', end: '2026-05-30', resourceId: 'mike',
+      });
+      sync();
+    };
+    document.querySelector('[data-act="clear"]').onclick    = () => { el.calendarApi.clearSuggestedSlot(); sync(); };
+    sync();
+  </script>
+</body>
+</html>

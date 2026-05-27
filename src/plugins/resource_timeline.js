@@ -57,6 +57,10 @@ export const ResourceTimelinePlugin = {
       // its "new appointment for crew Y on day Z" sheet pre-filled.
       emptyCellAddButton: undefined,
       cellClick: undefined,
+      // Phase D2 — when truthy AND a mode is active, every empty cell
+      // shows the dashed-orange affordance always (not just on hover).
+      cellAffordanceWhen: undefined,
+      suggestedSlotClick: undefined,
       // Phase A7 — bars narrower than this (px) get .ec-event-narrow so
       // per-bar CSS can hide secondary text (time meta, subtitle).
       eventNarrowThreshold: 60,

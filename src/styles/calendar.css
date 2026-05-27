@@ -910,6 +910,35 @@
   background: var(--ec-bg-color);
 }
 
+/* Phase D2 — mode-aware empty-cell affordance. When the host has
+ * lit up a mode (e.g. "scheduling-x") AND options.cellAffordanceWhen
+ * returns truthy, every cell shows the dashed-orange placeholder
+ * always (not just on hover), so the user can see exactly where they
+ * can drop the next appointment. */
+[data-calendar-mode] .ec-timeline-cell.ec-timeline-cell-affordance .ec-timeline-cell-add {
+  opacity: 1;
+  border-color: #fb923c;
+  color: #fb923c;
+  background: rgba(251, 146, 60, 0.06);
+}
+
+/* Suggested-slot pulse (Phase D3). Painted into the strip / timegrid
+ * by each view, anchored to the slot the host has flagged. */
+.ec-suggested-slot {
+  position: absolute;
+  background: color-mix(in srgb, #fb923c 18%, transparent);
+  border: 1.5px dashed #fb923c;
+  border-radius: 4px;
+  pointer-events: none;
+  z-index: 1;
+  animation: ec-suggested-slot-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes ec-suggested-slot-pulse {
+  0%, 100% { opacity: 0.7; }
+  50%      { opacity: 1; }
+}
+
 /* -------------------------------------------------------------------------
  * ResourceTimeline group header (Phase A1 — Roster crews)
  *

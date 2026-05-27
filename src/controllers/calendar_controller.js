@@ -96,6 +96,11 @@ export default class CalendarController extends Controller {
     continuousWeekScroll: { type: Boolean, default: false },
     // Phase C2 — density dots beneath the dayHeader weekday label.
     dayHeaderDensity: { type: Boolean, default: false },
+    // Phase D — declarative mode flag. Setting
+    // data-calendar-mode-value="scheduling-x" before connect lights up
+    // the mode immediately; subsequent attribute changes are picked up
+    // via modeValueChanged() and round-trip through setMode.
+    mode: String,
     // Broadcast / live-sync options
     broadcast: String,
     broadcastChannel: String,
@@ -141,7 +146,21 @@ export default class CalendarController extends Controller {
     this._installEventPopoverDefault();
     this._installBackgroundDeselect();
 
+    // Honour the declarative mode value if present at connect time so
+    // server-rendered initial state lights up scheduling-x (or any
+    // host-defined mode) without an extra JS round-trip.
+    if (this.hasModeValue && this.modeValue) {
+      this.element.calendarApi.setMode(this.modeValue, null);
+    }
+
     this.dispatch('ready', { detail: { api: this.element.calendarApi } });
+  }
+
+  modeValueChanged() {
+    if (!this.element.calendarApi) return;
+    const next = this.modeValue || null;
+    if (next === (this._state.get('mode') ?? null)) return;
+    this.element.calendarApi.setMode(next, null);
   }
 
   disconnect() {
@@ -496,6 +515,34 @@ export default class CalendarController extends Controller {
         this.dispatch('rowHeightChange', { detail: { height: n } });
       },
       getRowHeight: () => this._state.get('rowHeight') ?? null,
+
+      // Phase D — calendar-wide mode flag (e.g. "scheduling-x"). Adds /
+      // removes data-calendar-mode="<name>" on the host element so CSS
+      // can key off it; fires calendar:modeChange with { mode, context }
+      // so host code stays in sync.
+      setMode: (name, context) => {
+        const next = name ? String(name) : null;
+        if (next) this.element.setAttribute('data-calendar-mode', next);
+        else this.element.removeAttribute('data-calendar-mode');
+        this._state.set('mode', next);
+        this._state.set('modeContext', context ?? null);
+        this.dispatch('modeChange', { detail: { mode: next, context: context ?? null } });
+      },
+      clearMode: () => this.element.calendarApi.setMode(null, null),
+      getMode: () => this._state.get('mode') ?? null,
+      getModeContext: () => this._state.get('modeContext') ?? null,
+
+      // Phase D3 — paint a "suggested slot" on the strip / time grid.
+      // Renderer-agnostic: lives in state.suggestedSlot, picked up by
+      // each view's render loop.
+      setSuggestedSlot: ({ start, end, resourceId } = {}) => {
+        const slot = start && end
+          ? { start: new Date(start), end: new Date(end), resourceId: resourceId ?? null }
+          : null;
+        this._state.set('suggestedSlot', slot);
+      },
+      clearSuggestedSlot: () => this._state.set('suggestedSlot', null),
+      getSuggestedSlot: () => this._state.get('suggestedSlot') ?? null,
 
       // Navigation
       next: () => this._navigate(+1),
