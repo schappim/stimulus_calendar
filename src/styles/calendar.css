@@ -685,14 +685,29 @@
   background: var(--ec-bg-color);
 }
 
+.ec-timeline {
+  /* Single source of truth for the resource-axis (row-head) column
+   * width. Both [data-row="header"] and every .ec-timeline-row derive
+   * their grid-template-columns from this var, so the day-strip lanes
+   * line up vertically with the body's ribbons even if a host theme
+   * overrides the width. Override per-instance via:
+   *   .ec-timeline { --ec-timeline-rowhead-w: 200px; }                   */
+  --ec-timeline-rowhead-w: 160px;
+}
+
 .ec-timeline [data-row="header"] {
   display: grid;
-  grid-template-columns: 160px 1fr;
+  grid-template-columns: var(--ec-timeline-rowhead-w) 1fr;
   background: var(--ec-header-bg-color);
   border-bottom: 1px solid var(--ec-border-color);
+  /* Header sits above row-heads (z:2) and bar chips (default 0) so a
+   * vertically-scrolled timeline keeps the day labels visible without
+   * being covered by the first row's bars sliding up under it. The
+   * sticky day-axis is critical for the Roster lens — it's how users
+   * read which day a bar is on after scrolling past several crews. */
   position: sticky;
   top: 0;
-  z-index: 1;
+  z-index: 3;
 }
 
 .ec-timeline .ec-slots {
@@ -715,7 +730,7 @@
 
 .ec-timeline-row {
   display: grid;
-  grid-template-columns: 160px 1fr;
+  grid-template-columns: var(--ec-timeline-rowhead-w) 1fr;
   border-bottom: 1px solid var(--ec-border-color);
   min-height: 34px;
 }
@@ -735,7 +750,19 @@
   background: var(--ec-bg-color);
   position: sticky;
   left: 0;
-  z-index: 1;
+  /* Above bars (z:0) so the row label stays visible during horizontal
+   * scroll, but below the day header (z:3) so the header still paints
+   * over the row-head's top edge when both meet at the top-left corner. */
+  z-index: 2;
+}
+
+/* The header's leading spacer is also an .ec-row-head — it inherits the
+ * sticky-left from above, but we lift its z-index to 4 so the top-left
+ * corner cleanly covers the row-head's right border as well as the
+ * day-strip's left edge. */
+.ec-timeline [data-row="header"] > .ec-row-head {
+  background: var(--ec-header-bg-color);
+  z-index: 4;
 }
 
 .ec-expander {

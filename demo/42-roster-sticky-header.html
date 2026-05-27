@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>stimulus_calendar — Roster sticky header (Phase A2)</title>
+  <link rel="stylesheet" href="../src/styles/calendar.css">
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; margin: 2rem; }
+    /* Force a bounded height so the timeline scrolls — proves the
+     * day-header stays glued to the top while crews scroll past. */
+    .ec { width: 1080px; height: 480px; }
+    h1 { font-size: 1.25rem; }
+    .note { color: #475569; font-size: 0.875rem; max-width: 60ch; margin-bottom: 1rem; }
+  </style>
+</head>
+<body>
+  <h1>Sticky day-header — scroll the timeline</h1>
+  <p class="note">
+    Phase A2. Even when you scroll past every crew, the day-axis (and
+    the top-left row-head spacer) stay parked to the top of the
+    container. Scroll right and the row-head column (Will / Mike / …)
+    stays glued to the left.
+  </p>
+  <div data-controller="calendar"
+       data-calendar-plugins-value='["ResourceTimeline"]'
+       data-calendar-view-value="resourceTimelineWeek"
+       data-calendar-date-value="2026-05-25"
+       data-calendar-options-value='{"slotWidth":140}'
+       data-calendar-resources-value='[
+         {"id":"r1","title":"Will Tan"},
+         {"id":"r2","title":"Mike O"},
+         {"id":"r3","title":"Sam Ng"},
+         {"id":"r4","title":"Jess Q"},
+         {"id":"r5","title":"Brett K"},
+         {"id":"r6","title":"Lila P"},
+         {"id":"r7","title":"Mo F"},
+         {"id":"r8","title":"Ari S"},
+         {"id":"r9","title":"Kai L"},
+         {"id":"r10","title":"Nia W"},
+         {"id":"r11","title":"Cam J"},
+         {"id":"r12","title":"Pip V"}
+       ]'
+       data-calendar-resource-groups-value='[
+         {"id":"a","title":"Crew A — Northside","color":"#5856d6","resourceIds":["r1","r2","r3","r4"],"expanded":true},
+         {"id":"b","title":"Crew B — South",     "color":"#34c759","resourceIds":["r5","r6","r7","r8"],"expanded":true},
+         {"id":"c","title":"Crew C — Service",   "color":"#ff9500","resourceIds":["r9","r10","r11","r12"],"expanded":true}
+       ]'>
+  </div>
+  <script type="module">
+    import { Application } from '/node_modules/@hotwired/stimulus/dist/stimulus.js';
+    import CalendarController from '/src/controllers/calendar_controller.js';
+    const app = Application.start();
+    app.register('calendar', CalendarController);
+    await new Promise((r) => setTimeout(r, 80));
+    const el = document.querySelector('[data-controller="calendar"]');
+    const colors = { a:'#5856d6', b:'#34c759', c:'#ff9500' };
+    const seed = [
+      ['r1','a','Smith reno','2026-05-25','2026-05-27'],
+      ['r2','a','Patel kitchen','2026-05-26','2026-05-28'],
+      ['r3','a','Service call · O\'Connor','2026-05-25','2026-05-26'],
+      ['r4','a','Quote · Davies','2026-05-28','2026-05-29'],
+      ['r5','b','Roof repair','2026-05-25','2026-05-30'],
+      ['r6','b','Hot water · Lee','2026-05-27','2026-05-28'],
+      ['r7','b','Quote · Adams','2026-05-29','2026-05-30'],
+      ['r8','b','Service · King','2026-05-25','2026-05-26'],
+      ['r9','c','Boiler swap','2026-05-26','2026-05-28'],
+      ['r10','c','Solar inspection','2026-05-28','2026-05-29'],
+      ['r11','c','Quote · Brown','2026-05-25','2026-05-26'],
+      ['r12','c','Service · Murphy','2026-05-29','2026-05-30'],
+    ];
+    seed.forEach(([rid, gid, title, s, e], i) => el.calendarApi.addEvent({
+      id: `j${i}`, title, resourceIds: [rid], start: s, end: e, allDay: true,
+      backgroundColor: colors[gid],
+    }));
+  </script>
+</body>
+</html>

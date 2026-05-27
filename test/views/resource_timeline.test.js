@@ -17,6 +17,22 @@ describe('view: resourceTimeline', () => {
   beforeEach(() => { document.body.innerHTML = ''; });
   afterEach(() => { app?.stop(); app = null; document.body.innerHTML = ''; });
 
+  it('day-header row carries the sticky/header attribute (Phase A2)', async () => {
+    const el = await mount(`<div data-controller="calendar"
+      data-calendar-plugins-value='["ResourceTimeline"]'
+      data-calendar-view-value="resourceTimelineWeek"
+      data-calendar-date-value="2026-05-25"
+      data-calendar-resources-value='[{"id":"r1","title":"Room A"}]'>
+    </div>`);
+    const header = el.querySelector('.ec-timeline [data-row="header"]');
+    expect(header).toBeTruthy();
+    // The renderer leaves the actual sticky-positioning to CSS, but we
+    // assert the marker is present and the row-head spacer (the
+    // bottom-left corner) is the very first child so it can lock to
+    // top-left under the sticky cascade.
+    expect(header.firstElementChild?.classList?.contains('ec-row-head')).toBe(true);
+  });
+
   it('renders one row per resource with a horizontal ribbon', async () => {
     const el = await mount(`<div data-controller="calendar"
       data-calendar-plugins-value='["ResourceTimeline"]'
