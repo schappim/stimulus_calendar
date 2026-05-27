@@ -163,9 +163,15 @@ export function createWeekScroller(container, state, viewFactory, { onDateChange
   }
 
   // External date change (Today / gotoDate / toolbar prev-next) →
-  // jump the scroll to centre the new date. If the date is outside
-  // the current range, re-anchor and render fresh.
-  const dateSub = state.on('change:options', () => {
+  // jump the scroll to centre the new date. setOption('date', …)
+  // mutates the live options object in place and fires
+  // `change:currentRange` via the controller's _recompute(); listening
+  // to `change:options` would miss this (options identity doesn't
+  // change). Mirrors the MonthScroller pattern.
+  //
+  // If the new date is outside the rendered range, re-anchor and
+  // render fresh; otherwise just scroll to centre it.
+  const rangeSub = state.on('change:currentRange', () => {
     if (suppressScroll) return;
     const newDate = setMidnight(createDate(state.get('options').date));
     if (newDate < rangeStart || newDate >= rangeEnd) {
@@ -199,7 +205,7 @@ export function createWeekScroller(container, state, viewFactory, { onDateChange
   return {
     destroy() {
       off?.();
-      dateSub?.();
+      rangeSub?.();
       clearTimeout(settleTimer);
       teardown?.();
       container.replaceChildren();
