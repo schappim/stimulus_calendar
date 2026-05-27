@@ -221,6 +221,12 @@ function attachEventDragHandler(rootEl, state) {
       sourceChip: chip,
       sourceDateStr: sourceCell?.getAttribute('data-date'),
       sourceTimeCol,
+      // In resourceTimeGridDay each column is one staff lane and the
+      // cell carries data-resource-id. Capture the source lane at
+      // pointerdown so finishDrag can compare against the drop target
+      // and emit oldResource/newResource on cross-lane drops — same
+      // shape resource_timeline already emits.
+      sourceResourceId: sourceTimeCol?.getAttribute('data-resource-id') ?? null,
       sourceColRect,
       startTimeOfDayMin,
       grabOffsetX: jsEvent.clientX - chipRect.left,
@@ -557,6 +563,25 @@ function attachEventDragHandler(rootEl, state) {
     let reverted = false;
     const oldEvent = { ...d.event, start: d.event.start, end: d.event.end };
     const series = eventMetaSeriesInfo(d.event);
+
+    // Resource-lane change detection — only relevant in resource views
+    // (resourceTimeGridDay) where each .ec-time-col carries a
+    // data-resource-id alongside data-date. When the drop crosses a
+    // lane, replace ONLY the source resource id in the event's list
+    // with the target's, keeping any other resourceIds intact. Same
+    // shape resource_timeline already emits, so host listeners can
+    // handle both views with one branch.
+    const targetResourceId = targetTimeCol?.getAttribute('data-resource-id') ?? null;
+    let newResourceIds = d.event.resourceIds;
+    let resourceChanged = false;
+    if (d.sourceResourceId && targetResourceId && targetResourceId !== d.sourceResourceId) {
+      const set = (d.event.resourceIds ?? []).slice();
+      const i = set.indexOf(d.sourceResourceId);
+      if (i >= 0) set[i] = targetResourceId; else set.push(targetResourceId);
+      newResourceIds = set;
+      resourceChanged = true;
+    }
+
     // newStart / newEnd carry the candidate post-drop times so listeners
     // can persist them without recomputing from `delta`. The event itself
     // isn't mutated until maybeCommitWithConfirm runs below — by which
@@ -574,22 +599,29 @@ function attachEventDragHandler(rootEl, state) {
       seriesId: series.seriesId,
       revert: () => { reverted = true; },
     };
+    if (resourceChanged) {
+      dropDetail.oldResource = d.sourceResourceId;
+      dropDetail.newResource = targetResourceId;
+      dropDetail.newResourceIds = newResourceIds;
+    }
     state.get('fire')?.('eventDrop', dropDetail);
     if (reverted) return;
 
     // Commit through the public API (broadcasts + re-renders), gated
     // by confirmEventChange when the event is part of a series.
+    const updateAttrs = {
+      id: d.event.id,
+      start: newStart.toISOString(),
+      end:   newEnd.toISOString(),
+    };
+    if (resourceChanged) updateAttrs.resourceIds = newResourceIds;
     maybeCommitWithConfirm({
       state,
       options: state.get('options'),
       event: d.event,
       kind: 'drop',
       detailExtras: { oldEvent, delta: dropDetail.delta },
-      updateAttrs: {
-        id: d.event.id,
-        start: newStart.toISOString(),
-        end:   newEnd.toISOString(),
-      },
+      updateAttrs,
     });
   }
 
