@@ -9,6 +9,7 @@ import { createSlots, createSlotTimeLimits } from '../lib/slots.js';
 import { viewDates as viewDatesHelper } from '../lib/derived.js';
 import { assignOverlapLanes } from '../lib/events.js';
 import { eventMetaDataAttrs, resolveEventType } from '../lib/event_meta.js';
+import { offHoursIntervalsForDate } from '../lib/working_hours.js';
 import { formatEventTimeRange } from './time_grid.js';
 
 export function renderResourceTimeGridView(container, state) {
@@ -111,6 +112,29 @@ export function renderResourceTimeGridView(container, state) {
           slotEl.style.height = `${options.slotHeight}px`;
           col.append(slotEl);
         }
+        const minutesPerSlot = totalSeconds(options.slotDuration) / 60;
+        const slotMinMin = totalSeconds(slotTimeLimits.min) / 60;
+        const slotMaxMin = totalSeconds(slotTimeLimits.max) / 60;
+        const pxPerMin = options.slotHeight / minutesPerSlot;
+        // S6 — per-resource off-hours bands. Paint BEFORE the event
+        // overlay so chips render on top. Intervals are clipped to the
+        // visible slot range so a 00:00–07:00 band on a grid that
+        // starts at 06:00 only paints the 06:00–07:00 slice.
+        const offHours = offHoursIntervalsForDate(resource.workingHours, day);
+        for (const interval of offHours) {
+          const clippedStart = Math.max(interval.startMin, slotMinMin);
+          const clippedEnd   = Math.min(interval.endMin,   slotMaxMin);
+          if (clippedEnd <= clippedStart) continue;
+          const band = createElement('div', 'ec-resource-offhours');
+          band.style.position = 'absolute';
+          band.style.left = '0';
+          band.style.right = '0';
+          band.style.top = `${(clippedStart - slotMinMin) * pxPerMin}px`;
+          band.style.height = `${(clippedEnd - clippedStart) * pxPerMin}px`;
+          band.style.pointerEvents = 'none';
+          band.style.zIndex = '0';
+          col.append(band);
+        }
         const overlay = createElement('div', 'ec-event-overlay');
         const nextDay = cloneDate(day); addDay(nextDay);
         const dayEvents = filtered.filter((e) =>
@@ -126,9 +150,6 @@ export function renderResourceTimeGridView(container, state) {
         const laneEvents = dayEvents.filter((e) => e.display !== 'background');
         const laneMap = assignOverlapLanes(laneEvents);
         const LANE_OFFSET_PX = 16;
-        const minutesPerSlot = totalSeconds(options.slotDuration) / 60;
-        const slotMinMin = totalSeconds(slotTimeLimits.min) / 60;
-        const pxPerMin = options.slotHeight / minutesPerSlot;
         for (const event of dayEvents) {
           const startMin = minsSinceMidnight(event.start) - slotMinMin;
           const endMin = minsSinceMidnight(event.end) - slotMinMin;

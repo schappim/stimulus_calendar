@@ -537,6 +537,20 @@
   margin-right: 3px;
 }
 
+/* Per-resource off-hours bands (S6). Painted into the lane before
+   the event overlay so chips render on top. The default appearance
+   is a translucent grey stripe; hosts can theme via
+   `--ec-resource-offhours-bg` or override the rule directly. */
+.ec-resource-offhours {
+  background: var(--ec-resource-offhours-bg, repeating-linear-gradient(
+    45deg,
+    rgba(15, 23, 42, 0.045) 0,
+    rgba(15, 23, 42, 0.045) 6px,
+    rgba(15, 23, 42, 0.08) 6px,
+    rgba(15, 23, 42, 0.08) 12px
+  ));
+}
+
 .ec-time-grid .ec-event {
   /* --ec-event-color is the legacy hook still set inline from
    * event.backgroundColor by the view (see time_grid.js); --ec-event-accent

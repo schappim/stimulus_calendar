@@ -34,6 +34,58 @@ describe('view: resourceTimeGrid', () => {
     expect(el.querySelector('[data-resource-id="r2"][data-date] [data-event-id="1"]')).toBeNull();
   });
 
+  it('paints .ec-resource-offhours bands outside workingHours per resource (S6)', async () => {
+    // 2026-05-25 is Monday. Justin is 07:00–16:00 Mon–Sat; Kobe is
+    // 09:00–17:00 Mon–Fri. Both lanes should get top + bottom bands,
+    // sized differently.
+    const resources = [
+      { id: 'justin', title: 'Justin',
+        workingHours: { daysOfWeek: [1,2,3,4,5,6], start: '07:00', end: '16:00' }},
+      { id: 'kobe',   title: 'Kobe',
+        workingHours: { daysOfWeek: [1,2,3,4,5], start: '09:00', end: '17:00' }},
+    ];
+    const el = await mount(`<div data-controller="calendar"
+      data-calendar-plugins-value='["ResourceTimeGrid"]'
+      data-calendar-view-value="resourceTimeGridDay"
+      data-calendar-date-value="2026-05-25"
+      data-calendar-resources-value='${JSON.stringify(resources)}'></div>`);
+    const justinCol = el.querySelector('[data-resource-id="justin"][data-date="2026-05-25"]');
+    const kobeCol   = el.querySelector('[data-resource-id="kobe"][data-date="2026-05-25"]');
+    expect(justinCol).toBeTruthy();
+    expect(kobeCol).toBeTruthy();
+    const jBands = justinCol.querySelectorAll('.ec-resource-offhours');
+    const kBands = kobeCol.querySelectorAll('.ec-resource-offhours');
+    // Two bands per lane: pre-open + post-close (working day).
+    expect(jBands.length).toBe(2);
+    expect(kBands.length).toBe(2);
+  });
+
+  it('omits the off-hours band when no workingHours is declared on the resource (S6)', async () => {
+    const el = await mount(`<div data-controller="calendar"
+      data-calendar-plugins-value='["ResourceTimeGrid"]'
+      data-calendar-view-value="resourceTimeGridDay"
+      data-calendar-date-value="2026-05-25"
+      data-calendar-resources-value='[{"id":"r1","title":"Room A"}]'></div>`);
+    const col = el.querySelector('[data-resource-id="r1"][data-date="2026-05-25"]');
+    expect(col.querySelectorAll('.ec-resource-offhours').length).toBe(0);
+  });
+
+  it('paints a full-day band on a closed day (Sunday for a Mon–Fri resource) (S6)', async () => {
+    // 2026-05-24 is Sunday.
+    const resources = [
+      { id: 'kobe', title: 'Kobe',
+        workingHours: { daysOfWeek: [1,2,3,4,5], start: '09:00', end: '17:00' }},
+    ];
+    const el = await mount(`<div data-controller="calendar"
+      data-calendar-plugins-value='["ResourceTimeGrid"]'
+      data-calendar-view-value="resourceTimeGridDay"
+      data-calendar-date-value="2026-05-24"
+      data-calendar-resources-value='${JSON.stringify(resources)}'></div>`);
+    const col = el.querySelector('[data-resource-id="kobe"][data-date="2026-05-24"]');
+    const bands = col.querySelectorAll('.ec-resource-offhours');
+    expect(bands.length).toBe(1);
+  });
+
   it('passes extendedProps.dataAttrs through to data-* on a resourceTimeGrid chip', async () => {
     const el = await mount(`<div data-controller="calendar"
       data-calendar-plugins-value='["ResourceTimeGrid"]'

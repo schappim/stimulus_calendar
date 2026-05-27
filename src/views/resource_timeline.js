@@ -31,6 +31,7 @@ import { viewDates as viewDatesHelper } from '../lib/derived.js';
 import { getPayload, setPayload } from '../lib/payload.js';
 import { buildResourceGroupLayout } from '../lib/resource_groups.js';
 import { eventMetaDataAttrs, resolveEventType } from '../lib/event_meta.js';
+import { offHoursIntervalsForDate } from '../lib/working_hours.js';
 
 export function renderResourceTimelineView(container, state) {
   const groupState = state.get('resourceGroupState') ?? new Map();
@@ -373,6 +374,56 @@ export function renderResourceTimelineView(container, state) {
       ribbon.style.position = 'relative';
       ribbon.style.minHeight = '30px';
       ribbon.style.width = `${totalWidth}px`;
+
+      // S6 — per-resource off-hours bands. Painted before the lunch
+      // band and the cell layer so chips render on top.
+      //
+      // - days mode: only the fully-closed case (interval spans
+      //   00:00–24:00) maps to a full-day column band. Partial off-hours
+      //   within an open day can't be drawn at day-level resolution.
+      // - hours mode: each interval clipped to the visible
+      //   slotMinTime..slotMaxTime window is painted as a horizontal
+      //   segment of the ribbon.
+      if (resource.workingHours) {
+        for (let di = 0; di < days.length; ++di) {
+          const day = days[di];
+          const intervals = offHoursIntervalsForDate(resource.workingHours, day);
+          if (intervals.length === 0) continue;
+          if (slotMode === 'days') {
+            const fullDayClosed = intervals.length === 1
+              && intervals[0].startMin === 0
+              && intervals[0].endMin === 1440;
+            if (fullDayClosed) {
+              const band = createElement('div', 'ec-resource-offhours');
+              band.style.position = 'absolute';
+              band.style.top = '0';
+              band.style.bottom = '0';
+              band.style.left = `${di * colWidth}px`;
+              band.style.width = `${colWidth}px`;
+              band.style.pointerEvents = 'none';
+              ribbon.append(band);
+            }
+            continue;
+          }
+          // hours mode
+          for (const interval of intervals) {
+            const clipStart = Math.max(interval.startMin / 60, hourStart);
+            const clipEnd   = Math.min(interval.endMin   / 60, hourEnd);
+            if (clipEnd <= clipStart) continue;
+            const leftPx  = (di * hoursPerDay + (clipStart - hourStart)) * colWidth;
+            const widthPx = (clipEnd - clipStart) * colWidth;
+            if (widthPx <= 0) continue;
+            const band = createElement('div', 'ec-resource-offhours');
+            band.style.position = 'absolute';
+            band.style.top = '0';
+            band.style.bottom = '0';
+            band.style.left = `${leftPx}px`;
+            band.style.width = `${widthPx}px`;
+            band.style.pointerEvents = 'none';
+            ribbon.append(band);
+          }
+        }
+      }
 
       if (slotMode === 'hours' && options.lunchHour != null) {
         const lh = Number(options.lunchHour);

@@ -225,6 +225,38 @@ describe('view: resourceTimeline', () => {
     }
   });
 
+  it('paints a full-column .ec-resource-offhours band on a closed day (days mode, S6)', async () => {
+    // 2026-05-24 is Sunday — Kobe's Mon–Fri schedule means whole day closed.
+    const resources = [
+      { id: 'kobe', title: 'Kobe',
+        workingHours: { daysOfWeek: [1,2,3,4,5], start: '09:00', end: '17:00' }},
+    ];
+    const el = await mount(`<div data-controller="calendar"
+      data-calendar-plugins-value='["ResourceTimeline"]'
+      data-calendar-view-value="resourceTimelineWeek"
+      data-calendar-date-value="2026-05-24"
+      data-calendar-resources-value='${JSON.stringify(resources)}'></div>`);
+    const row = el.querySelector('[data-resource-id="kobe"]');
+    expect(row).toBeTruthy();
+    // The Sunday cell on a Mon–Fri schedule should have one band; the
+    // open days (Mon-Fri) should have none in days mode (partial
+    // off-hours can't be drawn at day resolution).
+    const bands = row.querySelectorAll('.ec-resource-offhours');
+    // The Mon–Fri week starting Sunday includes 2 closed days (Sun + Sat)
+    // → 2 full-column bands.
+    expect(bands.length).toBe(2);
+  });
+
+  it('does not paint off-hours bands for resources without a workingHours descriptor (S6)', async () => {
+    const el = await mount(`<div data-controller="calendar"
+      data-calendar-plugins-value='["ResourceTimeline"]'
+      data-calendar-view-value="resourceTimelineWeek"
+      data-calendar-date-value="2026-05-25"
+      data-calendar-resources-value='[{"id":"r1","title":"Room A"}]'></div>`);
+    const row = el.querySelector('[data-resource-id="r1"]');
+    expect(row.querySelectorAll('.ec-resource-offhours').length).toBe(0);
+  });
+
   it('passes extendedProps.dataAttrs through to data-* on a timeline bar', async () => {
     const el = await mount(`<div data-controller="calendar"
       data-calendar-plugins-value='["ResourceTimeline"]'

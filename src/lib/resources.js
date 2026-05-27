@@ -42,6 +42,7 @@ export function createResource(input) {
     eventBackgroundColor: eventBackgroundColor(input),
     eventTextColor: eventTextColor(input),
     expanded: input.expanded ?? true,
+    workingHours: input.workingHours ?? null,
     extendedProps: input.extendedProps ?? {},
   };
 }
