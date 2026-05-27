@@ -8,21 +8,44 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SRC_JS="$ROOT/dist/stimulus_calendar.js"
+SRC_ESM="$ROOT/dist/stimulus_calendar.esm.js"
 SRC_CSS="$ROOT/dist/stimulus_calendar.css"
-DST_JS="$ROOT/gem/stimulus_calendar_rails/app/assets/javascripts/stimulus_calendar.bundle.js"
-DST_CSS="$ROOT/gem/stimulus_calendar_rails/app/assets/stylesheets/stimulus_calendar.css"
 
-if [[ ! -f "$SRC_JS" ]]; then
-  echo "missing $SRC_JS — run \`npm run build:lib\` first" >&2
-  exit 1
-fi
-if [[ ! -f "$SRC_CSS" ]]; then
-  echo "missing $SRC_CSS — run \`npm run build:lib\` first" >&2
-  exit 1
-fi
+GEM_JS_DIR="$ROOT/gem/stimulus_calendar_rails/app/assets/javascripts"
+GEM_CSS_DIR="$ROOT/gem/stimulus_calendar_rails/app/assets/stylesheets"
 
-cp "$SRC_JS"  "$DST_JS"
+# The gem ships THREE JS artefacts:
+#
+#   stimulus_calendar.js         — the ESM build. Pinned by the gem's
+#                                  importmap as `stimulus_calendar`, so host
+#                                  apps can `import StimulusCalendar from
+#                                  "stimulus_calendar"`. ES modules are the
+#                                  default with importmap-rails.
+#
+#   stimulus_calendar.bundle.js  — the IIFE build (sets window.StimulusCalendar).
+#                                  Kept for hosts that prefer a classic
+#                                  <script src=...></script> tag (no
+#                                  importmap, vendored, etc.) and for the
+#                                  legacy loader path.
+#
+#   stimulus_calendar_rails.js   — small Rails-companion auto-start glue.
+#                                  Hand-written, not synced from dist/.
+#
+DST_ESM="$GEM_JS_DIR/stimulus_calendar.js"
+DST_IIFE="$GEM_JS_DIR/stimulus_calendar.bundle.js"
+DST_CSS="$GEM_CSS_DIR/stimulus_calendar.css"
+
+for src in "$SRC_JS" "$SRC_ESM" "$SRC_CSS"; do
+  if [[ ! -f "$src" ]]; then
+    echo "missing $src — run \`npm run build:lib\` first" >&2
+    exit 1
+  fi
+done
+
+cp "$SRC_ESM" "$DST_ESM"
+cp "$SRC_JS"  "$DST_IIFE"
 cp "$SRC_CSS" "$DST_CSS"
 echo "synced:"
-echo "  $SRC_JS  →  $DST_JS"
+echo "  $SRC_ESM →  $DST_ESM"
+echo "  $SRC_JS  →  $DST_IIFE"
 echo "  $SRC_CSS →  $DST_CSS"
