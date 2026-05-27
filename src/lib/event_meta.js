@@ -139,6 +139,29 @@ function normaliseDataAttrKey(rawKey) {
   return key;
 }
 
+// Series introspection — exposes the per-event facts the recurrence-aware
+// change hook needs without having to crack open the same extendedProps
+// in every consumer.
+//
+// An event is a "series member" if either:
+//   - `extendedProps.rrule` is truthy (the event itself is a recurring
+//     master with an RFC 5545 rule), or
+//   - `extendedProps.series?.id` is truthy (the event is one occurrence
+//     of a host-expanded series, carrying the series id as breadcrumbs
+//     so the host can route a per-occurrence edit to the right series
+//     master on the server).
+//
+// `seriesId` returns the explicit id when present, falling back to the
+// event's own id (a recurring master uses its own id as the series id).
+export function eventMetaSeriesInfo(event) {
+  const ep = event?.extendedProps;
+  const hasRrule = !!(ep && ep.rrule);
+  const explicitId = ep?.series?.id;
+  const isSeriesMember = !!(hasRrule || explicitId);
+  const seriesId = explicitId ?? (hasRrule ? event?.id ?? null : null);
+  return { isSeriesMember, seriesId: seriesId ?? null };
+}
+
 // Build a small recurring-badge node ('🔁' fallback for hosts that
 // don't ship the loop glyph through their event content). Hosts that
 // want richer content (text summary, native FontAwesome) can override

@@ -4,6 +4,7 @@ import {
   eventMetaClassNames,
   eventMetaDataAttrs,
   resolveEventType,
+  eventMetaSeriesInfo,
   buildRecurringBadge,
 } from '../../src/lib/event_meta.js';
 
@@ -188,6 +189,38 @@ describe('resolveEventType', () => {
       { eventTypes: { job: { classNames: ['ec-event-type-job', 'extra'] } } },
     );
     expect(out.classNames).toEqual(['ec-event-type-job', 'extra']);
+  });
+});
+
+describe('eventMetaSeriesInfo', () => {
+  it('reports a non-series event when no recurrence breadcrumbs are present', () => {
+    expect(eventMetaSeriesInfo({})).toEqual({ isSeriesMember: false, seriesId: null });
+    expect(eventMetaSeriesInfo({ extendedProps: {} }))
+      .toEqual({ isSeriesMember: false, seriesId: null });
+  });
+
+  it('detects a recurring master via extendedProps.rrule and uses its id as seriesId', () => {
+    expect(eventMetaSeriesInfo({ id: 'appt-42', extendedProps: { rrule: 'FREQ=WEEKLY' } }))
+      .toEqual({ isSeriesMember: true, seriesId: 'appt-42' });
+  });
+
+  it('detects a host-expanded occurrence via extendedProps.series.id', () => {
+    expect(eventMetaSeriesInfo({
+      id: 'appt-42-2026-06-01',
+      extendedProps: { series: { id: 'appt-42', instance: 3 } },
+    })).toEqual({ isSeriesMember: true, seriesId: 'appt-42' });
+  });
+
+  it('series.id wins over rrule when both are declared', () => {
+    expect(eventMetaSeriesInfo({
+      id: 'master',
+      extendedProps: { rrule: 'FREQ=DAILY', series: { id: 'real-master' } },
+    })).toEqual({ isSeriesMember: true, seriesId: 'real-master' });
+  });
+
+  it('survives null / undefined event', () => {
+    expect(eventMetaSeriesInfo(null)).toEqual({ isSeriesMember: false, seriesId: null });
+    expect(eventMetaSeriesInfo(undefined)).toEqual({ isSeriesMember: false, seriesId: null });
   });
 });
 

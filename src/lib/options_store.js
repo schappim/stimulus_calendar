@@ -266,6 +266,31 @@ function baseDefaults() {
     // exposed to host eventContent renderers but not auto-injected
     // (no template imposition).
     eventTypes: undefined,
+    // S1 — recurrence-aware change confirmation. When set, the
+    // Interaction plugin calls this hook after the default
+    // `eventDrop` / `eventResize` listener has had its say (and not
+    // reverted) but BEFORE the change commits, when the event is a
+    // member of a series (extendedProps.rrule or
+    // extendedProps.series?.id). The hook receives:
+    //
+    //   { kind: 'drop' | 'resize',
+    //     event, oldEvent,
+    //     delta?, startDelta?, endDelta?,
+    //     isOccurrence: true, seriesId }
+    //
+    // and returns (or resolves to) either:
+    //
+    //   { proceed: true, scope: 'occurrence' | 'future' | 'series' }
+    //   { proceed: false }
+    //
+    // `proceed: true` commits the change and fires
+    // `calendar:eventChangeConfirmed` with the chosen scope so the
+    // host can route the server-side write (EXDATE, child override,
+    // master update). `proceed: false` discards the change without
+    // calling `updateEvent` — the chip stays where it was.
+    //
+    // Non-series events skip the hook entirely.
+    confirmEventChange: undefined,
     filterEventsWithResources: false,
     firstDay: 0,
     headerToolbar: { start: 'title', center: '', end: 'today prev,next' },
