@@ -6,6 +6,40 @@
 // on selected cells).
 
 import { armChipClickSuppression } from '../lib/click_suppression.js';
+import { eventMetaSeriesInfo } from '../lib/event_meta.js';
+
+// Wraps the optional confirmEventChange dance around a synchronous
+// updateEvent commit. When the event is a series member and an
+// options.confirmEventChange callback is configured, the commit is
+// deferred until the callback resolves (or rejects). On resolution
+// with `{ proceed: true }` we commit + fire `eventChangeConfirmed`;
+// on anything else we discard. Non-series events skip the hook and
+// commit synchronously, preserving today's behaviour exactly.
+function maybeCommitWithConfirm({ state, options, event, kind, detailExtras, updateAttrs }) {
+  const series = eventMetaSeriesInfo(event);
+  const confirmFn = options.confirmEventChange;
+  if (typeof confirmFn === 'function' && series.isSeriesMember) {
+    Promise.resolve(confirmFn({
+      kind, event,
+      oldEvent: detailExtras?.oldEvent,
+      delta: detailExtras?.delta,
+      startDelta: detailExtras?.startDelta,
+      endDelta: detailExtras?.endDelta,
+      isOccurrence: true,
+      seriesId: series.seriesId,
+    })).then((result) => {
+      if (!result || result.proceed === false) return;
+      state.get('hostEl')?.calendarApi?.updateEvent(updateAttrs);
+      state.get('fire')?.('eventChangeConfirmed', {
+        event, kind,
+        scope: result.scope ?? null,
+        seriesId: series.seriesId,
+      });
+    });
+    return;
+  }
+  state.get('hostEl')?.calendarApi?.updateEvent(updateAttrs);
+}
 
 export const InteractionPlugin = {
   createOptions(options) {
@@ -521,21 +555,34 @@ function attachEventDragHandler(rootEl, state) {
 
     const dayMs = 86400000;
     let reverted = false;
-    state.get('fire')?.('eventDrop', {
+    const oldEvent = { ...d.event, start: d.event.start, end: d.event.end };
+    const series = eventMetaSeriesInfo(d.event);
+    const dropDetail = {
       event: d.event,
-      oldEvent: { ...d.event, start: d.event.start, end: d.event.end },
+      oldEvent,
       delta: { days: Math.round(delta / dayMs), milliseconds: delta },
       jsEvent,
       view: state.get('view'),
+      isOccurrence: series.isSeriesMember,
+      seriesId: series.seriesId,
       revert: () => { reverted = true; },
-    });
+    };
+    state.get('fire')?.('eventDrop', dropDetail);
     if (reverted) return;
 
-    // Commit the change through the public API so it broadcasts + re-renders.
-    state.get('hostEl')?.calendarApi?.updateEvent({
-      id: d.event.id,
-      start: newStart.toISOString(),
-      end:   newEnd.toISOString(),
+    // Commit through the public API (broadcasts + re-renders), gated
+    // by confirmEventChange when the event is part of a series.
+    maybeCommitWithConfirm({
+      state,
+      options: state.get('options'),
+      event: d.event,
+      kind: 'drop',
+      detailExtras: { oldEvent, delta: dropDetail.delta },
+      updateAttrs: {
+        id: d.event.id,
+        start: newStart.toISOString(),
+        end:   newEnd.toISOString(),
+      },
     });
   }
 
@@ -1265,13 +1312,19 @@ function attachEventResizeHandler(rootEl, state) {
     let reverted = false;
     state.get('fire')?.('eventResizeStop', { event: r.event, jsEvent, view: state.get('view') });
     armChipClickSuppression(state);
+    const oldResizeEvent = { ...r.event, start: r.event.start, end: r.event.end };
+    const resizeSeries = eventMetaSeriesInfo(r.event);
+    const endDelta = r.handleSide === 'end'  ? { milliseconds: deltaMs, days: 0 } : { milliseconds: 0, days: 0 };
+    const startDelta = r.handleSide === 'start' ? { milliseconds: deltaMs, days: 0 } : { milliseconds: 0, days: 0 };
     state.get('fire')?.('eventResize', {
       event: r.event,
-      oldEvent: { ...r.event, start: r.event.start, end: r.event.end },
+      oldEvent: oldResizeEvent,
       jsEvent,
       view: state.get('view'),
-      endDelta: r.handleSide === 'end'  ? { milliseconds: deltaMs, days: 0 } : { milliseconds: 0, days: 0 },
-      startDelta: r.handleSide === 'start' ? { milliseconds: deltaMs, days: 0 } : { milliseconds: 0, days: 0 },
+      endDelta,
+      startDelta,
+      isOccurrence: resizeSeries.isSeriesMember,
+      seriesId: resizeSeries.seriesId,
       revert: () => { reverted = true; },
     });
     if (reverted) {
@@ -1285,10 +1338,17 @@ function attachEventResizeHandler(rootEl, state) {
       }
       return;
     }
-    state.get('hostEl')?.calendarApi?.updateEvent({
-      id: r.event.id,
-      start: newStart.toISOString(),
-      end:   newEnd.toISOString(),
+    maybeCommitWithConfirm({
+      state,
+      options: state.get('options'),
+      event: r.event,
+      kind: 'resize',
+      detailExtras: { oldEvent: oldResizeEvent, startDelta, endDelta },
+      updateAttrs: {
+        id: r.event.id,
+        start: newStart.toISOString(),
+        end:   newEnd.toISOString(),
+      },
     });
   }
 
@@ -1824,11 +1884,14 @@ function attachTimelineBarHandler(rootEl, state) {
     let reverted = false;
     const oldEvent = { ...d.event, start: d.event.start, end: d.event.end };
     const fireName = d.kind === 'resize' ? 'eventResize' : 'eventDrop';
+    const tlSeries = eventMetaSeriesInfo(d.event);
     const detail = {
       event: d.event,
       oldEvent,
       jsEvent,
       view: state.get('view'),
+      isOccurrence: tlSeries.isSeriesMember,
+      seriesId: tlSeries.seriesId,
       revert: () => { reverted = true; },
     };
     if (d.kind === 'move') {
@@ -1852,7 +1915,19 @@ function attachTimelineBarHandler(rootEl, state) {
       end:   newEnd.toISOString(),
     };
     if (resourceChanged) payload.resourceIds = newResourceIds;
-    state.get('hostEl')?.calendarApi?.updateEvent(payload);
+    maybeCommitWithConfirm({
+      state,
+      options: state.get('options'),
+      event: d.event,
+      kind: d.kind === 'resize' ? 'resize' : 'drop',
+      detailExtras: {
+        oldEvent,
+        delta: detail.delta,
+        startDelta: detail.startDelta,
+        endDelta: detail.endDelta,
+      },
+      updateAttrs: payload,
+    });
   };
 
   rootEl.addEventListener('pointerdown', onPointerDown);
