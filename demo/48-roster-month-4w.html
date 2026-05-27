@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>stimulus_calendar — Roster 4-week Gantt (Phase B2)</title>
+  <link rel="stylesheet" href="../src/styles/calendar.css">
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; margin: 2rem; }
+    .ec { width: 1180px; }
+    h1 { font-size: 1.25rem; }
+    .note { color: #475569; font-size: 0.875rem; max-width: 65ch; margin-bottom: 1rem; }
+  </style>
+</head>
+<body>
+  <h1>4-week compressed Gantt — week markers + today circle</h1>
+  <p class="note">
+    Phase B2. <code>resourceTimelineMonth4w</code> renders 28 daily
+    columns with thicker week-boundary lines so the eye can pick out
+    week groupings even at high density. The Phase A7 narrow auto-class
+    kicks in for short bars; <code>dayHeaderTodayStyle: 'circle'</code>
+    is the default for this view.
+  </p>
+  <div data-controller="calendar"
+       data-calendar-plugins-value='["ResourceTimeline"]'
+       data-calendar-view-value="resourceTimelineMonth4w"
+       data-calendar-resources-value='[
+         {"id":"will","title":"Will Tan"},
+         {"id":"mike","title":"Mike O"},
+         {"id":"sam","title":"Sam Ng"},
+         {"id":"jess","title":"Jess Q"}
+       ]'
+       data-calendar-resource-groups-value='[
+         {"id":"a","title":"Crew A","color":"#5856d6","resourceIds":["will","mike"],"expanded":true},
+         {"id":"b","title":"Crew B","color":"#34c759","resourceIds":["sam","jess"],"expanded":true}
+       ]'>
+  </div>
+  <script type="module">
+    import { Application } from '/node_modules/@hotwired/stimulus/dist/stimulus.js';
+    import CalendarController from '/src/controllers/calendar_controller.js';
+    const app = Application.start();
+    app.register('calendar', CalendarController);
+    await new Promise((r) => setTimeout(r, 80));
+    const el = document.querySelector('[data-controller="calendar"]');
+    el.calendarApi.gotoDate(new Date());
+    const today = new Date();
+    const d = (offsetDays) => {
+      const x = new Date(today);
+      x.setDate(x.getDate() + offsetDays);
+      return x.toISOString().substring(0, 10);
+    };
+    el.calendarApi.addEvent({ id:'e1', title:'Smith reno', resourceIds:['will'],   start:d(0),  end:d(4),  allDay:true, backgroundColor:'#5856d6' });
+    el.calendarApi.addEvent({ id:'e2', title:'Patel quote', resourceIds:['mike'],  start:d(2),  end:d(3),  allDay:true, backgroundColor:'#5856d6' });
+    el.calendarApi.addEvent({ id:'e3', title:'Hot water', resourceIds:['sam'],     start:d(1),  end:d(6),  allDay:true, backgroundColor:'#34c759' });
+    el.calendarApi.addEvent({ id:'e4', title:'Service',   resourceIds:['jess'],    start:d(5),  end:d(7),  allDay:true, backgroundColor:'#34c759' });
+    el.calendarApi.addEvent({ id:'e5', title:'Solar',     resourceIds:['mike'],    start:d(10), end:d(15), allDay:true, backgroundColor:'#5856d6' });
+    el.calendarApi.addEvent({ id:'e6', title:'Holiday · Will', resourceIds:['will'], start:d(17), end:d(21), allDay:true, backgroundColor:'#94a3b8' });
+    el.calendarApi.addEvent({ id:'e7', title:'Boiler',    resourceIds:['sam'],     start:d(12), end:d(14), allDay:true, backgroundColor:'#34c759' });
+    el.calendarApi.addEvent({ id:'e8', title:'Roof',      resourceIds:['jess'],    start:d(18), end:d(24), allDay:true, backgroundColor:'#34c759' });
+  </script>
+</body>
+</html>

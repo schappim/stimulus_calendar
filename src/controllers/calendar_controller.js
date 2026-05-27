@@ -473,6 +473,15 @@ export default class CalendarController extends Controller {
         return m ? Array.from(m.values()) : [];
       },
 
+      // Phase B5 — pinch row height accessors. Imperative side of the
+      // gesture so host code (slider, mode-bar) can drive it too.
+      setRowHeight: (px) => {
+        const n = Number(px) || 0;
+        this._state.set('rowHeight', n);
+        this.dispatch('rowHeightChange', { detail: { height: n } });
+      },
+      getRowHeight: () => this._state.get('rowHeight') ?? null,
+
       // Navigation
       next: () => this._navigate(+1),
       prev: () => this._navigate(-1),

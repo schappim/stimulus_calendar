@@ -941,6 +941,92 @@
   border-left: 1px solid var(--ec-border-color);
 }
 
+/* -------------------------------------------------------------------------
+ * Phase B — hours-mode + today-circle + pinch row height
+ * --------------------------------------------------------------------- */
+
+.ec-timeline-mode-hours .ec-day-head {
+  border-right: 1px solid var(--ec-border-color);
+}
+
+.ec-timeline-hour-head {
+  display: grid;
+  grid-template-columns: var(--ec-timeline-rowhead-w) 1fr;
+  background: var(--ec-bg-color);
+  border-bottom: 1px solid var(--ec-border-color);
+  position: sticky;
+  top: 1.85rem;  /* sits just under the day-axis super-header */
+  z-index: 3;
+}
+
+.ec-timeline-hour-head .ec-row-head {
+  background: var(--ec-bg-color);
+}
+
+.ec-timeline .ec-hour-head {
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--ec-muted-text-color);
+  text-align: center;
+  padding: 0.2rem 0;
+  border-right: 1px solid color-mix(in srgb, var(--ec-border-color) 50%, transparent);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.ec-timeline-mode-hours .ec-timeline-cell {
+  border-right: 1px solid color-mix(in srgb, var(--ec-border-color) 35%, transparent);
+}
+
+/* Day boundary in hours mode — every Nth cell (the first hour of each
+ * day) gets a stronger vertical separator so the eye can pick out
+ * day grouping even when zoomed all the way in. */
+.ec-timeline-mode-hours .ec-timeline-cell-day-edge {
+  border-left: 1px solid var(--ec-border-color);
+}
+
+/* Week boundary in days mode (Phase B2). At 28-day density the daily
+ * grid lines start to blur; every 7th column gets a stronger left
+ * edge so the eye can pick out week groupings without a separate
+ * super-header. Day-cells also paint the same edge on the day-strip
+ * header above via :nth-child if a host theme opts in. */
+.ec-timeline-mode-days .ec-timeline-cell-week-edge {
+  border-left: 1px solid var(--ec-strong-border-color);
+}
+
+.ec-timeline-lunch-band {
+  background: repeating-linear-gradient(
+    45deg,
+    rgba(15, 23, 42, 0.04) 0 4px,
+    transparent 4px 8px
+  );
+  z-index: 0;
+}
+
+/* Today-circle dayHead variant (Phase B6). Wraps just the day-number
+ * in an accent-filled disc. Drawn from the dayHead container so the
+ * super-header alignment doesn't shift. */
+.ec-day-head-today-disc {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--ec-active-bg-color);
+  color: var(--ec-active-text-color);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  margin: 0 2px;
+}
+
+/* Phase B5 — pinch-to-zoom row height. The renderer writes the active
+ * height into --ec-timeline-row-h on the root; rows pick it up via
+ * min-height so longer event titles still bump the row taller. */
+.ec-timeline[style*="--ec-timeline-row-h"] .ec-timeline-row {
+  min-height: var(--ec-timeline-row-h);
+}
+
 .ec-timeline .ec-event {
   position: absolute;
   top: 4px;

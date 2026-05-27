@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>stimulus_calendar — Roster zoom modes (Phase B)</title>
+  <link rel="stylesheet" href="../src/styles/calendar.css">
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; margin: 2rem; }
+    .ec { width: 1080px; }
+    h1 { font-size: 1.25rem; }
+    .note { color: #475569; font-size: 0.875rem; max-width: 65ch; margin-bottom: 1rem; }
+    .controls { display: flex; gap: 0.75rem; align-items: center; margin: 0.5rem 0 1rem; }
+    .controls button { padding: 0.4rem 0.85rem; }
+    .controls button[aria-pressed="true"] { background: #2563eb; color: #fff; border-color: #2563eb; }
+  </style>
+</head>
+<body>
+  <h1>Hour-column day · pinch row height · today-circle</h1>
+  <p class="note">
+    Phase B. Toggle between day-strip and hour-column layouts (B1/B3),
+    swap row height between compact and comfy (B5), and pop the
+    today-circle dayHead variant (B6). All four modes layer cleanly on
+    top of the same Roster primitives from Phase A.
+  </p>
+  <div class="controls">
+    <button data-act="slot-days"  aria-pressed="false">slotMode: days</button>
+    <button data-act="slot-hours" aria-pressed="true">slotMode: hours</button>
+    <button data-act="compact">Compact rows</button>
+    <button data-act="comfy">Comfy rows</button>
+    <button data-act="today-circle">Toggle today-circle</button>
+  </div>
+  <div data-controller="calendar"
+       data-calendar-plugins-value='["ResourceTimeline","Interaction"]'
+       data-calendar-view-value="resourceTimelineDay"
+       data-calendar-options-value='{
+         "slotMode":"hours","slotMinTime":"06:00:00","slotMaxTime":"18:00:00",
+         "slotWidth":56,"editable":true,"nowIndicator":true,"lunchHour":12,
+         "dayHeaderTodayStyle":"cell-tint","compactRowHeight":48,"comfyRowHeight":80
+       }'
+       data-calendar-resources-value='[
+         {"id":"will","title":"Will Tan"},
+         {"id":"mike","title":"Mike O"},
+         {"id":"sam","title":"Sam Ng"},
+         {"id":"jess","title":"Jess Q"}
+       ]'
+       data-calendar-resource-groups-value='[
+         {"id":"a","title":"Crew A","color":"#5856d6","resourceIds":["will","mike"],"expanded":true},
+         {"id":"b","title":"Crew B","color":"#34c759","resourceIds":["sam","jess"],"expanded":true}
+       ]'>
+  </div>
+  <script type="module">
+    import { Application } from '/node_modules/@hotwired/stimulus/dist/stimulus.js';
+    import CalendarController from '/src/controllers/calendar_controller.js';
+    const app = Application.start();
+    app.register('calendar', CalendarController);
+    await new Promise((r) => setTimeout(r, 80));
+    const el = document.querySelector('[data-controller="calendar"]');
+    el.calendarApi.gotoDate(new Date());
+    const today = new Date();
+    const mk = (h, dur) => new Date(today.getFullYear(), today.getMonth(), today.getDate(), h, dur);
+    el.calendarApi.addEvent({ id:'e1', title:'Smith reno', resourceIds:['will'],
+      start: mk(8, 0).toISOString(), end: mk(11, 30).toISOString(), backgroundColor:'#5856d6' });
+    el.calendarApi.addEvent({ id:'e2', title:'Patel quote', resourceIds:['mike'],
+      start: mk(13, 0).toISOString(), end: mk(15, 0).toISOString(), backgroundColor:'#5856d6' });
+    el.calendarApi.addEvent({ id:'e3', title:'Hot water', resourceIds:['sam'],
+      start: mk(10, 0).toISOString(), end: mk(14, 0).toISOString(), backgroundColor:'#34c759' });
+    el.calendarApi.addEvent({ id:'e4', title:'Service · Murphy', resourceIds:['jess'],
+      start: mk(15, 30).toISOString(), end: mk(17, 0).toISOString(), backgroundColor:'#34c759' });
+
+    const setMode = (mode) => {
+      el.calendarApi.setOption('slotMode', mode);
+      document.querySelector('[data-act="slot-days"]').setAttribute('aria-pressed', mode === 'days');
+      document.querySelector('[data-act="slot-hours"]').setAttribute('aria-pressed', mode === 'hours');
+    };
+    document.querySelector('[data-act="slot-days"]').onclick  = () => setMode('days');
+    document.querySelector('[data-act="slot-hours"]').onclick = () => setMode('hours');
+    document.querySelector('[data-act="compact"]').onclick    = () => el.calendarApi.setRowHeight(48);
+    document.querySelector('[data-act="comfy"]').onclick      = () => el.calendarApi.setRowHeight(96);
+    let circle = false;
+    document.querySelector('[data-act="today-circle"]').onclick = () => {
+      circle = !circle;
+      el.calendarApi.setOption('dayHeaderTodayStyle', circle ? 'circle' : 'cell-tint');
+    };
+  </script>
+</body>
+</html>

@@ -1,14 +1,10 @@
 // ResourceTimeline view — time runs horizontally, resources stack
-// vertically as rows. Phase 9 ships the skeleton: header timeline with
-// day labels, one row per resource (with title + horizontal event ribbon),
-// optional expand/collapse for nested resources.
-//
-// Phase A1 layers resource groups on top: an ordered list of
-// { kind: 'group' | 'resource', … } entries built from
-// options.resourceGroups / resourceGroupField. A group renders as a
-// single header row (chevron + swatch + title + count + action slot) and
-// hides its members when collapsed. Resources outside every group render
-// flat below all groups.
+// vertically as rows. Phase 9 shipped the skeleton. Phase A layered
+// resource groups + sticky header + empty-cell affordance + today
+// band + NOW line + bar resize + drag-to-reassign + narrow class.
+// Phase B adds zoom modes — `slotMode: 'days'` (existing behaviour)
+// vs `slotMode: 'hours'` (per-day hour columns), plus per-row pinch
+// height + today-circle dayHead variant.
 
 import { createElement } from '../lib/dom.js';
 import { cloneDate, addDay, setMidnight, datesEqual, createDate } from '../lib/date.js';
@@ -17,16 +13,9 @@ import { getPayload, setPayload } from '../lib/payload.js';
 import { buildResourceGroupLayout } from '../lib/resource_groups.js';
 
 export function renderResourceTimelineView(container, state) {
-  // Per-controller group expansion state. Persists across re-renders
-  // (so toggling a chevron doesn't reset on the next event-change tick)
-  // but lives on this closure, not on the resource itself.
   const groupState = state.get('resourceGroupState') ?? new Map();
   state.set('resourceGroupState', groupState);
 
-  // NOW-line subscription. Re-created on every full render so the line
-  // can re-anchor when the view's day-strip changes; torn down before
-  // the next render (and on view destroy) so a stale closure doesn't
-  // keep mutating a detached node.
   let nowTickUnsub = null;
 
   const render = () => {
@@ -39,32 +28,142 @@ export function renderResourceTimelineView(container, state) {
 
     const days = viewDatesHelper(activeRange, options.hiddenDays ?? []);
     const events = state.get('filteredEvents') ?? [];
-    const slotWidth = options.slotWidth ?? 32;
 
-    const root = createElement('div', `${theme.grid} ec-timeline ec-resource`, '', [
+    // Column geometry — driven by slotMode.
+    //
+    //   days  : one column per visible day; colWidth = slotWidth (default
+    //           32 px). The view spans days.length columns.
+    //   hours : one column per hour in [slotMinTime, slotMaxTime) per day;
+    //           colWidth defaults to 48 px for legibility. Days act as
+    //           super-headers spanning HOURS each.
+    const slotMode = options.slotMode === 'hours' ? 'hours' : 'days';
+    const hourStart = secondsOfDuration(options.slotMinTime) / 3600;
+    const hourEnd   = secondsOfDuration(options.slotMaxTime) / 3600;
+    const hoursPerDay = slotMode === 'hours'
+      ? Math.max(1, Math.round(hourEnd - hourStart))
+      : 1;
+    const colWidth = slotMode === 'hours'
+      ? (options.slotWidth ?? 48)
+      : (options.slotWidth ?? 32);
+    const totalCols = days.length * hoursPerDay;
+    const totalWidth = totalCols * colWidth;
+
+    // xForDate maps an event boundary date to a px offset within the
+    // strip. For days mode the column index = day index; for hours mode
+    // the column index = (day index × hoursPerDay + hours-since-hourStart).
+    const dayStartMs = days.length ? days[0].getTime() : 0;
+    const xForDate = (date) => {
+      const idx = days.findIndex((d) => {
+        const next = cloneDate(d); addDay(next);
+        return date < next && date >= d;
+      });
+      if (slotMode === 'days') {
+        // Clip to range; bars starting before the visible range hug 0,
+        // bars ending after hug the right edge.
+        if (idx === -1) {
+          if (date < days[0]) return 0;
+          return totalWidth;
+        }
+        return idx * colWidth;
+      }
+      // hours mode — convert minutes-since-midnight inside the day to a
+      // fraction of hoursPerDay. Bars starting before slotMinTime clip
+      // to the left edge of the day; bars ending past slotMaxTime clip
+      // to the right edge of the day.
+      let i = idx;
+      if (i === -1) {
+        if (date < days[0]) return 0;
+        // After the last visible day → right edge.
+        return totalWidth;
+      }
+      const midnight = setMidnight(cloneDate(days[i]));
+      const minutesIntoDay = (date.getTime() - midnight.getTime()) / 60000;
+      const clipped = Math.max(hourStart * 60, Math.min(hourEnd * 60, minutesIntoDay));
+      const hoursIntoVisible = clipped / 60 - hourStart;
+      return i * hoursPerDay * colWidth + hoursIntoVisible * colWidth;
+    };
+
+    const root = createElement('div', `${theme.grid} ec-timeline ec-resource ec-timeline-mode-${slotMode}`, '', [
       ['data-grid', 'resource-timeline'],
+      ['data-slot-mode', slotMode],
     ]);
+    if (options.dayHeaderTodayStyle === 'circle') {
+      root.classList.add('ec-day-head-today-circle');
+    }
 
-    // Header — day labels across the timeline.
+    // Per-row height (Phase B5) — single source of truth on the root.
+    const rowHeight = state.get('rowHeight');
+    if (rowHeight) root.style.setProperty('--ec-timeline-row-h', `${rowHeight}px`);
+
+    // Header — day super-headers (hours mode adds an hour-strip below).
     const header = createElement('div', theme.colHead, '', [['data-row', 'header']]);
-    header.append(createElement('div', `${theme.rowHead}`));
-    const headerFmt = new Intl.DateTimeFormat(options.locale, { timeZone: 'UTC', ...options.dayHeaderFormat });
+    header.append(createElement('div', theme.rowHead));
+    const dayLabelFmt = new Intl.DateTimeFormat(options.locale, { timeZone: 'UTC', ...options.dayHeaderFormat });
     const slotsHeader = createElement('div', theme.slots);
+    slotsHeader.style.width = `${totalWidth}px`;
+    const todayMid = setMidnight(createDate(new Date()));
     for (const day of days) {
-      const cell = createElement('div', theme.dayHead, headerFmt.format(day), [
+      const isToday = datesEqual(todayMid, setMidnight(cloneDate(day)));
+      const cell = createElement('div', `${theme.dayHead}${isToday ? ' ec-day-head-today' : ''}`, '', [
         ['data-day', String(day.getUTCDay())],
+        ['data-date', day.toISOString().substring(0, 10)],
       ]);
-      cell.style.width = `${slotWidth}px`;
+      // Day-number rendering depends on dayHeaderTodayStyle. The default
+      // 'cell-tint' just colours the cell (existing behaviour); 'circle'
+      // wraps the day-number text in a small accent disc.
+      if (options.dayHeaderTodayStyle === 'circle' && isToday) {
+        const label = dayLabelFmt.format(day);
+        const dayNo = day.getUTCDate();
+        // Find the numeric day-of-month in the formatted label and wrap
+        // it in a disc; the rest of the label (weekday short, etc.) is
+        // appended around it.
+        const idx = label.indexOf(String(dayNo));
+        if (idx >= 0) {
+          const before = label.slice(0, idx);
+          const after  = label.slice(idx + String(dayNo).length);
+          if (before) cell.append(document.createTextNode(before));
+          const disc = createElement('span', 'ec-day-head-today-disc', String(dayNo));
+          cell.append(disc);
+          if (after) cell.append(document.createTextNode(after));
+        } else {
+          cell.textContent = label;
+        }
+      } else {
+        cell.textContent = dayLabelFmt.format(day);
+      }
+      cell.style.width = `${colWidth * hoursPerDay}px`;
       slotsHeader.append(cell);
     }
     header.append(slotsHeader);
     root.append(header);
 
-    // Body — rows. Phase A1: group-aware layout. We walk only top-level
-    // resources (nested-resource expand/collapse stays as a sub-layer
-    // inside renderRow).
-    const tops = resources.filter((r) => (getPayload(r)?.level ?? 0) === 0);
+    // Hour strip — only in hours mode. Renders below the day super-header
+    // so the day-axis + hour-axis read like a single sticky block.
+    if (slotMode === 'hours') {
+      const hourHeader = createElement('div', `${theme.colHead} ec-timeline-hour-head`, '', [
+        ['data-row', 'hour-header'],
+      ]);
+      hourHeader.append(createElement('div', theme.rowHead));
+      const hourFmt = new Intl.DateTimeFormat(options.locale, { timeZone: 'UTC', hour: 'numeric' });
+      const hoursStrip = createElement('div', theme.slots);
+      hoursStrip.style.width = `${totalWidth}px`;
+      for (let di = 0; di < days.length; ++di) {
+        for (let h = 0; h < hoursPerDay; ++h) {
+          const hourDate = cloneDate(days[di]);
+          hourDate.setUTCHours(hourStart + h, 0, 0, 0);
+          const cell = createElement('div', `${theme.dayHead} ec-hour-head`, hourFmt.format(hourDate), [
+            ['data-hour', String(hourStart + h)],
+          ]);
+          cell.style.width = `${colWidth}px`;
+          hoursStrip.append(cell);
+        }
+      }
+      hourHeader.append(hoursStrip);
+      root.append(hourHeader);
+    }
 
+    // Resource layout.
+    const tops = resources.filter((r) => (getPayload(r)?.level ?? 0) === 0);
     if (options.resourceExpand !== undefined) {
       const applyExpand = (r, depth) => {
         const p = getPayload(r);
@@ -86,9 +185,6 @@ export function renderResourceTimelineView(container, state) {
     });
     state.set('resourceGroupsById', groupsById);
 
-    // Reverse index: resourceId → group. Used by per-cell event payloads
-    // so the host doesn't have to thread the groups list through every
-    // cellClick handler.
     const groupByResourceId = new Map();
     for (const g of groupsById.values()) {
       for (const rid of g.resourceIds) groupByResourceId.set(rid, g);
@@ -98,33 +194,22 @@ export function renderResourceTimelineView(container, state) {
     const body = createElement('div', 'ec-timeline-body', '', [['data-row', 'body']]);
     body.style.position = 'relative';
 
-    // Phase A4 — TODAY column tint + NOW vertical line.
-    //
-    // Both are absolute-positioned overlays inside the body. Today's
-    // column index drives a translucent band that spans every row from
-    // its first row's top to the last row's bottom; the NOW line is a
-    // 2 px vertical rule positioned at
-    //     (now − dayStart) / dayMs * dayWidth
-    // inside today's column.
-    //
-    // The NOW line subscribes to state.now (ticked every second by
-    // nowAndTodayEffect) so it slides across the column as wall-clock
-    // minutes advance — no re-render. Suppressed unless
-    // options.nowIndicator is true (mirrors TimeGrid).
-    const today = setMidnight(createDate(new Date()));
+    // TODAY band + NOW vertical line (Phase A4) — extended for hours mode.
     let todayIdx = -1;
     for (let i = 0; i < days.length; i++) {
-      if (datesEqual(today, setMidnight(cloneDate(days[i])))) { todayIdx = i; break; }
+      if (datesEqual(todayMid, setMidnight(cloneDate(days[i])))) { todayIdx = i; break; }
     }
     if (todayIdx >= 0) {
+      const todayDayLeft = todayIdx * hoursPerDay * colWidth;
+      const dayBandWidth = colWidth * hoursPerDay;
       const tint = createElement('div', 'ec-timeline-today-band', '', [
         ['data-today-band', ''],
       ]);
       tint.style.position = 'absolute';
       tint.style.top = '0';
       tint.style.bottom = '0';
-      tint.style.left  = `calc(var(--ec-timeline-rowhead-w, 160px) + ${todayIdx * slotWidth}px)`;
-      tint.style.width = `${slotWidth}px`;
+      tint.style.left  = `calc(var(--ec-timeline-rowhead-w, 160px) + ${todayDayLeft}px)`;
+      tint.style.width = `${dayBandWidth}px`;
       tint.style.pointerEvents = 'none';
       body.append(tint);
 
@@ -139,14 +224,20 @@ export function renderResourceTimelineView(container, state) {
         nowLine.style.background = 'var(--ec-now-indicator-color, #dc2626)';
         nowLine.style.pointerEvents = 'none';
         nowLine.style.zIndex = '4';
-        const dayStart = days[todayIdx].getTime();
+        const dayMid = days[todayIdx];
         const reposition = (nowDate) => {
           const n = nowDate instanceof Date ? nowDate : createDate(new Date());
-          const minsIntoDay = ((n.getTime() - dayStart) / 60000);
-          const clamped = Math.max(0, Math.min(1440, minsIntoDay));
-          const xWithinCol = (clamped / 1440) * slotWidth;
+          const minsIntoDay = (n.getTime() - dayMid.getTime()) / 60000;
+          let xWithinDay;
+          if (slotMode === 'hours') {
+            const clipped = Math.max(hourStart * 60, Math.min(hourEnd * 60, minsIntoDay));
+            xWithinDay = (clipped - hourStart * 60) / 60 * colWidth;
+          } else {
+            const clipped = Math.max(0, Math.min(1440, minsIntoDay));
+            xWithinDay = (clipped / 1440) * colWidth;
+          }
           nowLine.style.left =
-            `calc(var(--ec-timeline-rowhead-w, 160px) + ${todayIdx * slotWidth + xWithinCol}px)`;
+            `calc(var(--ec-timeline-rowhead-w, 160px) + ${todayDayLeft + xWithinDay}px)`;
         };
         reposition(state.get('now'));
         body.append(nowLine);
@@ -154,6 +245,7 @@ export function renderResourceTimelineView(container, state) {
       }
     }
 
+    // Group header / row rendering.
     const renderGroupHeader = (group) => {
       const row = createElement('div', `ec-timeline-row ${theme.groupHeader}`, '', [
         ['data-row', 'group-header'],
@@ -184,13 +276,9 @@ export function renderResourceTimelineView(container, state) {
       const swatch = createElement('span', theme.groupHeaderSwatch);
       if (group.color) swatch.style.background = group.color;
       head.append(swatch);
-
       head.append(createElement('span', theme.groupHeaderName, group.title));
       head.append(createElement('span', theme.groupHeaderCount, `${group.resourceIds.length}`));
 
-      // Right-hand action slot — host can supply an HTML / text recipe via
-      // options.groupHeaderContent({ group, view }) or wire a click on
-      // [data-group-header-action] from the calendar:groupExpand event.
       const actionSlot = createElement('span', theme.groupHeaderAction, '', [
         ['data-group-header-action', ''],
       ]);
@@ -202,13 +290,10 @@ export function renderResourceTimelineView(container, state) {
         else if (c?.domNodes) c.domNodes.forEach((n) => actionSlot.append(n));
       }
       head.append(actionSlot);
-
       row.append(head);
 
-      // Strip cell — empty placeholder spanning the timeline width so
-      // the bottom border lines up with regular rows.
       const strip = createElement('div', 'ec-group-header-strip');
-      strip.style.width = `${days.length * slotWidth}px`;
+      strip.style.width = `${totalWidth}px`;
       row.append(strip);
       body.append(row);
 
@@ -259,63 +344,86 @@ export function renderResourceTimelineView(container, state) {
       const ribbon = createElement('div', 'ec-timeline-ribbon');
       ribbon.style.position = 'relative';
       ribbon.style.minHeight = '30px';
-      const dayWidth = slotWidth;
-      ribbon.style.width = `${days.length * dayWidth}px`;
+      ribbon.style.width = `${totalWidth}px`;
 
-      // Phase A3 — empty-cell layer. Each day in this resource's strip
-      // gets a tap-target cell sitting behind the bars. Hover/focus
-      // reveals a centred `＋` (only when emptyCellAddButton is opt-in)
-      // and tap fires cellClick with { date, resource, group, jsEvent }.
-      // Drawn BEFORE the bars so absolute-positioned chips paint on top
-      // and a tap that lands on a bar still hits the bar's click handler.
+      // Lunch-hour shading (hours mode only). Painted under the bars
+      // via a CSS gradient per day column.
+      if (slotMode === 'hours' && options.lunchHour != null) {
+        const lh = Number(options.lunchHour);
+        if (Number.isFinite(lh) && lh >= hourStart && lh < hourEnd) {
+          for (let di = 0; di < days.length; ++di) {
+            const band = createElement('div', 'ec-timeline-lunch-band');
+            const leftPx = (di * hoursPerDay + (lh - hourStart)) * colWidth;
+            band.style.position = 'absolute';
+            band.style.top = '0';
+            band.style.bottom = '0';
+            band.style.left = `${leftPx}px`;
+            band.style.width = `${colWidth}px`;
+            band.style.pointerEvents = 'none';
+            ribbon.append(band);
+          }
+        }
+      }
+
+      // Empty-cell layer (Phase A3) — one cell per visible column. In
+      // hours mode each tap surfaces the hour as part of the date.
       const cellsLayer = createElement('div', 'ec-timeline-cells');
       cellsLayer.style.position = 'absolute';
       cellsLayer.style.inset = '0';
       cellsLayer.style.display = 'grid';
-      cellsLayer.style.gridTemplateColumns = `repeat(${days.length}, ${dayWidth}px)`;
+      cellsLayer.style.gridTemplateColumns = `repeat(${totalCols}, ${colWidth}px)`;
       cellsLayer.style.pointerEvents = 'none';
       const fire = state.get('fire');
-      for (let i = 0; i < days.length; i++) {
-        const day = days[i];
-        const cell = createElement('div', 'ec-timeline-cell', '', [
-          ['data-date', day.toISOString().substring(0, 10)],
-          ['data-day',  String(day.getUTCDay())],
-        ]);
-        cell.style.pointerEvents = 'auto';
-        // Optional `＋` glyph for the host. Three shapes:
-        //   true                 → built-in centred plus
-        //   ({date, resource}) → custom recipe ({ html | domNodes | textContent })
-        //   false / undefined    → no glyph (cell still listens for tap)
-        const addOpt = options.emptyCellAddButton;
-        if (addOpt) {
-          const btn = createElement('span', 'ec-timeline-cell-add', '+');
-          if (typeof addOpt === 'function') {
-            const c = addOpt({ date: day, resource, group: groupOf(resource) });
-            if (typeof c === 'string') btn.textContent = c;
-            else if (c?.html) btn.innerHTML = c.html;
-            else if (c?.domNodes) { btn.textContent = ''; c.domNodes.forEach((n) => btn.append(n)); }
+      for (let di = 0; di < days.length; ++di) {
+        const day = days[di];
+        for (let h = 0; h < hoursPerDay; ++h) {
+          const cellDate = cloneDate(day);
+          if (slotMode === 'hours') cellDate.setUTCHours(hourStart + h, 0, 0, 0);
+          const isDayBoundary = h === 0;
+          // Phase B2 — week boundary marker. In days-mode every 7th
+          // column gets a thicker left edge so a 28-day Gantt stays
+          // readable (matches the mockup §4d people-month markers).
+          const isWeekBoundary = slotMode === 'days' && di > 0 && di % 7 === 0 && h === 0;
+          const cell = createElement('div',
+            `ec-timeline-cell${isDayBoundary ? ' ec-timeline-cell-day-edge' : ''}${isWeekBoundary ? ' ec-timeline-cell-week-edge' : ''}`, '', [
+            ['data-date', day.toISOString().substring(0, 10)],
+            ['data-day',  String(day.getUTCDay())],
+            ...(slotMode === 'hours' ? [['data-hour', String(hourStart + h)]] : []),
+          ]);
+          cell.style.pointerEvents = 'auto';
+          const addOpt = options.emptyCellAddButton;
+          if (addOpt) {
+            const btn = createElement('span', 'ec-timeline-cell-add', '+');
+            if (typeof addOpt === 'function') {
+              const c = addOpt({ date: cellDate, resource, group: groupOf(resource) });
+              if (typeof c === 'string') btn.textContent = c;
+              else if (c?.html) btn.innerHTML = c.html;
+              else if (c?.domNodes) { btn.textContent = ''; c.domNodes.forEach((n) => btn.append(n)); }
+            }
+            cell.append(btn);
           }
-          cell.append(btn);
-        }
-        cell.addEventListener('click', (jsEvent) => {
-          fire?.('cellClick', {
-            date: day, resource, group: groupOf(resource),
-            jsEvent, view: state.get('view'),
+          cell.addEventListener('click', (jsEvent) => {
+            fire?.('cellClick', {
+              date: cellDate, resource, group: groupOf(resource),
+              jsEvent, view: state.get('view'),
+            });
           });
-        });
-        cellsLayer.append(cell);
+          cellsLayer.append(cell);
+        }
       }
       ribbon.append(cellsLayer);
+
       const resourceEvents = events.filter((e) =>
         e.resourceIds.length === 0 || e.resourceIds.includes(resource.id));
       for (const event of resourceEvents) {
-        const startDayIdx = days.findIndex((d) => {
-          const next = cloneDate(d); addDay(next);
-          return event.start < next;
-        });
-        if (startDayIdx === -1) continue;
-        const endDayIdx = days.findIndex((d) => d >= event.end);
-        const endIdx = endDayIdx === -1 ? days.length : endDayIdx;
+        const xL = xForDate(event.start);
+        const xR = xForDate(event.end);
+        // Skip events entirely outside the visible strip.
+        if (xR <= 0 || xL >= totalWidth) continue;
+        const left  = Math.max(0, xL);
+        const right = Math.min(totalWidth, xR);
+        const width = Math.max(colWidth / 4, right - left);
+
         const chipClasses = [theme.event];
         const globalCls = options.eventClassNames;
         if (typeof globalCls === 'function') {
@@ -329,33 +437,19 @@ export function renderResourceTimelineView(container, state) {
           ['data-event-id', event.id],
         ]);
         chip.style.position = 'absolute';
-        chip.style.left = `${Math.max(0, startDayIdx) * dayWidth}px`;
-        const chipWidthPx = Math.max(endIdx - Math.max(0, startDayIdx), 1) * dayWidth;
-        chip.style.width = `${chipWidthPx}px`;
+        chip.style.left = `${left}px`;
+        chip.style.width = `${width}px`;
         if (event.backgroundColor) chip.style.setProperty('--ec-event-color', event.backgroundColor);
 
-        // Phase A7 — narrow auto-class. Apply synchronously off the
-        // computed inline width so the host's first paint already gets
-        // the right classes (no flash of wide-mode content collapsing
-        // when the ResizeObserver lands on the next frame).
-        const narrowAt = Number(options.eventNarrowThreshold ?? 60);
-        if (chipWidthPx < narrowAt) chip.classList.add('ec-event-narrow');
+        if (width < Number(options.eventNarrowThreshold ?? 60)) chip.classList.add('ec-event-narrow');
         if (typeof ResizeObserver !== 'undefined') {
           const ro = new ResizeObserver(() => {
             const w = chip.getBoundingClientRect().width;
-            chip.classList.toggle('ec-event-narrow', w < narrowAt);
+            chip.classList.toggle('ec-event-narrow', w < Number(options.eventNarrowThreshold ?? 60));
           });
           ro.observe(chip);
-          // The observer follows the chip; it's GC'd when the chip is
-          // removed because nothing else holds a reference to it.
         }
 
-        // Phase A5 — left / right resize handles. Mirrors the TimeGrid
-        // chip's resizer convention: data-resizer="start" / "end" with
-        // the same class name so the Interaction plugin's pointerdown
-        // handler can pick them up. Surfaces only when editable AND
-        // eventDurationEditable hasn't been turned off (start handle is
-        // additionally gated on eventResizableFromStart).
         if (options.editable && options.eventDurationEditable !== false) {
           const endHandle = createElement('div',
             `${options.theme.resizer ?? 'ec-resizer'} ec-resizer-x ec-resizer-x-end`, '', [
@@ -373,7 +467,6 @@ export function renderResourceTimelineView(container, state) {
           }
         }
 
-        const fire = state.get('fire');
         chip.addEventListener('click',     (jsEvent) => fire?.('eventClick',      { event, jsEvent, view: state.get('view'), resource }));
         chip.addEventListener('dblclick',  (jsEvent) => fire?.('eventDoubleClick',{ event, jsEvent, view: state.get('view'), resource, el: chip }));
         chip.addEventListener('mouseenter',(jsEvent) => fire?.('eventMouseEnter', { event, jsEvent, view: state.get('view'), resource }));
@@ -395,13 +488,22 @@ export function renderResourceTimelineView(container, state) {
     }
 
     root.append(body);
+
+    // Phase B5 — pinch-to-zoom row height. Two-finger pinch on the body
+    // toggles between compactRowHeight and comfyRowHeight. Desktop-only
+    // gestures (mouse wheel etc.) are intentionally left out — host
+    // apps already have other ways to set row height via options.
+    if (options.allowPinchZoom) {
+      attachPinchHandler(body, state, options);
+    }
+
     container.replaceChildren(root);
   };
 
   render();
   const off = state.onAny(({ key }) => {
     if (['options', 'currentRange', 'activeRange', 'viewDates',
-         'filteredEvents', 'resources'].includes(key)) render();
+         'filteredEvents', 'resources', 'rowHeight'].includes(key)) render();
   });
 
   return () => {
@@ -409,4 +511,49 @@ export function renderResourceTimelineView(container, state) {
     if (nowTickUnsub) { nowTickUnsub(); nowTickUnsub = null; }
     container.replaceChildren();
   };
+}
+
+// duration → seconds. Accepts the lib/duration {days, seconds} shape or
+// undefined; default 0.
+function secondsOfDuration(d) {
+  if (!d) return 0;
+  return (d.days ?? 0) * 86400 + (d.seconds ?? 0);
+}
+
+// Pinch-to-zoom (Phase B5). Two-finger pinch outwards → comfy height,
+// inwards → compact height. Per-controller toggling lives on
+// state.rowHeight; the render loop re-runs when it changes.
+function attachPinchHandler(bodyEl, state, options) {
+  let pinch = null;
+  const onTouchStart = (e) => {
+    if (e.touches.length !== 2) return;
+    pinch = {
+      startDist: distance(e.touches[0], e.touches[1]),
+      startHeight: state.get('rowHeight') ?? options.compactRowHeight ?? 52,
+    };
+  };
+  const onTouchMove = (e) => {
+    if (!pinch || e.touches.length !== 2) return;
+    const dist = distance(e.touches[0], e.touches[1]);
+    if (Math.abs(dist - pinch.startDist) < 14) return;
+    const want = dist > pinch.startDist
+      ? Number(options.comfyRowHeight ?? 88)
+      : Number(options.compactRowHeight ?? 52);
+    if (want !== state.get('rowHeight')) {
+      state.set('rowHeight', want);
+      state.get('fire')?.('rowHeightChange', { height: want });
+    }
+    e.preventDefault();
+  };
+  const onTouchEnd = () => { pinch = null; };
+  bodyEl.addEventListener('touchstart', onTouchStart, { passive: false });
+  bodyEl.addEventListener('touchmove',  onTouchMove,  { passive: false });
+  bodyEl.addEventListener('touchend',   onTouchEnd,   { passive: true });
+  bodyEl.addEventListener('touchcancel',onTouchEnd,   { passive: true });
+}
+
+function distance(t1, t2) {
+  const dx = t1.clientX - t2.clientX;
+  const dy = t1.clientY - t2.clientY;
+  return Math.sqrt(dx * dx + dy * dy);
 }

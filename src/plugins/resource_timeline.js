@@ -54,6 +54,26 @@ export const ResourceTimelinePlugin = {
       // Phase A7 — bars narrower than this (px) get .ec-event-narrow so
       // per-bar CSS can hide secondary text (time meta, subtitle).
       eventNarrowThreshold: 60,
+      // Phase B1/B3 — slot mode. Default 'days' keeps Phase 9 behaviour
+      // (one column per day). 'hours' switches the resource timeline
+      // into a per-day, per-hour column grid (uses slotMinTime /
+      // slotMaxTime to bound the hour range). The view's day count is
+      // derived from options.duration as usual; in hours mode every day
+      // gets HOURS = (slotMaxTime - slotMinTime) / 1h columns.
+      slotMode: 'days',
+      // Phase B5 — pinch-to-zoom row height. compactRowHeight (px) and
+      // comfyRowHeight (px) are the two slots the gesture toggles
+      // between; the active height lives on state.rowHeight and is
+      // surfaced as inline --ec-timeline-row-h on the root.
+      allowPinchZoom: false,
+      compactRowHeight: 52,
+      comfyRowHeight: 88,
+      // Phase B6 — TODAY day-number style. 'cell-tint' (default) keeps
+      // the existing behaviour; 'circle' wraps the day number in an
+      // accent-filled circle (iOS Calendar pattern).
+      dayHeaderTodayStyle: 'cell-tint',
+      // Optional shaded lunch hour band inside hours-mode (CSS-only).
+      lunchHour: undefined,
     });
     Object.assign(options.buttonText, {
       expand: 'Expand',
@@ -96,6 +116,19 @@ export const ResourceTimelinePlugin = {
         dayHeaderFormat: { weekday: 'short', day: 'numeric' },
         duration: { months: 1 },
         slotDuration: { days: 1 },
+        titleFormat: { year: 'numeric', month: 'long' },
+      },
+      // Phase B2 — 28-day compressed Gantt. Renders 4 weeks of daily
+      // columns; the renderer's narrow auto-class kicks in for most
+      // bars at this density. Today-circle is the recommended dayHead
+      // style here (matches iOS Calendar at month zoom).
+      resourceTimelineMonth4w: {
+        component: () => renderResourceTimelineView,
+        dayHeaderFormat: { day: 'numeric' },
+        duration: { weeks: 4 },
+        slotDuration: { days: 1 },
+        slotWidth: 36,
+        dayHeaderTodayStyle: 'circle',
         titleFormat: { year: 'numeric', month: 'long' },
       },
       resourceTimelineYear: {

@@ -241,6 +241,88 @@ describe('view: resourceTimeline', () => {
     expect(wide.classList.contains('ec-event-narrow')).toBe(false);
   });
 
+  it('hours mode emits an hour-strip and per-hour cells (Phase B1)', async () => {
+    const el = await mount(`<div data-controller="calendar"
+      data-calendar-plugins-value='["ResourceTimeline"]'
+      data-calendar-view-value="resourceTimelineDay"
+      data-calendar-date-value="2026-05-25"
+      data-calendar-options-value='{"slotMode":"hours","slotMinTime":"06:00:00","slotMaxTime":"18:00:00","slotWidth":50}'
+      data-calendar-resources-value='[{"id":"r1","title":"Room A"}]'>
+    </div>`);
+    expect(el.querySelector('[data-slot-mode="hours"]')).toBeTruthy();
+    const hours = el.querySelectorAll('[data-row="hour-header"] .ec-hour-head');
+    expect(hours.length).toBe(12);
+    const cells = el.querySelectorAll('[data-resource-id="r1"] .ec-timeline-cell');
+    expect(cells.length).toBe(12);
+    expect(cells[0].getAttribute('data-hour')).toBe('6');
+    expect(cells[11].getAttribute('data-hour')).toBe('17');
+  });
+
+  it('hours mode positions an event by hour fraction within a day', async () => {
+    const el = await mount(`<div data-controller="calendar"
+      data-calendar-plugins-value='["ResourceTimeline"]'
+      data-calendar-view-value="resourceTimelineDay"
+      data-calendar-date-value="2026-05-25"
+      data-calendar-options-value='{"slotMode":"hours","slotMinTime":"06:00:00","slotMaxTime":"18:00:00","slotWidth":50}'
+      data-calendar-resources-value='[{"id":"r1","title":"Room A"}]'>
+    </div>`);
+    el.calendarApi.addEvent({ id:'e1', title:'Job',
+      resourceIds:['r1'], start:'2026-05-25T09:00', end:'2026-05-25T11:00' });
+    const chip = el.querySelector('[data-event-id="e1"]');
+    // 06–09 = 3 hours offset × 50 px = 150
+    expect(parseFloat(chip.style.left)).toBeCloseTo(150, 0);
+    // duration 2h × 50 = 100
+    expect(parseFloat(chip.style.width)).toBeCloseTo(100, 0);
+  });
+
+  it('dayHeaderTodayStyle=circle wraps today number in an accent disc (B6)', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-27T10:00:00'));
+    try {
+      const el = await mount(`<div data-controller="calendar"
+        data-calendar-plugins-value='["ResourceTimeline"]'
+        data-calendar-view-value="resourceTimelineWeek"
+        data-calendar-date-value="2026-05-25"
+        data-calendar-options-value='{"dayHeaderTodayStyle":"circle","dayHeaderFormat":{"weekday":"short","day":"numeric"}}'
+        data-calendar-resources-value='[{"id":"r1","title":"Room A"}]'>
+      </div>`);
+      expect(el.querySelector('.ec-day-head-today-disc')).toBeTruthy();
+      // The disc contains the day-of-month, not the weekday
+      expect(el.querySelector('.ec-day-head-today-disc').textContent).toBe('27');
+    } finally { vi.useRealTimers(); }
+  });
+
+  it('setRowHeight re-renders with --ec-timeline-row-h on the root (B5)', async () => {
+    const el = await mount(`<div data-controller="calendar"
+      data-calendar-plugins-value='["ResourceTimeline"]'
+      data-calendar-view-value="resourceTimelineWeek"
+      data-calendar-date-value="2026-05-25"
+      data-calendar-resources-value='[{"id":"r1","title":"Room A"}]'>
+    </div>`);
+    const events = [];
+    el.addEventListener('calendar:rowHeightChange', (e) => events.push(e.detail));
+    el.calendarApi.setRowHeight(96);
+    const root = el.querySelector('.ec-timeline');
+    expect(root.style.getPropertyValue('--ec-timeline-row-h')).toBe('96px');
+    expect(events[0].height).toBe(96);
+    expect(el.calendarApi.getRowHeight()).toBe(96);
+  });
+
+  it('resourceTimelineMonth4w renders 28 days with week-edge markers (B2)', async () => {
+    const el = await mount(`<div data-controller="calendar"
+      data-calendar-plugins-value='["ResourceTimeline"]'
+      data-calendar-view-value="resourceTimelineMonth4w"
+      data-calendar-date-value="2026-05-04"
+      data-calendar-resources-value='[{"id":"r1","title":"Room A"}]'>
+    </div>`);
+    const cells = el.querySelectorAll('[data-resource-id="r1"] .ec-timeline-cell');
+    expect(cells.length).toBe(28);
+    const weekEdges = el.querySelectorAll('[data-resource-id="r1"] .ec-timeline-cell-week-edge');
+    // 28 days = 4 weeks → 3 internal week boundaries (the first column
+    // doesn't carry the marker — only columns 7, 14, 21).
+    expect(weekEdges.length).toBe(3);
+  });
+
   it('positions an event ribbon at the right day offset', async () => {
     const el = await mount(`<div data-controller="calendar"
       data-calendar-plugins-value='["ResourceTimeline"]'
