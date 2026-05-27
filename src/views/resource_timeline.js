@@ -56,9 +56,14 @@ export function renderResourceTimelineView(container, state) {
     const hoursPerDay = slotMode === 'hours'
       ? Math.max(1, Math.round(hourEnd - hourStart))
       : 1;
+    // Default slot widths chosen so the typical week / day fills a
+    // desktop calendar pane without horizontal scroll: 7 days × 140px
+    // ≈ 980px; 24 hours × 48px ≈ 1152px. The previous default of 32
+    // for days-mode squished day-axis labels into two stacked lines on
+    // resourceTimelineWeek and left most of the calendar pane empty.
     const colWidth = slotMode === 'hours'
       ? (options.slotWidth ?? 48)
-      : (options.slotWidth ?? 32);
+      : (options.slotWidth ?? 140);
     const totalCols = days.length * hoursPerDay;
     const totalWidth = totalCols * colWidth;
 
