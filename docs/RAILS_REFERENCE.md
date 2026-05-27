@@ -146,3 +146,49 @@ scoped automatically when `ActsAsTenant.current_tenant` is set (per
 subscribers because both the broadcaster (model callback) and the
 subscriber (view partial's `turbo_stream_from`) derive the same token in
 the same request/tenant context.
+
+
+## Array (multi-resource) fields — Phase G
+
+A bar dropped on a different crew (Phase A6 drag-to-reassign) commits
+through `calendarApi.updateEvent({ id, start, end, resourceIds })`. To
+round-trip `resourceIds` through the gem, declare the field as
+`:reference_array` (or `:string_array` for plain string arrays). The
+gem's coerce + serialize_value treat the value as an Array of strings
+end-to-end:
+
+```ruby
+class EventCalendar < StimulusCalendarRails::Calendar
+  resource :events
+  model    Event
+
+  # … other fields …
+  field :resource_ids, type: :reference_array, editable: true
+end
+```
+
+In the model, a setter and a reader keep ActiveRecord happy when the
+underlying schema is a `has_many :through` join table:
+
+```ruby
+class Event < ApplicationRecord
+  include StimulusCalendarRails::Broadcastable
+  broadcasts_calendar EventCalendar
+
+  has_and_belongs_to_many :resources
+
+  def resource_ids
+    resources.pluck(:id).map(&:to_s)
+  end
+
+  def resource_ids=(ids)
+    self.resources = Resource.where(id: ids)
+  end
+end
+```
+
+Outbound `:update` Turbo Stream payloads automatically include
+`resource_ids: ["r2"]` in JSON; the receiver's `createEvents([...])`
+drops it into `event.resourceIds` so the next render re-paints the bar
+under the new crew.
+

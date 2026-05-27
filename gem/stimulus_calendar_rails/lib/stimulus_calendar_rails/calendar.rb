@@ -109,6 +109,11 @@ module StimulusCalendarRails
       when :boolean                       then !!v
       when :date                          then v.respond_to?(:to_date) ? v.to_date.iso8601 : v
       when :datetime                      then v.respond_to?(:iso8601) ? v.iso8601 : v
+      when :reference_array, :string_array
+        # Always emit a plain Array of strings so the JS-side
+        # createEvents() can drop them into event.resourceIds /
+        # custom array extendedProps without further parsing.
+        Array(v).map(&:to_s)
       else v
       end
     end

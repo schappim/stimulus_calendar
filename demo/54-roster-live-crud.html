@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>stimulus_calendar — Roster live CRUD (Phase G)</title>
+  <link rel="stylesheet" href="../src/styles/calendar.css">
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; margin: 1.5rem; }
+    h1 { font-size: 1.25rem; }
+    .note { color: #475569; font-size: 0.875rem; max-width: 65ch; margin-bottom: 1rem; }
+    .windows { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+    .window {
+      border: 1px solid #cbd5e1; border-radius: 12px; padding: 1rem;
+      background: #ffffff; box-shadow: 0 4px 12px -2px rgba(15,23,42,0.08);
+    }
+    .window-chrome {
+      display: flex; gap: 0.4rem; align-items: center; margin-bottom: 0.75rem;
+    }
+    .dot { width: 10px; height: 10px; border-radius: 50%; }
+    .red { background: #ef4444; } .yel { background: #f59e0b; } .grn { background: #10b981; }
+    b { margin-left: 0.5rem; font-size: 0.8rem; color: #475569; font-weight: 500; }
+    .ec { width: 100%; }
+    .log {
+      margin-top: 0.75rem; padding: 0.5rem 0.75rem; background: #f8fafc;
+      border: 1px solid #e2e8f0; border-radius: 6px;
+      font: 0.75rem/1.5 ui-monospace, monospace;
+      max-height: 8rem; overflow-y: auto; color: #334155;
+    }
+    .log .out { color: #1d4ed8; }
+    .log .in  { color: #047857; }
+  </style>
+</head>
+<body>
+  <h1>Roster CRUD round-tripping over the broadcast bus</h1>
+  <p class="note">
+    Phase G. Two calendars share a BroadcastChannel (no Rails needed for
+    the demo — in a real app this would be Turbo Streams + the gem's
+    <code>broadcasts_calendar</code>). Drag a bar between crews on the
+    left, watch the right update the same way. <code>resourceIds</code>
+    is preserved in the payload so the gem's <code>:reference_array</code>
+    field type can round-trip it server-side.
+  </p>
+  <div class="windows">
+    <div class="window">
+      <div class="window-chrome">
+        <span class="dot red"></span><span class="dot yel"></span><span class="dot grn"></span>
+        <b>Dispatcher A</b>
+      </div>
+      <div data-controller="calendar" id="left"
+           data-calendar-plugins-value='["ResourceTimeline","Interaction"]'
+           data-calendar-view-value="resourceTimelineWeek"
+           data-calendar-date-value="2026-05-25"
+           data-calendar-broadcast-value="broadcast-channel"
+           data-calendar-broadcast-channel-value="roster-demo"
+           data-calendar-options-value='{"editable":true,"slotWidth":110}'
+           data-calendar-resources-value='[
+             {"id":"will","title":"Will"},
+             {"id":"mike","title":"Mike"},
+             {"id":"sam","title":"Sam"}
+           ]'
+           data-calendar-resource-groups-value='[
+             {"id":"a","title":"Crew A","color":"#5856d6","resourceIds":["will","mike"],"expanded":true},
+             {"id":"b","title":"Crew B","color":"#34c759","resourceIds":["sam"],"expanded":true}
+           ]'></div>
+      <div class="log" id="leftLog">Drag a bar to a different crew →</div>
+    </div>
+    <div class="window">
+      <div class="window-chrome">
+        <span class="dot red"></span><span class="dot yel"></span><span class="dot grn"></span>
+        <b>Dispatcher B</b>
+      </div>
+      <div data-controller="calendar" id="right"
+           data-calendar-plugins-value='["ResourceTimeline","Interaction"]'
+           data-calendar-view-value="resourceTimelineWeek"
+           data-calendar-date-value="2026-05-25"
+           data-calendar-broadcast-value="broadcast-channel"
+           data-calendar-broadcast-channel-value="roster-demo"
+           data-calendar-options-value='{"editable":true,"slotWidth":110}'
+           data-calendar-resources-value='[
+             {"id":"will","title":"Will"},
+             {"id":"mike","title":"Mike"},
+             {"id":"sam","title":"Sam"}
+           ]'
+           data-calendar-resource-groups-value='[
+             {"id":"a","title":"Crew A","color":"#5856d6","resourceIds":["will","mike"],"expanded":true},
+             {"id":"b","title":"Crew B","color":"#34c759","resourceIds":["sam"],"expanded":true}
+           ]'></div>
+      <div class="log" id="rightLog">Inbound messages will appear here →</div>
+    </div>
+  </div>
+  <script type="module">
+    import { Application } from '/node_modules/@hotwired/stimulus/dist/stimulus.js';
+    import CalendarController from '/src/controllers/calendar_controller.js';
+    const app = Application.start();
+    app.register('calendar', CalendarController);
+    await new Promise((r) => setTimeout(r, 80));
+    const left  = document.getElementById('left');
+    const right = document.getElementById('right');
+    const seed = [
+      ['e1','Smith reno', ['will'],'2026-05-26','2026-05-28','#5856d6'],
+      ['e2','Patel quote',['mike'],'2026-05-27','2026-05-28','#5856d6'],
+      ['e3','Hot water',  ['sam'], '2026-05-25','2026-05-27','#34c759'],
+    ];
+    for (const [id,title,resourceIds,start,end,color] of seed) {
+      left.calendarApi.addEvent({ id, title, resourceIds, start, end, allDay:true, backgroundColor:color });
+    }
+    const fmt = (m) => `${m.op} ${m.event?.id ?? ''} ` +
+      (m.event?.resourceIds ? `→ resourceIds=[${m.event.resourceIds.join(',')}]` : '');
+    const wire = (root, logEl) => {
+      root.addEventListener('calendar:broadcast:out', (e) =>
+        logEl.innerHTML = `<div class="out">↑ out ${fmt(e.detail.message)}</div>` + logEl.innerHTML);
+      root.addEventListener('calendar:broadcast:in', (e) =>
+        logEl.innerHTML = `<div class="in">↓ in  ${fmt(e.detail.message)}</div>` + logEl.innerHTML);
+    };
+    wire(left,  document.getElementById('leftLog'));
+    wire(right, document.getElementById('rightLog'));
+  </script>
+</body>
+</html>

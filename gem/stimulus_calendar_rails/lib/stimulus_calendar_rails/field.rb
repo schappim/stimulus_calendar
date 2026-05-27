@@ -3,7 +3,7 @@ module StimulusCalendarRails
   # authorise, coerce, validate, and broadcast changes for this field.
   # Created via the `field` DSL on Calendar; not instantiated directly.
   class Field
-    TYPES = %i[string text integer datetime date boolean enum reference].freeze
+    TYPES = %i[string text integer datetime date boolean enum reference reference_array string_array].freeze
 
     attr_reader :name, :type, :enum_values, :concurrency, :validators, :header
 
@@ -40,6 +40,13 @@ module StimulusCalendarRails
       when :date                             then [Date.parse(raw.to_s), nil]
       when :boolean
         [%w[1 true yes on t].include?(raw.to_s.downcase), nil]
+      when :reference_array, :string_array
+        # Array fields arrive as a JSON array (from the JS bus payload's
+        # resourceIds = ['r2']) or a comma-separated string. Map every
+        # element to a String so downstream model coercion sees a
+        # consistent shape.
+        arr = raw.is_a?(Array) ? raw : raw.to_s.split(",").map(&:strip)
+        [arr.compact.map(&:to_s), nil]
       else [raw, nil]
       end
     rescue ArgumentError, TypeError => e
