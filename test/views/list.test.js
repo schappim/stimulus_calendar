@@ -39,6 +39,21 @@ describe('view: list*', () => {
     expect(el.querySelectorAll('[data-event-id]').length).toBe(1);
   });
 
+  it('passes extendedProps.dataAttrs through to data-* on the list row', async () => {
+    const el = await mount(`<div data-controller="calendar"
+      data-calendar-plugins-value='["List"]'
+      data-calendar-view-value="listWeek"
+      data-calendar-date-value="2026-05-25"></div>`);
+    el.calendarApi.addEvent({
+      id: 'appt-42', title: 'Switchboard upgrade',
+      start: '2026-05-25T09:00', end: '2026-05-25T11:00',
+      extendedProps: { dataAttrs: { aiContextType: 'job', jobId: 1042 } },
+    });
+    const row = el.querySelector('[data-event-id="appt-42"]');
+    expect(row.getAttribute('data-ai-context-type')).toBe('job');
+    expect(row.getAttribute('data-job-id')).toBe('1042');
+  });
+
   it('noEventsContent renders when there are no events', async () => {
     const el = await mount(`<div data-controller="calendar"
       data-calendar-plugins-value='["List"]'

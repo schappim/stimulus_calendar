@@ -225,6 +225,28 @@ describe('view: resourceTimeline', () => {
     }
   });
 
+  it('passes extendedProps.dataAttrs through to data-* on a timeline bar', async () => {
+    const el = await mount(`<div data-controller="calendar"
+      data-calendar-plugins-value='["ResourceTimeline"]'
+      data-calendar-view-value="resourceTimelineWeek"
+      data-calendar-date-value="2026-05-25"
+      data-calendar-resources-value='[{"id":"r1","title":"Room A"}]'>
+    </div>`);
+    el.calendarApi.addEvent({
+      id: 'appt-42',
+      title: 'Switchboard upgrade',
+      resourceIds: ['r1'],
+      start: '2026-05-26',
+      end: '2026-05-28',
+      allDay: true,
+      extendedProps: { dataAttrs: { aiContextType: 'job', jobId: 1042 } },
+    });
+    const bar = el.querySelector('[data-event-id="appt-42"]');
+    expect(bar).toBeTruthy();
+    expect(bar.getAttribute('data-ai-context-type')).toBe('job');
+    expect(bar.getAttribute('data-job-id')).toBe('1042');
+  });
+
   it('applies ec-event-narrow when a bar is below eventNarrowThreshold (Phase A7)', async () => {
     const el = await mount(`<div data-controller="calendar"
       data-calendar-plugins-value='["ResourceTimeline"]'

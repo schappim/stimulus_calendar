@@ -46,6 +46,29 @@ describe('view: timeGridWeek', () => {
     expect(parseFloat(chip.style.height)).toBeGreaterThan(0);
   });
 
+  it('passes extendedProps.dataAttrs through to data-* on the timeGrid chip', async () => {
+    const el = await mount(`<div data-controller="calendar"
+      data-calendar-plugins-value='["TimeGrid"]'
+      data-calendar-view-value="timeGridDay"
+      data-calendar-date-value="2026-05-25"></div>`);
+    el.calendarApi.addEvent({
+      id: 'appt-42',
+      title: 'Switchboard upgrade',
+      start: '2026-05-25T09:00',
+      end: '2026-05-25T11:00',
+      extendedProps: {
+        dataAttrs: { aiContextType: 'appointment', jobId: 1042 },
+      },
+    });
+    const chip = el.querySelector('[data-event-id="appt-42"]');
+    expect(chip).toBeTruthy();
+    expect(chip.getAttribute('data-ai-context-type')).toBe('appointment');
+    expect(chip.getAttribute('data-job-id')).toBe('1042');
+    // Existing data attributes (data-event-start / data-event-end) are
+    // untouched by the passthrough — present alongside the new ones.
+    expect(chip.getAttribute('data-event-start')).toBeTruthy();
+  });
+
   it('renders an all-day row when allDaySlot (default), with one cell per visible day', async () => {
     const el = await mount(`<div data-controller="calendar"
       data-calendar-plugins-value='["TimeGrid"]'

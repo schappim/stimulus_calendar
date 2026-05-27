@@ -34,6 +34,27 @@ describe('view: resourceTimeGrid', () => {
     expect(el.querySelector('[data-resource-id="r2"][data-date] [data-event-id="1"]')).toBeNull();
   });
 
+  it('passes extendedProps.dataAttrs through to data-* on a resourceTimeGrid chip', async () => {
+    const el = await mount(`<div data-controller="calendar"
+      data-calendar-plugins-value='["ResourceTimeGrid"]'
+      data-calendar-view-value="resourceTimeGridDay"
+      data-calendar-date-value="2026-05-25"
+      data-calendar-resources-value='[{"id":"r1","title":"Room A"}]'>
+    </div>`);
+    el.calendarApi.addEvent({
+      id: 'appt-42',
+      title: 'Switchboard upgrade',
+      start: '2026-05-25T09:00',
+      end: '2026-05-25T11:00',
+      resourceIds: ['r1'],
+      extendedProps: { dataAttrs: { aiContextType: 'job', jobId: 1042 } },
+    });
+    const chip = el.querySelector('[data-event-id="appt-42"]');
+    expect(chip).toBeTruthy();
+    expect(chip.getAttribute('data-ai-context-type')).toBe('job');
+    expect(chip.getAttribute('data-job-id')).toBe('1042');
+  });
+
   it('filterResourcesWithEvents hides resources with no events in range', async () => {
     const el = await mount(`<div data-controller="calendar"
       data-calendar-plugins-value='["ResourceTimeGrid"]'

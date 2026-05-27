@@ -81,6 +81,30 @@ describe('view: dayGridMonth', () => {
     expect(chip.textContent).toContain('Standup');
   });
 
+  it('passes extendedProps.dataAttrs through to data-* attributes on the chip', async () => {
+    const el = await mount(`<div data-controller="calendar"
+      data-calendar-plugins-value='["DayGrid"]'
+      data-calendar-view-value="dayGridMonth"
+      data-calendar-date-value="2026-05-15"></div>`);
+    el.calendarApi.addEvent({
+      id: 'appt-42',
+      title: 'Switchboard upgrade',
+      start: '2026-05-15T09:00',
+      end: '2026-05-15T11:00',
+      extendedProps: {
+        dataAttrs: {
+          aiContextType: 'job',
+          jobId: 1042,
+          pinned: true,
+        },
+      },
+    });
+    const chip = el.querySelector('[data-event-id="appt-42"]');
+    expect(chip.getAttribute('data-ai-context-type')).toBe('job');
+    expect(chip.getAttribute('data-job-id')).toBe('1042');
+    expect(chip.getAttribute('data-pinned')).toBe('true');
+  });
+
   it('dayCellContent (function) replaces the day-number body', async () => {
     const el = await mount(`<div data-controller="calendar"
       data-calendar-plugins-value='["DayGrid"]'

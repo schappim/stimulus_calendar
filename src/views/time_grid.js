@@ -8,7 +8,11 @@ import { cloneDate, addDay, setMidnight, datesEqual, toISOString, addDuration, c
 import { createSlots, createSlotTimeLimits } from '../lib/slots.js';
 import { viewDates as viewDatesHelper } from '../lib/derived.js';
 import { assignOverlapLanes } from '../lib/events.js';
-import { eventMetaClassNames, buildRecurringBadge } from '../lib/event_meta.js';
+import {
+  eventMetaClassNames,
+  eventMetaDataAttrs,
+  buildRecurringBadge,
+} from '../lib/event_meta.js';
 
 export function renderTimeGridView(container, state) {
   // Persist user-scrolled vertical offset across re-renders so that
@@ -139,6 +143,7 @@ export function renderTimeGridView(container, state) {
         const span = lastIdx - firstIdx + 1;
         const chip = createElement('div', theme.event, '', [
           ['data-event-id', event.id],
+          ...eventMetaDataAttrs(event),
         ]);
         if (event.backgroundColor) chip.style.backgroundColor = event.backgroundColor;
         chip.style.position = 'absolute';
@@ -297,6 +302,7 @@ export function renderTimeGridView(container, state) {
           if (event.classNames) bgClasses.push(...(Array.isArray(event.classNames) ? event.classNames : [event.classNames]));
           const bg = createElement('div', bgClasses.filter(Boolean).join(' '), '', [
             ['data-event-id', event.id],
+            ...eventMetaDataAttrs(event),
           ]);
           bg.style.position = 'absolute';
           bg.style.top = `${startMin * pxPerMin}px`;
@@ -337,6 +343,7 @@ export function renderTimeGridView(container, state) {
           ['data-event-id', event.id],
           ['data-event-start', event.start.toISOString()],
           ['data-event-end',   event.end.toISOString()],
+          ...eventMetaDataAttrs(event),
         ]);
         const lane = laneByEvent.get(event) ?? 0;
         chip.style.position = 'absolute';

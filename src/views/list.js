@@ -5,6 +5,7 @@
 import { createElement } from '../lib/dom.js';
 import { cloneDate, addDay, setMidnight } from '../lib/date.js';
 import { viewDates as viewDatesHelper } from '../lib/derived.js';
+import { eventMetaDataAttrs } from '../lib/event_meta.js';
 
 export function renderListView(container, state) {
   const render = () => {
@@ -51,6 +52,7 @@ export function renderListView(container, state) {
         if (event.classNames) rowClasses.push(...(Array.isArray(event.classNames) ? event.classNames : [event.classNames]));
         const row = createElement('div', rowClasses.filter(Boolean).join(' '), '', [
           ['data-event-id', event.id],
+          ...eventMetaDataAttrs(event),
         ]);
         // Route the per-event colour through --ec-event-color on the row so
         // both the row stripe and the tag dot inherit the accent. Per-type

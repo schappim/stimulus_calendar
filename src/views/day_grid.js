@@ -9,7 +9,11 @@ import {
   getWeekNumber, createWeekNumberContent,
 } from '../lib/date.js';
 import { viewDates as viewDatesHelper } from '../lib/derived.js';
-import { eventMetaClassNames, buildRecurringBadge } from '../lib/event_meta.js';
+import {
+  eventMetaClassNames,
+  eventMetaDataAttrs,
+  buildRecurringBadge,
+} from '../lib/event_meta.js';
 
 function eventsOnDay(events, day) {
   const next = cloneDate(day);
@@ -144,6 +148,7 @@ export function renderDayGridView(container, state) {
           if (event.display === 'background') {
             const bg = createElement('div', theme.bgEvent, '', [
               ['data-event-id', event.id],
+              ...eventMetaDataAttrs(event),
             ]);
             const bgColor = event.backgroundColor ?? options.eventBackgroundColor ?? options.eventColor;
             if (bgColor) bg.style.backgroundColor = bgColor;
@@ -168,6 +173,7 @@ export function renderDayGridView(container, state) {
           if (stripe) classes.push('ec-event-stripe');
           const chip = createElement('div', classes.filter(Boolean).join(' '), '', [
             ['data-event-id', event.id],
+            ...eventMetaDataAttrs(event),
           ]);
           const bgColor = event.backgroundColor ?? options.eventBackgroundColor ?? options.eventColor;
           const txtColor = event.textColor ?? options.eventTextColor;
@@ -294,6 +300,7 @@ function openDayPopover(state, day, events) {
   for (const event of events) {
     const chip = createElement('div', theme.event, '', [
       ['data-event-id', event.id],
+      ...eventMetaDataAttrs(event),
     ]);
     if (event.backgroundColor) chip.style.setProperty('--ec-event-color', event.backgroundColor);
     chip.append(createElement('span', 'ec-event-dot'));

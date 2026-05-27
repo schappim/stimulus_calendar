@@ -8,6 +8,7 @@ import { cloneDate, addDay, setMidnight, datesEqual } from '../lib/date.js';
 import { createSlots, createSlotTimeLimits } from '../lib/slots.js';
 import { viewDates as viewDatesHelper } from '../lib/derived.js';
 import { assignOverlapLanes } from '../lib/events.js';
+import { eventMetaDataAttrs } from '../lib/event_meta.js';
 import { formatEventTimeRange } from './time_grid.js';
 
 export function renderResourceTimeGridView(container, state) {
@@ -146,6 +147,7 @@ export function renderResourceTimeGridView(container, state) {
             if (event.classNames) bgClasses.push(...(Array.isArray(event.classNames) ? event.classNames : [event.classNames]));
             const bg = createElement('div', bgClasses.filter(Boolean).join(' '), '', [
               ['data-event-id', event.id],
+              ...eventMetaDataAttrs(event),
             ]);
             bg.style.position = 'absolute';
             bg.style.top = `${startMin * pxPerMin}px`;
@@ -178,6 +180,7 @@ export function renderResourceTimeGridView(container, state) {
           if (event.classNames) chipClasses.push(...(Array.isArray(event.classNames) ? event.classNames : [event.classNames]));
           const chip = createElement('div', chipClasses.filter(Boolean).join(' '), '', [
             ['data-event-id', event.id],
+            ...eventMetaDataAttrs(event),
           ]);
           const lane = laneMap.get(event) ?? 0;
           chip.style.position = 'absolute';
