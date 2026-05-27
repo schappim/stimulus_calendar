@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { Application } from '@hotwired/stimulus';
 import CalendarController from '../../src/controllers/calendar_controller.js';
 
@@ -170,6 +170,52 @@ describe('view: resourceTimeline', () => {
     cells[0].click();
     expect(events.length).toBe(1);
     expect(events[0].group).toBeNull();
+  });
+
+  it('renders the today band when today falls inside the range (Phase A4)', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-27T10:00:00'));
+    try {
+      const el = await mount(`<div data-controller="calendar"
+        data-calendar-plugins-value='["ResourceTimeline"]'
+        data-calendar-view-value="resourceTimelineWeek"
+        data-calendar-date-value="2026-05-25"
+        data-calendar-resources-value='[{"id":"r1","title":"Room A"}]'>
+      </div>`);
+      const band = el.querySelector('[data-today-band]');
+      expect(band).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('paints the NOW vertical line only when nowIndicator is on (Phase A4)', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-27T10:00:00'));
+    try {
+      const offEl = await mount(`<div data-controller="calendar"
+        data-calendar-plugins-value='["ResourceTimeline"]'
+        data-calendar-view-value="resourceTimelineWeek"
+        data-calendar-date-value="2026-05-25"
+        data-calendar-resources-value='[{"id":"r1","title":"Room A"}]'>
+      </div>`);
+      expect(offEl.querySelector('[data-now-indicator]')).toBeNull();
+      app?.stop(); app = null; document.body.innerHTML = '';
+      const onEl = await mount(`<div data-controller="calendar"
+        data-calendar-plugins-value='["ResourceTimeline"]'
+        data-calendar-view-value="resourceTimelineWeek"
+        data-calendar-date-value="2026-05-25"
+        data-calendar-options-value='{"nowIndicator":true}'
+        data-calendar-resources-value='[{"id":"r1","title":"Room A"}]'>
+      </div>`);
+      const line = onEl.querySelector('[data-now-indicator]');
+      expect(line).toBeTruthy();
+      // Anchored inside the body (not on a row), so the vertical span
+      // reaches across every crew row.
+      expect(line.parentElement.getAttribute('data-row')).toBe('body');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('positions an event ribbon at the right day offset', async () => {

@@ -11,7 +11,7 @@
 // flat below all groups.
 
 import { createElement } from '../lib/dom.js';
-import { cloneDate, addDay, setMidnight, datesEqual } from '../lib/date.js';
+import { cloneDate, addDay, setMidnight, datesEqual, createDate } from '../lib/date.js';
 import { viewDates as viewDatesHelper } from '../lib/derived.js';
 import { getPayload, setPayload } from '../lib/payload.js';
 import { buildResourceGroupLayout } from '../lib/resource_groups.js';
@@ -23,7 +23,14 @@ export function renderResourceTimelineView(container, state) {
   const groupState = state.get('resourceGroupState') ?? new Map();
   state.set('resourceGroupState', groupState);
 
+  // NOW-line subscription. Re-created on every full render so the line
+  // can re-anchor when the view's day-strip changes; torn down before
+  // the next render (and on view destroy) so a stale closure doesn't
+  // keep mutating a detached node.
+  let nowTickUnsub = null;
+
   const render = () => {
+    if (nowTickUnsub) { nowTickUnsub(); nowTickUnsub = null; }
     const options = state.get('options');
     const theme = options.theme;
     const activeRange = state.get('activeRange');
@@ -89,6 +96,63 @@ export function renderResourceTimelineView(container, state) {
     const groupOf = (r) => groupByResourceId.get(r.id) ?? null;
 
     const body = createElement('div', 'ec-timeline-body', '', [['data-row', 'body']]);
+    body.style.position = 'relative';
+
+    // Phase A4 — TODAY column tint + NOW vertical line.
+    //
+    // Both are absolute-positioned overlays inside the body. Today's
+    // column index drives a translucent band that spans every row from
+    // its first row's top to the last row's bottom; the NOW line is a
+    // 2 px vertical rule positioned at
+    //     (now − dayStart) / dayMs * dayWidth
+    // inside today's column.
+    //
+    // The NOW line subscribes to state.now (ticked every second by
+    // nowAndTodayEffect) so it slides across the column as wall-clock
+    // minutes advance — no re-render. Suppressed unless
+    // options.nowIndicator is true (mirrors TimeGrid).
+    const today = setMidnight(createDate(new Date()));
+    let todayIdx = -1;
+    for (let i = 0; i < days.length; i++) {
+      if (datesEqual(today, setMidnight(cloneDate(days[i])))) { todayIdx = i; break; }
+    }
+    if (todayIdx >= 0) {
+      const tint = createElement('div', 'ec-timeline-today-band', '', [
+        ['data-today-band', ''],
+      ]);
+      tint.style.position = 'absolute';
+      tint.style.top = '0';
+      tint.style.bottom = '0';
+      tint.style.left  = `calc(var(--ec-timeline-rowhead-w, 160px) + ${todayIdx * slotWidth}px)`;
+      tint.style.width = `${slotWidth}px`;
+      tint.style.pointerEvents = 'none';
+      body.append(tint);
+
+      if (options.nowIndicator) {
+        const nowLine = createElement('div', 'ec-timeline-now-line', '', [
+          ['data-now-indicator', ''],
+        ]);
+        nowLine.style.position = 'absolute';
+        nowLine.style.top = '0';
+        nowLine.style.bottom = '0';
+        nowLine.style.width = '2px';
+        nowLine.style.background = 'var(--ec-now-indicator-color, #dc2626)';
+        nowLine.style.pointerEvents = 'none';
+        nowLine.style.zIndex = '4';
+        const dayStart = days[todayIdx].getTime();
+        const reposition = (nowDate) => {
+          const n = nowDate instanceof Date ? nowDate : createDate(new Date());
+          const minsIntoDay = ((n.getTime() - dayStart) / 60000);
+          const clamped = Math.max(0, Math.min(1440, minsIntoDay));
+          const xWithinCol = (clamped / 1440) * slotWidth;
+          nowLine.style.left =
+            `calc(var(--ec-timeline-rowhead-w, 160px) + ${todayIdx * slotWidth + xWithinCol}px)`;
+        };
+        reposition(state.get('now'));
+        body.append(nowLine);
+        nowTickUnsub = state.on('change:now', ({ value }) => reposition(value));
+      }
+    }
 
     const renderGroupHeader = (group) => {
       const row = createElement('div', `ec-timeline-row ${theme.groupHeader}`, '', [
@@ -299,5 +363,9 @@ export function renderResourceTimelineView(container, state) {
          'filteredEvents', 'resources'].includes(key)) render();
   });
 
-  return () => { off(); container.replaceChildren(); };
+  return () => {
+    off();
+    if (nowTickUnsub) { nowTickUnsub(); nowTickUnsub = null; }
+    container.replaceChildren();
+  };
 }
