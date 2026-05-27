@@ -17,20 +17,22 @@ describe('view: resourceTimeline', () => {
   beforeEach(() => { document.body.innerHTML = ''; });
   afterEach(() => { app?.stop(); app = null; document.body.innerHTML = ''; });
 
-  it('day-header row carries the sticky/header attribute (Phase A2)', async () => {
+  it('emits the four-quadrant frozen-column layout (Phase A2)', async () => {
     const el = await mount(`<div data-controller="calendar"
       data-calendar-plugins-value='["ResourceTimeline"]'
       data-calendar-view-value="resourceTimelineWeek"
       data-calendar-date-value="2026-05-25"
       data-calendar-resources-value='[{"id":"r1","title":"Room A"}]'>
     </div>`);
-    const header = el.querySelector('.ec-timeline [data-row="header"]');
-    expect(header).toBeTruthy();
-    // The renderer leaves the actual sticky-positioning to CSS, but we
-    // assert the marker is present and the row-head spacer (the
-    // bottom-left corner) is the very first child so it can lock to
-    // top-left under the sticky cascade.
-    expect(header.firstElementChild?.classList?.contains('ec-row-head')).toBe(true);
+    expect(el.querySelector('.ec-timeline-corner')).toBeTruthy();
+    expect(el.querySelector('.ec-timeline-day-axis')).toBeTruthy();
+    expect(el.querySelector('.ec-timeline-rowhead-col')).toBeTruthy();
+    expect(el.querySelector('.ec-timeline-strip-pane')).toBeTruthy();
+    // The row-head column holds the resource label; the strip pane
+    // holds the matching ribbon — two separate DOM nodes per row, so
+    // horizontal scrolling on the strip pane never moves the row-head.
+    expect(el.querySelector('.ec-timeline-rowhead-col [data-row-head="r1"]')).toBeTruthy();
+    expect(el.querySelector('.ec-timeline-strip-pane [data-resource-id="r1"]')).toBeTruthy();
   });
 
   it('renders one row per resource with a horizontal ribbon', async () => {
@@ -210,9 +212,10 @@ describe('view: resourceTimeline', () => {
       </div>`);
       const line = onEl.querySelector('[data-now-indicator]');
       expect(line).toBeTruthy();
-      // Anchored inside the body (not on a row), so the vertical span
-      // reaches across every crew row.
-      expect(line.parentElement.getAttribute('data-row')).toBe('body');
+      // Lives inside the strips column inside the strip pane so the
+      // vertical span reaches across every crew row but the line
+      // never paints over the frozen rowhead column.
+      expect(line.closest('.ec-timeline-strips')).toBeTruthy();
     } finally {
       vi.useRealTimers();
     }
@@ -250,7 +253,7 @@ describe('view: resourceTimeline', () => {
       data-calendar-resources-value='[{"id":"r1","title":"Room A"}]'>
     </div>`);
     expect(el.querySelector('[data-slot-mode="hours"]')).toBeTruthy();
-    const hours = el.querySelectorAll('[data-row="hour-header"] .ec-hour-head');
+    const hours = el.querySelectorAll('.ec-timeline-day-axis .ec-hour-head');
     expect(hours.length).toBe(12);
     const cells = el.querySelectorAll('[data-resource-id="r1"] .ec-timeline-cell');
     expect(cells.length).toBe(12);

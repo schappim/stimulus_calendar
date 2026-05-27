@@ -678,36 +678,67 @@
  * Resource Timeline
  * ----------------------------------------------------------------------- */
 
+/* ResourceTimeline — four-quadrant frozen-column layout.
+ *
+ *  +-------------+--------------------+
+ *  |  corner     |  day-axis           |
+ *  +-------------+--------------------+
+ *  |  rowhead    |  strip-pane         |
+ *  |  column     |  (the ONLY real     |
+ *  |  (FROZEN)   |   scroll container) |
+ *  +-------------+--------------------+
+ *
+ * The strip pane scrolls in both axes. On every scroll the renderer
+ * translates the inner tracks of the day-axis (horizontal) and the
+ * rowhead column (vertical) so the day-axis stays at the top and the
+ * rowhead column stays at the left. The corner stays put.
+ *
+ * Why not position: sticky? Sticky inside a wide flex/grid descendant
+ * of a transformed ancestor (the Pager track applies translate3d) is
+ * unreliable — Safari, Firefox and Chromium can each handle it
+ * differently, and on horizontal scroll the row-heads can drift. A
+ * static layout with JS-translated tracks is unambiguous. */
 .ec-grid.ec-timeline {
+  display: grid;
+  grid-template-columns: var(--ec-timeline-rowhead-w, 160px) 1fr;
+  grid-template-rows: auto 1fr;
   border: 1px solid var(--ec-border-color);
   border-radius: 0.25rem;
-  overflow: auto;
+  overflow: hidden;
   background: var(--ec-bg-color);
 }
 
 .ec-timeline {
   /* Single source of truth for the resource-axis (row-head) column
-   * width. Both [data-row="header"] and every .ec-timeline-row derive
-   * their grid-template-columns from this var, so the day-strip lanes
-   * line up vertically with the body's ribbons even if a host theme
-   * overrides the width. Override per-instance via:
+   * width. Override per-instance via:
    *   .ec-timeline { --ec-timeline-rowhead-w: 200px; }                   */
   --ec-timeline-rowhead-w: 160px;
 }
 
-.ec-timeline [data-row="header"] {
-  display: grid;
-  grid-template-columns: var(--ec-timeline-rowhead-w) 1fr;
+.ec-timeline-corner {
+  grid-row: 1;
+  grid-column: 1;
+  background: var(--ec-header-bg-color);
+  border-right: 1px solid var(--ec-border-color);
+  border-bottom: 1px solid var(--ec-border-color);
+  /* Hold the same vertical real-estate as the day-axis next to it so
+   * the borders meet at the top-left without a 1px misalignment. */
+  min-height: 1.85rem;
+}
+
+.ec-timeline-day-axis {
+  grid-row: 1;
+  grid-column: 2;
+  overflow: hidden;
   background: var(--ec-header-bg-color);
   border-bottom: 1px solid var(--ec-border-color);
-  /* Header sits above row-heads (z:2) and bar chips (default 0) so a
-   * vertically-scrolled timeline keeps the day labels visible without
-   * being covered by the first row's bars sliding up under it. The
-   * sticky day-axis is critical for the Roster lens — it's how users
-   * read which day a bar is on after scrolling past several crews. */
-  position: sticky;
-  top: 0;
-  z-index: 3;
+}
+
+.ec-timeline-day-axis-inner {
+  display: flex;
+  flex-direction: column;
+  will-change: transform;
+  min-width: max-content;
 }
 
 .ec-timeline .ec-slots {
@@ -726,11 +757,44 @@
   padding: 0.375rem 0.25rem;
 }
 
-.ec-timeline-body { display: flex; flex-direction: column; }
+.ec-timeline-rowhead-col {
+  grid-row: 2;
+  grid-column: 1;
+  overflow: hidden;
+  border-right: 1px solid var(--ec-border-color);
+  background: var(--ec-bg-color);
+}
+
+.ec-timeline-rowhead-col-inner {
+  will-change: transform;
+}
+
+.ec-timeline-strip-pane {
+  grid-row: 2;
+  grid-column: 2;
+  overflow: auto;
+}
+
+.ec-timeline-strips {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: max-content;
+}
+
+.ec-timeline-row-head {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--ec-border-color);
+  background: var(--ec-bg-color);
+  min-height: 34px;
+}
+
+.ec-timeline-row-head:last-child { border-bottom: none; }
 
 .ec-timeline-row {
-  display: grid;
-  grid-template-columns: var(--ec-timeline-rowhead-w) 1fr;
+  display: flex;
+  flex-direction: row;
   border-bottom: 1px solid var(--ec-border-color);
   min-height: 34px;
 }
@@ -740,29 +804,24 @@
 .ec-timeline .ec-row-head {
   display: flex;
   align-items: center;
-  /* Base padding + per-row indent (set inline as --ec-row-head-indent for
-   * nested resources). Keeps the resource label clear of the calendar's
-   * left edge even at depth 0. */
   padding: 0.5rem 0.75rem 0.5rem calc(1rem + var(--ec-row-head-indent, 0px));
   font-size: 0.875rem;
   font-weight: 500;
-  border-right: 1px solid var(--ec-border-color);
-  background: var(--ec-bg-color);
-  position: sticky;
-  left: 0;
-  /* Above bars (z:0) so the row label stays visible during horizontal
-   * scroll, but below the day header (z:3) so the header still paints
-   * over the row-head's top edge when both meet at the top-left corner. */
-  z-index: 2;
+  width: 100%;
+  box-sizing: border-box;
 }
 
-/* The header's leading spacer is also an .ec-row-head — it inherits the
- * sticky-left from above, but we lift its z-index to 4 so the top-left
- * corner cleanly covers the row-head's right border as well as the
- * day-strip's left edge. */
-.ec-timeline [data-row="header"] > .ec-row-head {
-  background: var(--ec-header-bg-color);
-  z-index: 4;
+/* Group rows (left column) — grey background, uppercase eyebrow text.
+ * The strip side is empty (just a divider) so the colour doesn't bleed
+ * into the bars area. */
+.ec-group-row-head {
+  background: #f8fafc;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ec-muted-text-color);
+  border-bottom: 1px solid var(--ec-border-color);
+  min-height: 34px;
 }
 
 .ec-expander {
@@ -949,18 +1008,12 @@
   border-right: 1px solid var(--ec-border-color);
 }
 
-.ec-timeline-hour-head {
-  display: grid;
-  grid-template-columns: var(--ec-timeline-rowhead-w) 1fr;
+/* The hour strip lives inside the day-axis-inner along with the
+ * super-header; no separate sticky needed because the whole day-axis
+ * is fixed-top via the four-quadrant grid. */
+.ec-timeline-hour-strip {
   background: var(--ec-bg-color);
-  border-bottom: 1px solid var(--ec-border-color);
-  position: sticky;
-  top: 1.85rem;  /* sits just under the day-axis super-header */
-  z-index: 3;
-}
-
-.ec-timeline-hour-head .ec-row-head {
-  background: var(--ec-bg-color);
+  border-top: 1px solid var(--ec-border-color);
 }
 
 .ec-timeline .ec-hour-head {

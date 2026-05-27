@@ -1,10 +1,30 @@
 // ResourceTimeline view — time runs horizontally, resources stack
-// vertically as rows. Phase 9 shipped the skeleton. Phase A layered
-// resource groups + sticky header + empty-cell affordance + today
-// band + NOW line + bar resize + drag-to-reassign + narrow class.
-// Phase B adds zoom modes — `slotMode: 'days'` (existing behaviour)
-// vs `slotMode: 'hours'` (per-day hour columns), plus per-row pinch
-// height + today-circle dayHead variant.
+// vertically as rows.
+//
+// Structure (the user-visible "fixed first column" requires this DOM
+// shape — sticky-left on per-row heads is unreliable inside large
+// grid/flex containers, so the layout is explicit instead):
+//
+//   .ec-grid.ec-timeline               (CSS Grid: rowhead-w | 1fr)
+//     .ec-timeline-corner              (top-left   — header + spacer)
+//     .ec-timeline-day-axis            (top-right  — sticky day header
+//                                         with overflow hidden; inner
+//                                         track translates with the
+//                                         strip pane's scrollLeft)
+//     .ec-timeline-rowhead-col         (bottom-left — column of row
+//                                         heads; overflow hidden, inner
+//                                         track translates with the
+//                                         strip pane's scrollTop)
+//     .ec-timeline-strip-pane          (bottom-right — the ONLY real
+//                                         scroll container; horizontal
+//                                         + vertical scroll lives here)
+//
+// The renderer builds both the rowhead column and the strip pane in
+// lock-step: a single iteration over the layout produces one row-head
+// element in the left column and the matching strip element in the
+// right pane. Vertical scrolling stays in sync because both columns
+// translate against the same scrollTop; horizontal scrolling only
+// moves the strip + day-axis.
 
 import { createElement } from '../lib/dom.js';
 import { cloneDate, addDay, setMidnight, datesEqual, createDate } from '../lib/date.js';
@@ -17,9 +37,11 @@ export function renderResourceTimelineView(container, state) {
   state.set('resourceGroupState', groupState);
 
   let nowTickUnsub = null;
+  let scrollSyncUnsub = null;
 
   const render = () => {
     if (nowTickUnsub) { nowTickUnsub(); nowTickUnsub = null; }
+    if (scrollSyncUnsub) { scrollSyncUnsub(); scrollSyncUnsub = null; }
     const options = state.get('options');
     const theme = options.theme;
     const activeRange = state.get('activeRange');
@@ -29,13 +51,6 @@ export function renderResourceTimelineView(container, state) {
     const days = viewDatesHelper(activeRange, options.hiddenDays ?? []);
     const events = state.get('filteredEvents') ?? [];
 
-    // Column geometry — driven by slotMode.
-    //
-    //   days  : one column per visible day; colWidth = slotWidth (default
-    //           32 px). The view spans days.length columns.
-    //   hours : one column per hour in [slotMinTime, slotMaxTime) per day;
-    //           colWidth defaults to 48 px for legibility. Days act as
-    //           super-headers spanning HOURS each.
     const slotMode = options.slotMode === 'hours' ? 'hours' : 'days';
     const hourStart = secondsOfDuration(options.slotMinTime) / 3600;
     const hourEnd   = secondsOfDuration(options.slotMaxTime) / 3600;
@@ -48,32 +63,21 @@ export function renderResourceTimelineView(container, state) {
     const totalCols = days.length * hoursPerDay;
     const totalWidth = totalCols * colWidth;
 
-    // xForDate maps an event boundary date to a px offset within the
-    // strip. For days mode the column index = day index; for hours mode
-    // the column index = (day index × hoursPerDay + hours-since-hourStart).
-    const dayStartMs = days.length ? days[0].getTime() : 0;
     const xForDate = (date) => {
       const idx = days.findIndex((d) => {
         const next = cloneDate(d); addDay(next);
         return date < next && date >= d;
       });
       if (slotMode === 'days') {
-        // Clip to range; bars starting before the visible range hug 0,
-        // bars ending after hug the right edge.
         if (idx === -1) {
           if (date < days[0]) return 0;
           return totalWidth;
         }
         return idx * colWidth;
       }
-      // hours mode — convert minutes-since-midnight inside the day to a
-      // fraction of hoursPerDay. Bars starting before slotMinTime clip
-      // to the left edge of the day; bars ending past slotMaxTime clip
-      // to the right edge of the day.
       let i = idx;
       if (i === -1) {
         if (date < days[0]) return 0;
-        // After the last visible day → right edge.
         return totalWidth;
       }
       const midnight = setMidnight(cloneDate(days[i]));
@@ -90,14 +94,30 @@ export function renderResourceTimelineView(container, state) {
     if (options.dayHeaderTodayStyle === 'circle') {
       root.classList.add('ec-day-head-today-circle');
     }
-
-    // Per-row height (Phase B5) — single source of truth on the root.
     const rowHeight = state.get('rowHeight');
     if (rowHeight) root.style.setProperty('--ec-timeline-row-h', `${rowHeight}px`);
 
-    // Header — day super-headers (hours mode adds an hour-strip below).
-    const header = createElement('div', theme.colHead, '', [['data-row', 'header']]);
-    header.append(createElement('div', theme.rowHead));
+    // Four quadrants of the layout.
+    const corner = createElement('div', 'ec-timeline-corner', '', [
+      ['data-row', 'header'],
+    ]);
+    const dayAxis = createElement('div', 'ec-timeline-day-axis');
+    const dayAxisInner = createElement('div', 'ec-timeline-day-axis-inner');
+    dayAxis.append(dayAxisInner);
+    const rowheadCol = createElement('div', 'ec-timeline-rowhead-col');
+    const rowheadColInner = createElement('div', 'ec-timeline-rowhead-col-inner');
+    rowheadCol.append(rowheadColInner);
+    const stripPane = createElement('div', 'ec-timeline-strip-pane', '', [
+      ['data-row', 'body'],
+    ]);
+    stripPane.style.position = 'relative';
+    const stripsCol = createElement('div', 'ec-timeline-strips');
+    stripsCol.style.width = `${totalWidth}px`;
+    stripPane.append(stripsCol);
+
+    root.append(corner, dayAxis, rowheadCol, stripPane);
+
+    // ------ Day-axis header (top-right) ----------------------------------
     const dayLabelFmt = new Intl.DateTimeFormat(options.locale, { timeZone: 'UTC', ...options.dayHeaderFormat });
     const slotsHeader = createElement('div', theme.slots);
     slotsHeader.style.width = `${totalWidth}px`;
@@ -108,15 +128,9 @@ export function renderResourceTimelineView(container, state) {
         ['data-day', String(day.getUTCDay())],
         ['data-date', day.toISOString().substring(0, 10)],
       ]);
-      // Day-number rendering depends on dayHeaderTodayStyle. The default
-      // 'cell-tint' just colours the cell (existing behaviour); 'circle'
-      // wraps the day-number text in a small accent disc.
       if (options.dayHeaderTodayStyle === 'circle' && isToday) {
         const label = dayLabelFmt.format(day);
         const dayNo = day.getUTCDate();
-        // Find the numeric day-of-month in the formatted label and wrap
-        // it in a disc; the rest of the label (weekday short, etc.) is
-        // appended around it.
         const idx = label.indexOf(String(dayNo));
         if (idx >= 0) {
           const before = label.slice(0, idx);
@@ -134,18 +148,12 @@ export function renderResourceTimelineView(container, state) {
       cell.style.width = `${colWidth * hoursPerDay}px`;
       slotsHeader.append(cell);
     }
-    header.append(slotsHeader);
-    root.append(header);
+    dayAxisInner.append(slotsHeader);
 
-    // Hour strip — only in hours mode. Renders below the day super-header
-    // so the day-axis + hour-axis read like a single sticky block.
+    // Hour strip — only in hours mode.
     if (slotMode === 'hours') {
-      const hourHeader = createElement('div', `${theme.colHead} ec-timeline-hour-head`, '', [
-        ['data-row', 'hour-header'],
-      ]);
-      hourHeader.append(createElement('div', theme.rowHead));
       const hourFmt = new Intl.DateTimeFormat(options.locale, { timeZone: 'UTC', hour: 'numeric' });
-      const hoursStrip = createElement('div', theme.slots);
+      const hoursStrip = createElement('div', `${theme.slots} ec-timeline-hour-strip`);
       hoursStrip.style.width = `${totalWidth}px`;
       for (let di = 0; di < days.length; ++di) {
         for (let h = 0; h < hoursPerDay; ++h) {
@@ -158,11 +166,10 @@ export function renderResourceTimelineView(container, state) {
           hoursStrip.append(cell);
         }
       }
-      hourHeader.append(hoursStrip);
-      root.append(hourHeader);
+      dayAxisInner.append(hoursStrip);
     }
 
-    // Resource layout.
+    // ------ Resource layout (build groups + reverse index) ---------------
     const tops = resources.filter((r) => (getPayload(r)?.level ?? 0) === 0);
     if (options.resourceExpand !== undefined) {
       const applyExpand = (r, depth) => {
@@ -176,7 +183,6 @@ export function renderResourceTimelineView(container, state) {
       };
       for (const r of tops) applyExpand(r, 0);
     }
-
     const { layout, groupsById } = buildResourceGroupLayout({
       resources: tops,
       resourceGroups: options.resourceGroups,
@@ -184,17 +190,13 @@ export function renderResourceTimelineView(container, state) {
       groupState,
     });
     state.set('resourceGroupsById', groupsById);
-
     const groupByResourceId = new Map();
     for (const g of groupsById.values()) {
       for (const rid of g.resourceIds) groupByResourceId.set(rid, g);
     }
     const groupOf = (r) => groupByResourceId.get(r.id) ?? null;
 
-    const body = createElement('div', 'ec-timeline-body', '', [['data-row', 'body']]);
-    body.style.position = 'relative';
-
-    // TODAY band + NOW vertical line (Phase A4) — extended for hours mode.
+    // ------ Today band + NOW line (inside strip pane) --------------------
     let todayIdx = -1;
     for (let i = 0; i < days.length; i++) {
       if (datesEqual(todayMid, setMidnight(cloneDate(days[i])))) { todayIdx = i; break; }
@@ -208,10 +210,10 @@ export function renderResourceTimelineView(container, state) {
       tint.style.position = 'absolute';
       tint.style.top = '0';
       tint.style.bottom = '0';
-      tint.style.left  = `calc(var(--ec-timeline-rowhead-w, 160px) + ${todayDayLeft}px)`;
+      tint.style.left  = `${todayDayLeft}px`;
       tint.style.width = `${dayBandWidth}px`;
       tint.style.pointerEvents = 'none';
-      body.append(tint);
+      stripsCol.append(tint);
 
       if (options.nowIndicator) {
         const nowLine = createElement('div', 'ec-timeline-now-line', '', [
@@ -236,18 +238,17 @@ export function renderResourceTimelineView(container, state) {
             const clipped = Math.max(0, Math.min(1440, minsIntoDay));
             xWithinDay = (clipped / 1440) * colWidth;
           }
-          nowLine.style.left =
-            `calc(var(--ec-timeline-rowhead-w, 160px) + ${todayDayLeft + xWithinDay}px)`;
+          nowLine.style.left = `${todayDayLeft + xWithinDay}px`;
         };
         reposition(state.get('now'));
-        body.append(nowLine);
+        stripsCol.append(nowLine);
         nowTickUnsub = state.on('change:now', ({ value }) => reposition(value));
       }
     }
 
-    // Group header / row rendering.
+    // ------ Per-row rendering (both columns in lock-step) ----------------
     const renderGroupHeader = (group) => {
-      const row = createElement('div', `ec-timeline-row ${theme.groupHeader}`, '', [
+      const headRow = createElement('div', `${theme.groupHeader} ec-group-row-head`, '', [
         ['data-row', 'group-header'],
         ['data-group-id', group.id],
         ['data-expanded', group.expanded ? 'true' : 'false'],
@@ -290,29 +291,33 @@ export function renderResourceTimelineView(container, state) {
         else if (c?.domNodes) c.domNodes.forEach((n) => actionSlot.append(n));
       }
       head.append(actionSlot);
-      row.append(head);
+      headRow.append(head);
+      rowheadColInner.append(headRow);
 
-      const strip = createElement('div', 'ec-group-header-strip');
+      const strip = createElement('div', `${theme.groupHeader} ec-group-header-strip`, '', [
+        ['data-strip-row', 'group-header'],
+        ['data-group-id', group.id],
+      ]);
       strip.style.width = `${totalWidth}px`;
-      row.append(strip);
-      body.append(row);
+      stripsCol.append(strip);
 
       const mountFn = options.groupHeaderDidMount;
       if (typeof mountFn === 'function') {
-        queueMicrotask(() => mountFn({ group, el: row, view: state.get('view') }));
+        queueMicrotask(() => mountFn({ group, el: headRow, view: state.get('view') }));
       }
     };
 
     const renderRow = (resource, depth) => {
       const payload = getPayload(resource);
       if (payload?.hidden) return;
-      const row = createElement('div', 'ec-timeline-row', '', [
-        ['data-resource-id', resource.id],
+
+      // Row-head (left column).
+      const headEl = createElement('div', 'ec-timeline-row-head', '', [
+        ['data-row-head', resource.id],
         ['data-depth', String(depth)],
       ]);
       const head = createElement('div', theme.rowHead, '', [['data-resource-label', '']]);
       head.style.setProperty('--ec-row-head-indent', `${depth * 16}px`);
-
       const hasChildren = payload?.children?.length > 0;
       if (hasChildren) {
         const expander = createElement('button', theme.expander, '', [
@@ -339,15 +344,19 @@ export function renderResourceTimelineView(container, state) {
         head.append(expander);
       }
       head.append(createElement('span', '', resource.title));
-      row.append(head);
+      headEl.append(head);
+      rowheadColInner.append(headEl);
 
+      // Strip (right pane).
+      const stripRow = createElement('div', 'ec-timeline-row', '', [
+        ['data-resource-id', resource.id],
+        ['data-depth', String(depth)],
+      ]);
       const ribbon = createElement('div', 'ec-timeline-ribbon');
       ribbon.style.position = 'relative';
       ribbon.style.minHeight = '30px';
       ribbon.style.width = `${totalWidth}px`;
 
-      // Lunch-hour shading (hours mode only). Painted under the bars
-      // via a CSS gradient per day column.
       if (slotMode === 'hours' && options.lunchHour != null) {
         const lh = Number(options.lunchHour);
         if (Number.isFinite(lh) && lh >= hourStart && lh < hourEnd) {
@@ -365,8 +374,7 @@ export function renderResourceTimelineView(container, state) {
         }
       }
 
-      // Empty-cell layer (Phase A3) — one cell per visible column. In
-      // hours mode each tap surfaces the hour as part of the date.
+      // Cells layer (empty-cell affordance + cellClick).
       const cellsLayer = createElement('div', 'ec-timeline-cells');
       cellsLayer.style.position = 'absolute';
       cellsLayer.style.inset = '0';
@@ -380,9 +388,6 @@ export function renderResourceTimelineView(container, state) {
           const cellDate = cloneDate(day);
           if (slotMode === 'hours') cellDate.setUTCHours(hourStart + h, 0, 0, 0);
           const isDayBoundary = h === 0;
-          // Phase B2 — week boundary marker. In days-mode every 7th
-          // column gets a thicker left edge so a 28-day Gantt stays
-          // readable (matches the mockup §4d people-month markers).
           const isWeekBoundary = slotMode === 'days' && di > 0 && di % 7 === 0 && h === 0;
           const cell = createElement('div',
             `ec-timeline-cell${isDayBoundary ? ' ec-timeline-cell-day-edge' : ''}${isWeekBoundary ? ' ec-timeline-cell-week-edge' : ''}`, '', [
@@ -418,7 +423,6 @@ export function renderResourceTimelineView(container, state) {
       for (const event of resourceEvents) {
         const xL = xForDate(event.start);
         const xR = xForDate(event.end);
-        // Skip events entirely outside the visible strip.
         if (xR <= 0 || xL >= totalWidth) continue;
         const left  = Math.max(0, xL);
         const right = Math.min(totalWidth, xR);
@@ -474,8 +478,8 @@ export function renderResourceTimelineView(container, state) {
         queueMicrotask(() => fire?.('eventDidMount', { event, el: chip, view: state.get('view'), resource }));
         ribbon.append(chip);
       }
-      row.append(ribbon);
-      body.append(row);
+      stripRow.append(ribbon);
+      stripsCol.append(stripRow);
 
       if (resource.expanded && hasChildren) {
         for (const child of payload.children) renderRow(child, depth + 1);
@@ -487,17 +491,24 @@ export function renderResourceTimelineView(container, state) {
       else renderRow(entry.resource, 0);
     }
 
-    root.append(body);
-
-    // Phase B5 — pinch-to-zoom row height. Two-finger pinch on the body
-    // toggles between compactRowHeight and comfyRowHeight. Desktop-only
-    // gestures (mouse wheel etc.) are intentionally left out — host
-    // apps already have other ways to set row height via options.
-    if (options.allowPinchZoom) {
-      attachPinchHandler(body, state, options);
-    }
+    if (options.allowPinchZoom) attachPinchHandler(stripPane, state, options);
 
     container.replaceChildren(root);
+
+    // ------ Scroll synchronisation -------------------------------------
+    // The strip pane is the sole real scroll container. Translate the
+    // inner tracks of the day-axis (horizontal) and rowhead column
+    // (vertical) so the fixed first column stays glued to the left and
+    // the day header stays glued to the top.
+    const onStripScroll = () => {
+      dayAxisInner.style.transform = `translateX(${-stripPane.scrollLeft}px)`;
+      rowheadColInner.style.transform = `translateY(${-stripPane.scrollTop}px)`;
+    };
+    stripPane.addEventListener('scroll', onStripScroll, { passive: true });
+    scrollSyncUnsub = () => stripPane.removeEventListener('scroll', onStripScroll);
+    // Initial sync (in case the renderer is re-mounted at a non-zero
+    // scroll position).
+    onStripScroll();
   };
 
   render();
@@ -509,20 +520,16 @@ export function renderResourceTimelineView(container, state) {
   return () => {
     off();
     if (nowTickUnsub) { nowTickUnsub(); nowTickUnsub = null; }
+    if (scrollSyncUnsub) { scrollSyncUnsub(); scrollSyncUnsub = null; }
     container.replaceChildren();
   };
 }
 
-// duration → seconds. Accepts the lib/duration {days, seconds} shape or
-// undefined; default 0.
 function secondsOfDuration(d) {
   if (!d) return 0;
   return (d.days ?? 0) * 86400 + (d.seconds ?? 0);
 }
 
-// Pinch-to-zoom (Phase B5). Two-finger pinch outwards → comfy height,
-// inwards → compact height. Per-controller toggling lives on
-// state.rowHeight; the render loop re-runs when it changes.
 function attachPinchHandler(bodyEl, state, options) {
   let pinch = null;
   const onTouchStart = (e) => {
