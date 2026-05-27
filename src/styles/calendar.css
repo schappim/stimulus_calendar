@@ -1244,13 +1244,18 @@
  * --------------------------------------------------------------------- */
 .ec-week-scroller {
   position: relative;
-  overflow-x: auto;
-  overflow-y: hidden;
+  /* Both axes scroll inside the WeekScroller. The TimeGrid pages
+   * inside no longer create their own nested scroll containers
+   * (see body override below), so position:sticky on the sidebar +
+   * day-axis resolves against THIS element. As the user scrolls
+   * horizontally between weeks, the visible page's sticky-left
+   * sidebar (the time gutter) pins to the WeekScroller's left edge;
+   * once the next page enters the viewport-left it takes over
+   * pinning — net visual: ONE fixed time-of-day column. */
+  overflow: auto;
   scroll-snap-type: x mandatory;
   -webkit-overflow-scrolling: touch;
   scroll-behavior: smooth;
-  /* Soft scrollbar so it doesn't visually clobber the timeline; the
-   * snap is the primary affordance. */
   scrollbar-width: thin;
 }
 
@@ -1264,6 +1269,24 @@
   flex: 0 0 100%;
   min-width: 100%;
   scroll-snap-stop: always;
+  position: relative;
+}
+
+/* Inside the WeekScroller each TimeGrid page must NOT establish its
+ * own scroll container, otherwise the sidebar's sticky-left would
+ * resolve against the per-page body rather than the WeekScroller and
+ * each page would carry its own visible-only-mid-page sidebar. The
+ * WeekScroller's own overflow:auto handles vertical scroll for tall
+ * content across all pages. */
+.ec-week-scroller .ec-time-grid [data-row="body"] {
+  overflow: visible;
+  max-height: none;
+}
+
+/* Lift z-index on the time gutter so it paints over chips from
+ * adjacent days during the brief mid-snap overlap. */
+.ec-week-scroller .ec-time-grid .ec-sidebar {
+  z-index: 5;
 }
 
 .ec-timeline .ec-event {
