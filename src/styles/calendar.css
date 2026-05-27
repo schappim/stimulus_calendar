@@ -943,6 +943,15 @@
   50%      { opacity: 1; }
 }
 
+/* Range-select highlight (Phase F). Painted by the Interaction
+ * plugin on every cell touched by the drag. Cleared on the next
+ * pointerdown or via calendarApi.unselect(). */
+[data-date].ec-select-highlight {
+  background: color-mix(in srgb, var(--ec-active-bg-color, #2563eb) 18%, transparent);
+  outline: 1px solid color-mix(in srgb, var(--ec-active-bg-color, #2563eb) 40%, transparent);
+  outline-offset: -1px;
+}
+
 /* Back-to-today pill (Phase E2). Anchored to the bottom of the
  * calendar root, centred horizontally, with a soft drop shadow.
  * Painted only when options.backToTodayPill is true AND the view is

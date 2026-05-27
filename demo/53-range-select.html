@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>stimulus_calendar — Range select (Phase F)</title>
+  <link rel="stylesheet" href="../src/styles/calendar.css">
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; margin: 2rem; }
+    .ec { width: 920px; }
+    h1 { font-size: 1.25rem; }
+    .note { color: #475569; font-size: 0.875rem; max-width: 65ch; margin-bottom: 1rem; }
+    .log { font: 12px/1.5 ui-monospace, monospace; background:#f1f5f9;
+           padding:0.5rem 0.75rem; border-radius:4px; margin-top:1rem; max-height:8rem; overflow:auto; }
+  </style>
+</head>
+<body>
+  <h1>Drag across cells to pre-fill a duration</h1>
+  <p class="note">
+    Phase F. <code>selectable: true</code> opts in. Press-and-drag across
+    DayGrid cells (or hold + drag on touch) to highlight a range; the
+    <code>calendar:select</code> event fires on release with
+    <code>{ start, end, allDay, resource, jsEvent }</code>. Tap empty
+    space or call <code>calendarApi.unselect()</code> to clear.
+  </p>
+  <div data-controller="calendar"
+       data-calendar-plugins-value='["DayGrid","Interaction"]'
+       data-calendar-view-value="dayGridMonth"
+       data-calendar-options-value='{"selectable":true}'>
+  </div>
+  <div class="log" id="log">Drag across cells…</div>
+  <script type="module">
+    import { Application } from '/node_modules/@hotwired/stimulus/dist/stimulus.js';
+    import CalendarController from '/src/controllers/calendar_controller.js';
+    const app = Application.start();
+    app.register('calendar', CalendarController);
+    await new Promise((r) => setTimeout(r, 80));
+    const el = document.querySelector('[data-controller="calendar"]');
+    el.calendarApi.gotoDate(new Date());
+    const log = document.getElementById('log');
+    const append = (line) => { log.textContent = `${new Date().toLocaleTimeString()}  ${line}\n` + log.textContent; };
+    el.addEventListener('calendar:select', (e) => {
+      const d = e.detail;
+      append(`select ${d.start.toISOString().substring(0,10)} → ${d.end.toISOString().substring(0,10)} (end exclusive)`);
+    });
+    el.addEventListener('calendar:unselect', () => append('unselect'));
+  </script>
+</body>
+</html>

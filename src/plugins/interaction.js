@@ -63,7 +63,8 @@ export const InteractionPlugin = {
         const offResize   = attachEventResizeHandler(rootEl, state);
         const offCreate   = attachTimeGridCreateHandler(rootEl, state);
         const offTimeline = attachTimelineBarHandler(rootEl, state);
-        return () => { offClick(); offDrag(); offResize(); offCreate(); offTimeline(); };
+        const offSelect   = attachRangeSelectHandler(rootEl, state);
+        return () => { offClick(); offDrag(); offResize(); offCreate(); offTimeline(); offSelect(); };
       },
     });
   },
@@ -1820,3 +1821,161 @@ function attachTimelineBarHandler(rootEl, state) {
     document.removeEventListener('pointercancel', onPointerUp);
   };
 }
+
+
+// Phase F — pointer range-select. selectable: true wires this on. The
+// gesture starts on an empty [data-date] cell (NOT on an event chip /
+// resizer / button), drags across cells while painting an
+// ec-select-highlight rect on each touched cell, and on pointerup
+// fires `select` with { start, end, allDay, resource, jsEvent, view }
+// + sets state.selection so the controller's unselect() can clear it.
+//
+// Honoured options:
+//   selectable             — master switch
+//   selectMinDistance      — px threshold before a press becomes a drag
+//   selectLongPressDelay   — touch only: ms hold before the drag arms
+//   selectBackgroundColor  — overrides the default highlight bg
+//   selectConstraint       — { start, end } interval the range must
+//                            stay inside (mirrors upstream)
+function attachRangeSelectHandler(rootEl, state) {
+  let sel = null;
+  let press = null;
+  let highlights = [];
+
+  const cellAtPoint = (x, y) => {
+    const els = (typeof document !== 'undefined' && document.elementsFromPoint)
+      ? document.elementsFromPoint(x, y) : [];
+    for (const el of els) {
+      // Skip event chips + interactive widgets so a drag that starts
+      // on a bar still goes through the drag/resize pipelines.
+      if (el.closest?.('[data-event-id], .ec-resizer, .ec-button, button, [data-more-link], [data-popover-action]')) {
+        return null;
+      }
+      const cell = el.closest?.('[data-date]');
+      if (cell && rootEl.contains(cell)) return cell;
+    }
+    return null;
+  };
+
+  const clearHighlights = () => {
+    for (const h of highlights) h.classList.remove('ec-select-highlight');
+    highlights = [];
+  };
+
+  const paintRange = (a, b) => {
+    clearHighlights();
+    if (!a || !b) return;
+    const allCells = Array.from(rootEl.querySelectorAll('[data-date]'));
+    const ai = allCells.indexOf(a);
+    const bi = allCells.indexOf(b);
+    if (ai < 0 || bi < 0) return;
+    const lo = Math.min(ai, bi);
+    const hi = Math.max(ai, bi);
+    for (let i = lo; i <= hi; ++i) {
+      allCells[i].classList.add('ec-select-highlight');
+      highlights.push(allCells[i]);
+    }
+  };
+
+  const inConstraint = (date) => {
+    const opts = state.get('options');
+    const c = opts.selectConstraint;
+    if (!c) return true;
+    const s = c.start ? new Date(c.start).getTime() : -Infinity;
+    const e = c.end   ? new Date(c.end).getTime()   :  Infinity;
+    const t = date instanceof Date ? date.getTime() : new Date(date).getTime();
+    return t >= s && t < e;
+  };
+
+  const armSelect = (jsEvent, sourceCell) => {
+    sel = {
+      sourceCell,
+      sourceDate: sourceCell.getAttribute('data-date'),
+      startX: jsEvent.clientX,
+      startY: jsEvent.clientY,
+      pointerId: jsEvent.pointerId,
+      moved: false,
+      lastCell: sourceCell,
+    };
+    paintRange(sourceCell, sourceCell);
+  };
+
+  const onPointerDown = (jsEvent) => {
+    const options = state.get('options');
+    if (!options.selectable) return;
+    if (jsEvent.button !== undefined && jsEvent.button !== 0) return;
+    const cell = cellAtPoint(jsEvent.clientX, jsEvent.clientY);
+    if (!cell) return;
+
+    if (jsEvent.pointerType === 'touch') {
+      // Touch needs a long-press to opt into select so scrolling /
+      // tap-to-event-click on phones still works.
+      const delay = options.selectLongPressDelay ?? options.longPressDelay ?? 1000;
+      press = { cell, jsEvent, timer: setTimeout(() => {
+        if (!press) return;
+        armSelect(press.jsEvent, press.cell);
+        press = null;
+      }, delay) };
+      return;
+    }
+    armSelect(jsEvent, cell);
+    if (jsEvent.cancelable) jsEvent.preventDefault();
+  };
+
+  const onPointerMove = (jsEvent) => {
+    if (press) { clearTimeout(press.timer); press = null; }
+    if (!sel) return;
+    const dx = jsEvent.clientX - sel.startX;
+    const dy = jsEvent.clientY - sel.startY;
+    const minDist = state.get('options').selectMinDistance ?? 5;
+    if (!sel.moved && (dx * dx + dy * dy) < minDist * minDist) return;
+    sel.moved = true;
+    const cell = cellAtPoint(jsEvent.clientX, jsEvent.clientY);
+    if (!cell) return;
+    sel.lastCell = cell;
+    paintRange(sel.sourceCell, cell);
+    if (jsEvent.cancelable) jsEvent.preventDefault();
+  };
+
+  const onPointerUp = (jsEvent) => {
+    if (press) { clearTimeout(press.timer); press = null; }
+    if (!sel) return;
+    const s = sel; sel = null;
+    if (!s.moved) { clearHighlights(); return; }
+    const targetCell = s.lastCell;
+    const fromStr = s.sourceDate;
+    const toStr   = targetCell.getAttribute('data-date');
+    let startStr = fromStr <= toStr ? fromStr : toStr;
+    let endStr   = fromStr <= toStr ? toStr   : fromStr;
+    const start = new Date(startStr + 'T00:00:00Z');
+    const endIncl = new Date(endStr + 'T00:00:00Z');
+    const end = new Date(endIncl.getTime() + 86400000);
+    if (!inConstraint(start) || !inConstraint(end)) { clearHighlights(); return; }
+    const resourceId = s.sourceCell.closest?.('[data-resource-id]')?.getAttribute('data-resource-id');
+    const detail = {
+      start, end, allDay: true, resource: resourceId ?? null,
+      jsEvent, view: state.get('view'),
+    };
+    state.set('selection', { start, end, resource: resourceId ?? null });
+    state.get('fire')?.('select', detail);
+    if (state.get('options').unselectAuto !== false) {
+      // Highlights stay painted until next pointerdown elsewhere
+      // (matches upstream behaviour). Hosts call api.unselect() to clear.
+    }
+  };
+
+  rootEl.addEventListener('pointerdown', onPointerDown);
+  document.addEventListener('pointermove', onPointerMove, { passive: false });
+  document.addEventListener('pointerup', onPointerUp);
+  document.addEventListener('pointercancel', onPointerUp);
+
+  return () => {
+    rootEl.removeEventListener('pointerdown', onPointerDown);
+    document.removeEventListener('pointermove', onPointerMove);
+    document.removeEventListener('pointerup', onPointerUp);
+    document.removeEventListener('pointercancel', onPointerUp);
+    if (press) clearTimeout(press.timer);
+    clearHighlights();
+  };
+}
+

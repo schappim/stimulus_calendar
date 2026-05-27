@@ -778,6 +778,8 @@ export default class CalendarController extends Controller {
     const sel = this._state.get('selection');
     if (sel) {
       this._state.set('selection', null);
+      this._root?.querySelectorAll('.ec-select-highlight')
+        .forEach((c) => c.classList.remove('ec-select-highlight'));
       const options = this._state.get('options');
       if (typeof options.unselect === 'function') {
         options.unselect({ jsEvent, view: this._state.get('view') });
