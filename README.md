@@ -534,7 +534,9 @@ it instantly. **Transport-agnostic** core, with adapters for:
   a single browser (great for demos, no server needed).
 
 Payload schema and the Rails recipe (`broadcasts_calendar`) are documented in
-[`docs/BROADCAST.md`](docs/BROADCAST.md) (lands with Phase 13).
+[`docs/BROADCAST.md`](docs/BROADCAST.md). For a step-by-step integration
+walkthrough (model + calendar + partial + multi-tenancy + verification),
+see [`docs/LIVE_SYNC_RAILS.md`](docs/LIVE_SYNC_RAILS.md).
 
 ## Rails &amp; Hotwire (`stimulus_calendar_rails`)
 
@@ -628,6 +630,15 @@ other connected tab updates live. A complete runnable app is in
 [`gem/demo`](gem/demo); full docs in
 [`gem/stimulus_calendar_rails/README.md`](gem/stimulus_calendar_rails/README.md)
 and [`RAILS.md`](RAILS.md).
+
+**Building this integration?** Read
+[`docs/LIVE_SYNC_RAILS.md`](docs/LIVE_SYNC_RAILS.md) first — it's an
+end-to-end cookbook for wiring a model + `Broadcastable` +
+`turbo_stream_from` so an LLM (or human) gets the live-sync chain right
+the first time, including the multi-tenancy traps and a verification
+ladder. The companion docs are
+[`docs/BROADCAST.md`](docs/BROADCAST.md) (wire format) and
+[`docs/RAILS_REFERENCE.md`](docs/RAILS_REFERENCE.md) (API surface).
 
 ## Demos
 
