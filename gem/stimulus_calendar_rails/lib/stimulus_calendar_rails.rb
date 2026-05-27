@@ -4,6 +4,7 @@ require "stimulus_calendar_rails/field"
 require "stimulus_calendar_rails/calendar"
 require "stimulus_calendar_rails/turbo_streams_helper"
 require "stimulus_calendar_rails/concerns/broadcastable"
+require "stimulus_calendar_rails/concerns/simple_broadcastable"
 
 module StimulusCalendarRails
   class << self
@@ -36,13 +37,20 @@ module StimulusCalendarRails
                            "Did you define a Calendar subclass and reference it from a view?"
   end
 
-  def self.tenant_stream_token
-    return nil unless defined?(ActsAsTenant) && ActsAsTenant.respond_to?(:current_tenant)
-    tenant = ActsAsTenant.current_tenant
-    tenant ? "scr-tenant:#{tenant.class.name}:#{tenant.id}" : nil
+  # Build a token for the tenant on a given record / explicit scope, or
+  # fall back to ActsAsTenant.current_tenant. `scope` can be an
+  # ActiveRecord row (anything with #id) or already a stringified token.
+  def self.tenant_stream_token(scope: nil)
+    target = scope
+    if target.nil? && defined?(ActsAsTenant) && ActsAsTenant.respond_to?(:current_tenant)
+      target = ActsAsTenant.current_tenant
+    end
+    return nil unless target
+    return target if target.is_a?(String)
+    "scr-tenant:#{target.class.name}:#{target.id}"
   end
 
-  def self.streamables_for(resource, *extra)
-    [tenant_stream_token, "scr-calendar:#{resource}", *extra].compact
+  def self.streamables_for(resource, *extra, scope: nil)
+    [tenant_stream_token(scope: scope), "scr-calendar:#{resource}", *extra].compact
   end
 end
