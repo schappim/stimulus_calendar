@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>stimulus_calendar — Calendar polish (Phase C2/C3/C5/C6)</title>
+  <link rel="stylesheet" href="../src/styles/calendar.css">
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; margin: 2rem; }
+    .grid { display: grid; gap: 2rem; grid-template-columns: 1fr 1fr; align-items: start; }
+    .ec { width: 100%; }
+    h1 { font-size: 1.25rem; }
+    h2 { font-size: 0.95rem; margin: 0 0 0.5rem 0; color: #334155; }
+    .note { color: #475569; font-size: 0.875rem; max-width: 60ch; margin-bottom: 1.5rem; }
+  </style>
+</head>
+<body>
+  <h1>Density dots · stripe chips · tentative / cancelled / conflict / recurring</h1>
+  <p class="note">
+    Phase C2 (density dots), C3 (stripe chips in DayGrid Month),
+    C5 (confirmation states from <code>extendedProps</code>) and
+    C6 (recurring badge). Toggle the options to see how each layer
+    reads. The Month grid on the right uses the stripe variant.
+  </p>
+  <div class="grid">
+    <div>
+      <h2>TimeGrid week + density dots</h2>
+      <div data-controller="calendar" id="tg"
+           data-calendar-plugins-value='["TimeGrid"]'
+           data-calendar-view-value="timeGridWeek"
+           data-calendar-day-header-density-value="true"
+           data-calendar-options-value='{"nowIndicator":true}'>
+      </div>
+    </div>
+    <div>
+      <h2>DayGrid month — stripe chips + density dots</h2>
+      <div data-controller="calendar" id="dg"
+           data-calendar-plugins-value='["DayGrid"]'
+           data-calendar-view-value="dayGridMonth"
+           data-calendar-day-header-density-value="true"
+           data-calendar-options-value='{"dayCellEventStyle":"stripe","dayMaxEvents":4}'>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { Application } from '/node_modules/@hotwired/stimulus/dist/stimulus.js';
+    import CalendarController from '/src/controllers/calendar_controller.js';
+    const app = Application.start();
+    app.register('calendar', CalendarController);
+    await new Promise((r) => setTimeout(r, 100));
+    const tg = document.getElementById('tg');
+    const dg = document.getElementById('dg');
+    tg.calendarApi.gotoDate(new Date());
+    dg.calendarApi.gotoDate(new Date());
+
+    const today = new Date();
+    const at = (offsetDays, h) => {
+      const d = new Date(today);
+      d.setDate(d.getDate() + offsetDays);
+      d.setHours(h, 0, 0, 0);
+      return d.toISOString();
+    };
+
+    [tg, dg].forEach((el, i) => {
+      el.calendarApi.addEvent({ id:`${i}-a`, title:'Smith reno', start: at(0, 9), end: at(0, 12),
+        backgroundColor: '#5856d6',
+        extendedProps:{ confirmationState:'confirmed' }});
+      el.calendarApi.addEvent({ id:`${i}-b`, title:'Quote · Lee', start: at(1, 13), end: at(1, 14),
+        backgroundColor: '#34c759',
+        extendedProps:{ confirmationState:'tentative' }});
+      el.calendarApi.addEvent({ id:`${i}-c`, title:'Service call', start: at(2, 10), end: at(2, 11),
+        backgroundColor: '#ff9500',
+        extendedProps:{ confirmationState:'cancelled' }});
+      el.calendarApi.addEvent({ id:`${i}-d`, title:'Site visit', start: at(3, 11), end: at(3, 12),
+        backgroundColor: '#0ea5e9',
+        extendedProps:{ conflict:true }});
+      el.calendarApi.addEvent({ id:`${i}-e`, title:'Weekly stand-up', start: at(4, 9), end: at(4, 9.5),
+        backgroundColor: '#6366f1',
+        extendedProps:{ rrule:'FREQ=WEEKLY;BYDAY=FR' }});
+      el.calendarApi.addEvent({ id:`${i}-f`, title:'Brown quote', start: at(5, 14), end: at(5, 15),
+        backgroundColor: '#34c759' });
+      el.calendarApi.addEvent({ id:`${i}-g`, title:'Patel kitchen', start: at(5, 16), end: at(5, 17),
+        backgroundColor: '#5856d6' });
+    });
+  </script>
+</body>
+</html>
