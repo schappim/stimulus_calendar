@@ -141,32 +141,32 @@ function normaliseDataAttrKey(rawKey) {
 
 // S12 — one-shot "appear" class for newly-added events.
 //
-// The first time an event's id passes through this helper, we mark it
-// as seen and return `ec-event-appear-{name}` where {name} comes from
-// either `event.extendedProps.appearAnimation` (per-event override)
-// or `options.eventAppearAnimation` (calendar-wide default). Every
-// subsequent call for the same id returns null — the class is
-// applied exactly once over the event's lifetime.
+// The controller maintains a `_pendingAppearIds` set on state: it
+// inserts an id when the event is added (via api.addEvent or the
+// inbound add broadcast) and schedules a microtask to drop the id
+// once the synchronous render cycle that follows has completed. Every
+// chip render during that window picks up the marker class so the
+// final DOM carries it; renders triggered by later updates (drag
+// commits, broadcasts) miss the window and emit nothing — which is
+// what we want, because re-rendering an already-on-screen event
+// shouldn't re-fire the appear animation.
 //
-// The `seenSet` parameter is a `Set` instance owned by the caller;
-// the controller hangs one off state under `_appearedEventIds` and
-// trims it when events are removed so the marker fires again if the
-// same id is re-added later.
+// The class name is `ec-event-appear-{name}` where {name} comes from
+// either `event.extendedProps.appearAnimation` (per-event override)
+// or `options.eventAppearAnimation` (calendar-wide default). Host
+// CSS owns the animation; the library only stamps the marker.
 //
 // Returns `null` when no animation is configured (off by default),
-// when the event has no id, or when the event has already appeared.
-// In all those cases the caller skips appending a class.
-export function eventMetaAppearClass(event, options, seenSet) {
-  if (!event || !seenSet) return null;
+// when the event has no id, when the pendingSet doesn't list it, or
+// when the resolved name wouldn't survive CSS-class serialisation.
+export function eventMetaAppearClass(event, options, pendingSet) {
+  if (!event || !pendingSet) return null;
   const id = event.id;
   if (id == null || id === '') return null;
-  if (seenSet.has(id)) return null;
+  if (!pendingSet.has(id)) return null;
   const name = event.extendedProps?.appearAnimation ?? options?.eventAppearAnimation;
   if (typeof name !== 'string' || name.length === 0) return null;
-  // Reject anything that wouldn't survive serialisation into a CSS
-  // class — the same `[a-z0-9-]+` shape we use for type slugs.
   if (!/^[a-z0-9-]+$/i.test(name)) return null;
-  seenSet.add(id);
   return `ec-event-appear-${name}`;
 }
 

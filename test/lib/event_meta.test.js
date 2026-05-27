@@ -194,37 +194,41 @@ describe('resolveEventType', () => {
 });
 
 describe('eventMetaAppearClass', () => {
-  it('returns null when no animation is configured', () => {
-    const seen = new Set();
-    expect(eventMetaAppearClass({ id: '1' }, {}, seen)).toBeNull();
+  it('returns null when the event id is not in the pending set', () => {
+    expect(eventMetaAppearClass({ id: '1' }, { eventAppearAnimation: 'fly-in' }, new Set()))
+      .toBeNull();
   });
 
-  it('returns the appear class on first encounter, then null thereafter', () => {
-    const seen = new Set();
+  it('returns the appear class when the id is pending — purely a read, no mutation', () => {
+    const pending = new Set(['1']);
     const event = { id: '1' };
     const opts = { eventAppearAnimation: 'fly-in' };
-    expect(eventMetaAppearClass(event, opts, seen)).toBe('ec-event-appear-fly-in');
-    // Second call — already seen.
-    expect(eventMetaAppearClass(event, opts, seen)).toBeNull();
-    // Sanity — the seen set carries the id.
-    expect(seen.has('1')).toBe(true);
+    expect(eventMetaAppearClass(event, opts, pending)).toBe('ec-event-appear-fly-in');
+    // Idempotent — re-reading the same pending set returns the same class.
+    expect(eventMetaAppearClass(event, opts, pending)).toBe('ec-event-appear-fly-in');
+    // The helper does NOT mutate the set.
+    expect(pending.has('1')).toBe(true);
   });
 
   it('extendedProps.appearAnimation overrides the calendar-wide default', () => {
-    const seen = new Set();
+    const pending = new Set(['1']);
     const event = { id: '1', extendedProps: { appearAnimation: 'highlight-pulse' } };
     const opts = { eventAppearAnimation: 'fly-in' };
-    expect(eventMetaAppearClass(event, opts, seen)).toBe('ec-event-appear-highlight-pulse');
+    expect(eventMetaAppearClass(event, opts, pending)).toBe('ec-event-appear-highlight-pulse');
   });
 
   it('rejects names containing characters that would corrupt CSS class serialisation', () => {
-    const seen = new Set();
+    const pending = new Set(['1']);
     const opts = { eventAppearAnimation: 'fly in" />' };
-    expect(eventMetaAppearClass({ id: '1' }, opts, seen)).toBeNull();
-    expect(seen.has('1')).toBe(false);
+    expect(eventMetaAppearClass({ id: '1' }, opts, pending)).toBeNull();
   });
 
-  it('survives missing event, seenSet, or id without throwing', () => {
+  it('returns null when no animation is configured even if the id is pending', () => {
+    const pending = new Set(['1']);
+    expect(eventMetaAppearClass({ id: '1' }, {}, pending)).toBeNull();
+  });
+
+  it('survives missing event, pendingSet, or id without throwing', () => {
     expect(eventMetaAppearClass(null, {}, new Set())).toBeNull();
     expect(eventMetaAppearClass({ id: '1' }, {}, null)).toBeNull();
     expect(eventMetaAppearClass({}, { eventAppearAnimation: 'fly-in' }, new Set())).toBeNull();

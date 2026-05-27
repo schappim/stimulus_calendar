@@ -13,6 +13,7 @@ import {
   eventMetaClassNames,
   eventMetaDataAttrs,
   resolveEventType,
+  eventMetaAppearClass,
   buildRecurringBadge,
 } from '../lib/event_meta.js';
 
@@ -171,6 +172,9 @@ export function renderDayGridView(container, state) {
           // color into the bgColor fallback chain below.
           const typeStyle = resolveEventType(event, options);
           if (typeStyle) classes.push(...typeStyle.classNames);
+          // S12 — one-shot appear marker (host CSS owns the animation).
+          const appearCls = eventMetaAppearClass(event, options, state.get('_pendingAppearIds'));
+          if (appearCls) classes.push(appearCls);
           // Phase C3 — Month-cell event style. The `stripe` variant
           // renders a full-width coloured bar with title only — no dot,
           // no time. Matches the mockup's Month view.

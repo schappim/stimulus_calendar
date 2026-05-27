@@ -132,6 +132,15 @@ export default class CalendarController extends Controller {
     // Must be wired BEFORE _installEffectsPipeline so the initial run
     // of each effect sees a working dispatcher.
     this._state.set('hostEl', this.element);
+    // S12 — set of event ids that should pick up the appear marker
+    // class on the next chip render. Pure read state for the views;
+    // mutated only by `_markEventAppearing` (insert + microtask-clear)
+    // and `_unmarkEventAppearing` (clear on remove). Using a pending
+    // window instead of a "seen forever" set avoids the bug where
+    // multiple synchronous re-renders during one state change would
+    // mutate the set mid-cycle and leave the final DOM without the
+    // class.
+    this._state.set('_pendingAppearIds', new Set());
     this._state.set('fire', (name, detail = {}) => {
       const opts = this._state.get('options');
       const cb = opts?.[name];
@@ -397,10 +406,28 @@ export default class CalendarController extends Controller {
     else if (op === 'update') next = events.map((e) =>
       e.id === String(event.id) ? { ...e, ...parsedEvent } : e);
     else if (op === 'remove') next = events.filter((e) => e.id !== String(event.id));
+    if (op === 'add') this._markEventAppearing(String(event.id));
+    if (op === 'remove') this._unmarkEventAppearing(String(event.id));
     if (next) {
       this._state.set('events', next);
       this._recompute();
     }
+  }
+
+  // S12 — flag an id as "appearing right now" so the very next chip
+  // render that touches it emits the marker class. A microtask drops
+  // the id after the synchronous render cycle has had a chance to
+  // paint, so re-renders triggered later (drag commits, broadcasts)
+  // see the set without the id and emit nothing.
+  _markEventAppearing(id) {
+    const set = this._state.get('_pendingAppearIds');
+    if (!set) return;
+    set.add(id);
+    queueMicrotask(() => set.delete(id));
+  }
+
+  _unmarkEventAppearing(id) {
+    this._state.get('_pendingAppearIds')?.delete(id);
   }
 
   _installEffectsPipeline() {
@@ -570,6 +597,7 @@ export default class CalendarController extends Controller {
         const [parsed] = createEvents([event], this._state.get('offset'));
         const events = [...(this._state.get('events') ?? this._state.get('options').events ?? [])];
         events.push(parsed);
+        this._markEventAppearing(parsed.id);
         this._state.set('events', events);
         this._recompute();
         this._publishBroadcast('add', event);
@@ -602,6 +630,7 @@ export default class CalendarController extends Controller {
           (this._state.get('events') ?? this._state.get('options').events ?? [])
             .filter((e) => e.id !== target),
         );
+        this._unmarkEventAppearing(target);
         this._recompute();
         this._publishBroadcast('remove', { id: target });
       },

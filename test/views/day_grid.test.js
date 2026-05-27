@@ -81,6 +81,79 @@ describe('view: dayGridMonth', () => {
     expect(chip.textContent).toContain('Standup');
   });
 
+  it('S12 — eventAppearAnimation stamps ec-event-appear-{name} on first render', async () => {
+    const el = await mount(`<div data-controller="calendar"
+      data-calendar-plugins-value='["DayGrid"]'
+      data-calendar-view-value="dayGridMonth"
+      data-calendar-date-value="2026-05-15"></div>`);
+    el.calendarApi.setOption('eventAppearAnimation', 'fly-in');
+    el.calendarApi.addEvent({
+      id: 'new-1', title: 'Just added',
+      start: '2026-05-15T09:00', end: '2026-05-15T10:00',
+    });
+    const chip = el.querySelector('[data-event-id="new-1"]');
+    expect(chip.classList.contains('ec-event-appear-fly-in')).toBe(true);
+  });
+
+  it('S12 — per-event extendedProps.appearAnimation overrides the option', async () => {
+    const el = await mount(`<div data-controller="calendar"
+      data-calendar-plugins-value='["DayGrid"]'
+      data-calendar-view-value="dayGridMonth"
+      data-calendar-date-value="2026-05-15"></div>`);
+    el.calendarApi.setOption('eventAppearAnimation', 'fly-in');
+    el.calendarApi.addEvent({
+      id: 'highlight-me', title: 'AI booked',
+      start: '2026-05-15T09:00', end: '2026-05-15T10:00',
+      extendedProps: { appearAnimation: 'highlight-pulse' },
+    });
+    const chip = el.querySelector('[data-event-id="highlight-me"]');
+    expect(chip.classList.contains('ec-event-appear-highlight-pulse')).toBe(true);
+    expect(chip.classList.contains('ec-event-appear-fly-in')).toBe(false);
+  });
+
+  it('S12 — re-adding an event after remove fires the appear class again', async () => {
+    const el = await mount(`<div data-controller="calendar"
+      data-calendar-plugins-value='["DayGrid"]'
+      data-calendar-view-value="dayGridMonth"
+      data-calendar-date-value="2026-05-15"></div>`);
+    el.calendarApi.setOption('eventAppearAnimation', 'fly-in');
+    el.calendarApi.addEvent({
+      id: 'cycle', title: 'Cycle',
+      start: '2026-05-15T09:00', end: '2026-05-15T10:00',
+    });
+    expect(el.querySelector('[data-event-id="cycle"]').classList
+      .contains('ec-event-appear-fly-in')).toBe(true);
+
+    // Drain the microtask that clears the pending window so the
+    // class doesn't get carried over to the next add.
+    await Promise.resolve();
+
+    el.calendarApi.removeEventById('cycle');
+    el.calendarApi.addEvent({
+      id: 'cycle', title: 'Cycle (re-added)',
+      start: '2026-05-15T11:00', end: '2026-05-15T12:00',
+    });
+    expect(el.querySelector('[data-event-id="cycle"]').classList
+      .contains('ec-event-appear-fly-in')).toBe(true);
+  });
+
+  it('S12 — an updateEvent on the same id (after the pending window) does NOT re-fire the class', async () => {
+    const el = await mount(`<div data-controller="calendar"
+      data-calendar-plugins-value='["DayGrid"]'
+      data-calendar-view-value="dayGridMonth"
+      data-calendar-date-value="2026-05-15"></div>`);
+    el.calendarApi.setOption('eventAppearAnimation', 'fly-in');
+    el.calendarApi.addEvent({
+      id: 'add-then-update', title: 'Add',
+      start: '2026-05-15T09:00', end: '2026-05-15T10:00',
+    });
+    // Drain the microtask window.
+    await Promise.resolve();
+    el.calendarApi.updateEvent({ id: 'add-then-update', title: 'Renamed' });
+    const chip = el.querySelector('[data-event-id="add-then-update"]');
+    expect(chip.classList.contains('ec-event-appear-fly-in')).toBe(false);
+  });
+
   it('eventTypes mapping applies classNames + color fallback to the chip', async () => {
     const el = await mount(`<div data-controller="calendar"
       data-calendar-plugins-value='["DayGrid"]'

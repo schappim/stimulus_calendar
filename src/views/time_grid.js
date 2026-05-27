@@ -12,6 +12,7 @@ import {
   eventMetaClassNames,
   eventMetaDataAttrs,
   resolveEventType,
+  eventMetaAppearClass,
   buildRecurringBadge,
 } from '../lib/event_meta.js';
 
@@ -343,6 +344,9 @@ export function renderTimeGridView(container, state) {
         // S5 — eventTypes mapping.
         const typeStyle = resolveEventType(event, options);
         if (typeStyle) classes.push(...typeStyle.classNames);
+        // S12 — one-shot appear marker.
+        const appearCls = eventMetaAppearClass(event, options, state.get('_pendingAppearIds'));
+        if (appearCls) classes.push(appearCls);
         const chip = createElement('div', classes.filter(Boolean).join(' '), '', [
           ['data-event-id', event.id],
           ['data-event-start', event.start.toISOString()],
