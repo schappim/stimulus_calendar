@@ -117,7 +117,16 @@
   color: var(--ec-button-text-color);
   border: 1px solid var(--ec-strong-border-color);
   border-radius: 0.25rem;
-  padding: 0.375rem 0.75rem;
+  /* Explicit height (rather than min-height + vertical padding) so
+   * every toolbar variant lines up: icon-only buttons (Prev/Next),
+   * text buttons (Today, Month, Week, Day, Agenda, Staff, Roster),
+   * and `<i>`-and-text mixes all share the same 32px box. Vertical
+   * padding is zeroed because inline-flex + align-items: center
+   * already centres the content within the explicit height — adding
+   * vertical padding ON TOP would either push text out of the box
+   * (with min-height) or compress it (with height). */
+  padding: 0 0.75rem;
+  height: 2rem;
   font: inherit;
   font-size: 0.875rem;
   line-height: 1.25;
@@ -125,7 +134,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 1.75rem;
+  box-sizing: border-box;
 }
 
 .ec-button:hover:not(:disabled),
