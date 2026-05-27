@@ -255,6 +255,17 @@ function baseDefaults() {
     eventSources: [],
     eventTextColor: undefined,
     eventTimeFormat: { hour: 'numeric', minute: '2-digit' },
+    // Map of appointment-type → visual descriptor, applied when
+    // event.extendedProps.type matches a key. See lib/event_meta.js
+    // for the resolver. Shape:
+    //   { job: { color: '#f59e0b', classNames: ['ec-event-job'],
+    //            label: 'Job', icon: 'wrench' }, … }
+    // `color` falls in as a tile background when the event itself
+    // doesn't declare `backgroundColor`. `classNames` are appended
+    // alongside Phase C5/C6 auto-classes. `label` and `icon` are
+    // exposed to host eventContent renderers but not auto-injected
+    // (no template imposition).
+    eventTypes: undefined,
     filterEventsWithResources: false,
     firstDay: 0,
     headerToolbar: { start: 'title', center: '', end: 'today prev,next' },

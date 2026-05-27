@@ -3,6 +3,7 @@ import { describe, it, expect } from 'vitest';
 import {
   eventMetaClassNames,
   eventMetaDataAttrs,
+  resolveEventType,
   buildRecurringBadge,
 } from '../../src/lib/event_meta.js';
 
@@ -117,6 +118,76 @@ describe('eventMetaDataAttrs', () => {
   it('survives null event input', () => {
     expect(eventMetaDataAttrs(null)).toEqual([]);
     expect(eventMetaDataAttrs(undefined)).toEqual([]);
+  });
+});
+
+describe('resolveEventType', () => {
+  const eventTypes = {
+    job:         { color: '#f59e0b', classNames: ['ec-event-job'], label: 'Job', icon: 'wrench' },
+    quote_visit: { color: '#6366f1', classNames: 'ec-event-quote-visit', label: 'Quote visit' },
+    bare:        { color: '#000' },
+  };
+
+  it('returns null when extendedProps.type is missing', () => {
+    expect(resolveEventType({}, { eventTypes })).toBeNull();
+    expect(resolveEventType({ extendedProps: {} }, { eventTypes })).toBeNull();
+  });
+
+  it('returns null when no eventTypes map is configured', () => {
+    expect(resolveEventType({ extendedProps: { type: 'job' } }, {})).toBeNull();
+    expect(resolveEventType({ extendedProps: { type: 'job' } }, { eventTypes: null })).toBeNull();
+  });
+
+  it('returns null when the type is not in the map', () => {
+    expect(resolveEventType({ extendedProps: { type: 'unknown' } }, { eventTypes })).toBeNull();
+  });
+
+  it('resolves a full descriptor and auto-prefixes the ec-event-type-{slug} class', () => {
+    expect(resolveEventType({ extendedProps: { type: 'job' } }, { eventTypes })).toEqual({
+      type: 'job',
+      color: '#f59e0b',
+      classNames: ['ec-event-type-job', 'ec-event-job'],
+      label: 'Job',
+      icon: 'wrench',
+    });
+  });
+
+  it('coerces a string classNames into a one-element array', () => {
+    expect(resolveEventType({ extendedProps: { type: 'quote_visit' } }, { eventTypes }))
+      .toEqual({
+        type: 'quote_visit',
+        color: '#6366f1',
+        classNames: ['ec-event-type-quote-visit', 'ec-event-quote-visit'],
+        label: 'Quote visit',
+        icon: null,
+      });
+  });
+
+  it('returns just the auto-class when the descriptor has no classNames', () => {
+    expect(resolveEventType({ extendedProps: { type: 'bare' } }, { eventTypes }))
+      .toEqual({
+        type: 'bare',
+        color: '#000',
+        classNames: ['ec-event-type-bare'],
+        label: null,
+        icon: null,
+      });
+  });
+
+  it('slugifies underscores / dots / spaces in the type key', () => {
+    const out = resolveEventType(
+      { extendedProps: { type: 'Service Call' } },
+      { eventTypes: { 'Service Call': { color: '#3b82f6' } } },
+    );
+    expect(out.classNames).toEqual(['ec-event-type-service-call']);
+  });
+
+  it('does not duplicate the auto-class when the host already declares it', () => {
+    const out = resolveEventType(
+      { extendedProps: { type: 'job' } },
+      { eventTypes: { job: { classNames: ['ec-event-type-job', 'extra'] } } },
+    );
+    expect(out.classNames).toEqual(['ec-event-type-job', 'extra']);
   });
 });
 

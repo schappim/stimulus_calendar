@@ -63,6 +63,59 @@ export function eventMetaDataAttrs(event) {
   return out;
 }
 
+// Resolve a tile's "type descriptor" from `options.eventTypes` based on
+// `event.extendedProps.type`. Returns null when no type is declared on
+// the event or no matching entry exists in the map.
+//
+//   options.eventTypes = {
+//     job:         { color: '#f59e0b', classNames: ['ec-event-job'],
+//                    label: 'Job', icon: 'wrench' },
+//     quote_visit: { color: '#6366f1', classNames: ['ec-event-quote-visit'],
+//                    label: 'Quote visit', icon: 'doc' },
+//     …
+//   }
+//
+// The returned descriptor is what views consume:
+//   - classNames → appended to the chip's class list alongside Phase
+//     C5/C6 auto-classes.
+//   - color → fallback `--ec-event-color` when the event itself has no
+//     `backgroundColor`.
+//   - label, icon → exposed for host `eventContent` renderers but not
+//     auto-injected (the library doesn't impose chip templates).
+//
+// We normalise classNames into an array of strings so callers can
+// blindly spread the result without branching on shape.
+export function resolveEventType(event, options) {
+  const type = event?.extendedProps?.type;
+  if (!type) return null;
+  const map = options?.eventTypes;
+  if (!map || typeof map !== 'object') return null;
+  const descriptor = map[type];
+  if (!descriptor || typeof descriptor !== 'object') return null;
+  const declaredClasses = Array.isArray(descriptor.classNames)
+    ? descriptor.classNames.filter((c) => typeof c === 'string' && c.length > 0)
+    : (typeof descriptor.classNames === 'string' && descriptor.classNames.length > 0
+      ? [descriptor.classNames]
+      : []);
+  // Always include `ec-event-type-{slug}` so hosts can target by type
+  // without redeclaring the same class for every entry. The slug is
+  // the raw key with non-`[a-z0-9-]` chars replaced with `-` and the
+  // result lowercased; that mirrors what a downstream CSS selector
+  // would expect.
+  const typeSlug = String(type).toLowerCase().replace(/[^a-z0-9-]+/g, '-');
+  const autoClass = typeSlug ? `ec-event-type-${typeSlug}` : null;
+  const classNames = autoClass
+    ? [autoClass, ...declaredClasses.filter((c) => c !== autoClass)]
+    : declaredClasses;
+  return {
+    type,
+    color: typeof descriptor.color === 'string' ? descriptor.color : null,
+    classNames,
+    label: typeof descriptor.label === 'string' ? descriptor.label : null,
+    icon: typeof descriptor.icon === 'string' ? descriptor.icon : null,
+  };
+}
+
 // Convert `aiContextType` → `data-ai-context-type`.
 // Pass through `data-ai-context-type` (already prefixed) unchanged.
 // Pass through `ai-context-type` (already kebab-cased) with prefix.
