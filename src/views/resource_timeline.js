@@ -98,7 +98,12 @@ export function renderResourceTimelineView(container, state) {
     if (options.dayHeaderTodayStyle === 'circle') {
       root.classList.add('ec-day-head-today-circle');
     }
-    const rowHeight = state.get('rowHeight');
+    // Pinch-zoom path sets state.rowHeight; hosts that want a taller
+    // default without enabling the pinch gesture can pass options.rowHeight
+    // (px) and the view picks it up at render time. The state value takes
+    // priority once the user has pinched, so the gesture still wins for
+    // the rest of the session.
+    const rowHeight = state.get('rowHeight') ?? options.rowHeight;
     if (rowHeight) root.style.setProperty('--ec-timeline-row-h', `${rowHeight}px`);
 
     // ------ Day-axis header (single row, sticky top) ---------------------

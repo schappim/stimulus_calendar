@@ -2899,7 +2899,7 @@ function Fe(n, t) {
       ["data-slot-mode", M]
     ]);
     i.dayHeaderTodayStyle === "circle" && C.classList.add("ec-day-head-today-circle");
-    const _ = t.get("rowHeight");
+    const _ = t.get("rowHeight") ?? i.rowHeight;
     _ && C.style.setProperty("--ec-timeline-row-h", `${_}px`);
     const A = h("div", a.colHead, "", [["data-row", "header"]]), P = h("div", `${a.rowHead} ec-corner`);
     A.append(P);
