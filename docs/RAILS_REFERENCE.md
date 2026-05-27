@@ -1,9 +1,14 @@
 # `stimulus_calendar_rails` — Rails engine API reference
 
 Programmatic reference for the Rails companion gem. The JS-side reference
-lives at [`docs/REFERENCE.md`](REFERENCE.md). Usage guide:
+lives at [`docs/REFERENCE.md`](REFERENCE.md). Usage guides:
 [`skills/stimulus-calendar-rails/SKILL.md`](../skills/stimulus-calendar-rails/SKILL.md)
-and the main [`README.md#rails--hotwire-stimulus_calendar_rails`](../README.md#rails--hotwire-stimulus_calendar_rails).
+(LLM playbook) ·
+[`docs/LIVE_SYNC_RAILS.md`](LIVE_SYNC_RAILS.md) (end-to-end cookbook —
+read first when wiring a fresh app) ·
+[`docs/BROADCAST.md`](BROADCAST.md) (Turbo Streams wire format) ·
+[`README.md#rails--hotwire-stimulus_calendar_rails`](../README.md#rails--hotwire-stimulus_calendar_rails)
+(top-level intro).
 
 ## Module-level
 

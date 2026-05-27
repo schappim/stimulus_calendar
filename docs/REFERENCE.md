@@ -91,6 +91,10 @@ names:
 See [`docs/BROADCAST.md`](BROADCAST.md) for the full payload schema, adapter
 table, and Rails recipe.
 
+For a step-by-step Rails integration (model + Calendar + partial +
+multi-tenancy + verification ladder), see
+[`docs/LIVE_SYNC_RAILS.md`](LIVE_SYNC_RAILS.md).
+
 | Option            | Type    | Notes                                                                                     |
 |-------------------|---------|-------------------------------------------------------------------------------------------|
 | `broadcast`       | string  | `false` \| `"turbo-stream"` \| `"action-cable"` \| `"websocket"` \| `"broadcast-channel"` |
