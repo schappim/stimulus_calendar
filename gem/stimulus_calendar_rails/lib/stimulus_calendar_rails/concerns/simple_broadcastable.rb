@@ -55,22 +55,45 @@ module StimulusCalendarRails
       resource = self.class._scr_simple_resource
       tokens = StimulusCalendarRails.streamables_for(resource, scope: _scr_simple_scope_target)
 
-      content = case op
-      when :add
-        StimulusCalendarRails::TurboStreams.event_add(
-          calendar: resource, event_id: id, payload: send(self.class._scr_simple_payload)
-        )
-      when :update
-        StimulusCalendarRails::TurboStreams.event_update(
-          calendar: resource, event_id: id, attributes: send(self.class._scr_simple_payload)
-        )
-      when :remove
-        StimulusCalendarRails::TurboStreams.event_remove(
-          calendar: resource, event_id: id
-        )
-      end
+      content =
+        if _scr_recurring_master?
+          # Recurring masters can't be patched per-id over the wire — the
+          # host expands the rrule into per-occurrence client ids (e.g.
+          # "{master}-{date}"), but the master's broadcast carries the
+          # bare master id. A per-id update would either miss every
+          # occurrence (no match) or, with upsert, add a phantom event
+          # at the master's start while the existing occurrences stay
+          # stale. Punt to a refetch: every subscribed client re-pulls
+          # its visible range from the host's event source. Same fix
+          # covers EXDATE additions (excluded_dates) and rrule edits.
+          StimulusCalendarRails::TurboStreams.event_refetch(calendar: resource)
+        else
+          case op
+          when :add
+            StimulusCalendarRails::TurboStreams.event_add(
+              calendar: resource, event_id: id, payload: send(self.class._scr_simple_payload)
+            )
+          when :update
+            StimulusCalendarRails::TurboStreams.event_update(
+              calendar: resource, event_id: id, attributes: send(self.class._scr_simple_payload)
+            )
+          when :remove
+            StimulusCalendarRails::TurboStreams.event_remove(
+              calendar: resource, event_id: id
+            )
+          end
+        end
 
       ::Turbo::StreamsChannel.broadcast_stream_to(*tokens, content: content)
+    end
+
+    # True when this record is the master of a recurring series. Used
+    # to switch from per-id update to op=refetch so virtual
+    # occurrences on the client (with synthetic ids like
+    # "{master_id}-{iso_date}") get reloaded from the host's event
+    # source instead of being silently skipped.
+    def _scr_recurring_master?
+      respond_to?(:recurring?) && recurring?
     end
 
     def _scr_simple_scope_target
