@@ -1242,62 +1242,102 @@
  * so each swipe lands on a full week. Activated by
  * options.continuousWeekScroll: true on a `timeGridWeek` view.
  * --------------------------------------------------------------------- */
-.ec-week-scroller {
+/* Continuous TimeGrid (Phase C1) — a SINGLE TimeGrid rendered with a
+ * multi-week range. The day strip extends horizontally and the user
+ * scrolls through it like a virtual list. There is exactly one
+ * sidebar (sticky-left), one header (sticky-top), one all-day row.
+ *
+ * The mounted wrapper carries this class; CSS below flips TimeGrid's
+ * column-template from equal-fr to fixed-width tracks and turns the
+ * wrapper itself into the 2-axis scroll container. */
+.ec-continuous-time-grid {
   position: relative;
-  /* Both axes scroll inside the WeekScroller. The TimeGrid pages
-   * inside no longer create their own nested scroll containers
-   * (see body override below), so position:sticky on the sidebar +
-   * day-axis resolves against THIS element. As the user scrolls
-   * horizontally between weeks, the visible page's sticky-left
-   * sidebar (the time gutter) pins to the WeekScroller's left edge;
-   * once the next page enters the viewport-left it takes over
-   * pinning — net visual: ONE fixed time-of-day column. */
   overflow: auto;
-  scroll-snap-type: x mandatory;
-  -webkit-overflow-scrolling: touch;
-  scroll-behavior: smooth;
+  max-height: 70vh;
   scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid var(--ec-border-color);
+  border-radius: 0.25rem;
+  background: var(--ec-bg-color);
 }
 
-.ec-week-scroller-track {
-  display: flex;
-  align-items: stretch;
-  min-height: 100%;
+/* Dissolve the TimeGrid root's own framing so the wrapper owns
+ * borders / scroll. */
+.ec-continuous-time-grid .ec-grid.ec-time-grid {
+  border: none;
+  border-radius: 0;
+  display: block;
 }
 
-.ec-week-scroller-page {
-  flex: 0 0 100%;
+/* Header, all-day, body all become fixed-width grids so the day cols
+ * stay at columnWidth px regardless of how many days the renderer
+ * emits. The renderer sets --ec-cols on the day cols wrap and
+ * --ec-col-w on the cols wrap; we read both here. */
+.ec-continuous-time-grid .ec-time-grid [data-row="header"] {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  display: grid;
+  grid-template-columns: var(--ec-sidebar-width) repeat(var(--ec-cols, 7), var(--ec-col-w, 140px));
+  width: max-content;
   min-width: 100%;
-  scroll-snap-stop: always;
-  position: relative;
 }
 
-/* Inside the WeekScroller each TimeGrid page must NOT establish its
- * own scroll container, otherwise the sidebar's sticky-left would
- * resolve against the per-page body rather than the WeekScroller and
- * each page would carry its own visible-only-mid-page sidebar. The
- * WeekScroller's own overflow:auto handles vertical scroll for tall
- * content across all pages. */
-.ec-week-scroller .ec-time-grid [data-row="body"] {
-  overflow: visible;
+.ec-continuous-time-grid .ec-time-grid .ec-all-day {
+  position: sticky;
+  /* Header height is ~2rem; tweak per host theme as needed. */
+  top: 2rem;
+  z-index: 3;
+  display: grid;
+  grid-template-columns: var(--ec-sidebar-width) repeat(var(--ec-cols, 7), var(--ec-col-w, 140px));
+  width: max-content;
+  min-width: 100%;
+}
+
+/* The all-day cols wrapper is `display: contents` so its cells slot
+ * straight into the parent grid tracks — keep that. */
+
+/* The body becomes a flat grid of [sidebar, day0, day1, ..., dayN].
+ * .ec-days is `display: contents` (already) so its .ec-time-col
+ * children become grid items at the day tracks. The body's own
+ * vertical-scroll container is dropped (max-height: none) — the
+ * wrapper handles both axes. */
+.ec-continuous-time-grid .ec-time-grid [data-row="body"] {
+  display: grid;
+  grid-template-columns: var(--ec-sidebar-width) repeat(var(--ec-cols, 7), var(--ec-col-w, 140px));
   max-height: none;
+  overflow: visible;
+  width: max-content;
+  min-width: 100%;
 }
 
-/* Lift z-index on the time gutter so it paints over chips from
- * adjacent days during the brief mid-snap overlap. */
-.ec-week-scroller .ec-time-grid .ec-sidebar {
+.ec-continuous-time-grid .ec-time-grid .ec-days {
+  display: contents;
+}
+
+/* All three sidebars (header corner, all-day label, body hour
+ * gutter) pin sticky-left against the wrapper's scroll. Opaque
+ * backgrounds so chips behind them don't bleed through. */
+.ec-continuous-time-grid .ec-time-grid .ec-corner,
+.ec-continuous-time-grid .ec-time-grid .ec-all-day > .ec-sidebar,
+.ec-continuous-time-grid .ec-time-grid [data-row="body"] > .ec-sidebar {
+  position: sticky;
+  left: 0;
   z-index: 5;
+  background: var(--ec-bg-color);
 }
 
-/* Single-sidebar guarantee. The WeekScroller tags whichever page
- * owns the viewport-left as .ec-week-scroller-page-current; every
- * other page's sidebar / corner / all-day sidebar is invisible. Layout
- * width is preserved (visibility:hidden, not display:none) so the day
- * columns in those pages don't shift sideways during the snap. */
-.ec-week-scroller-page:not(.ec-week-scroller-page-current) .ec-time-grid .ec-sidebar,
-.ec-week-scroller-page:not(.ec-week-scroller-page-current) .ec-time-grid .ec-corner,
-.ec-week-scroller-page:not(.ec-week-scroller-page-current) .ec-time-grid .ec-all-day .ec-sidebar {
-  visibility: hidden;
+.ec-continuous-time-grid .ec-time-grid .ec-corner {
+  background: var(--ec-header-bg-color);
+  z-index: 6;
+}
+
+/* Suppress the Pager-only transforms that try to counter-translate
+ * the sidebar during a swipe — there's no Pager here. */
+.ec-continuous-time-grid .ec-time-grid [data-row="body"],
+.ec-continuous-time-grid .ec-time-grid [data-row="body"] > .ec-days {
+  transform: none !important;
+  will-change: auto !important;
 }
 
 .ec-timeline .ec-event {

@@ -1,248 +1,253 @@
-// WeekScroller — continuous horizontal scroll across multiple TimeGrid
-// weeks. Analogous to MonthScroller for `dayGridMonth +
-// continuousMonthScroll: true`, but for TimeGridWeek. Each "page" is a
-// full TimeGrid week rendered into its own slot; CSS scroll-snap glues
-// the user to one week at a time, scroll-settle updates options.date
-// to the centred week, and lazy edges keep adding weeks as the user
-// scrolls past them.
+// WeekScroller — continuous horizontal day strip on TimeGridWeek.
 //
-// Activated by `options.continuousWeekScroll: true` in the controller.
-// Renders entirely separate from the Pager — when this scroller is on,
-// the Pager isn't mounted at all.
+// Replaces the standard Pager carousel with ONE TimeGrid view that
+// renders a wide range of days (initially 7 weeks centered on
+// options.date). The user scrolls horizontally through the day strip;
+// there is exactly one sidebar (sticky-left), one header, one all-day
+// row, one body. Day columns are virtual in the sense that the range
+// auto-extends when the user scrolls within EXTEND_THRESHOLD_PX of
+// either edge — the renderer re-runs with a wider activeRange and
+// the scroll position is preserved.
+//
+// CSS class `.ec-continuous-time-grid` (applied to a wrapper around
+// the rendered TimeGrid) flips TimeGrid's column-template from
+// equal-fr to fixed-width and makes the root the horizontal scroll
+// container with sticky-left sidebar + sticky-top header.
+//
+// Activated by `options.continuousWeekScroll: true` on a timeGridWeek
+// view. The controller bypasses the Pager when this option is on.
 
-import { createElement } from '../lib/dom.js';
 import {
-  cloneDate, addDay, setMidnight, createDate,
+  addDay, cloneDate, setMidnight, createDate, datesEqual,
 } from '../lib/date.js';
 
-const PAGES_BACK = 4;
-const PAGES_AHEAD = 8;
-const EXTEND_PAGES = 4;
+// Initial range width (in weeks) — start with this many weeks centered
+// on options.date. Extended on demand as the user scrolls.
+const INITIAL_WEEKS = 7;
+const EXTEND_WEEKS = 4;
 const EXTEND_THRESHOLD_PX = 600;
-const SCROLL_SETTLE_MS = 160;
+const SCROLL_SETTLE_MS = 180;
 
 // createWeekScroller(container, state, viewFactory, { onDateChange })
 //
 // container    — mainEl
 // state        — live MainState
-// viewFactory  — the same factory the controller hands the Pager
-//                (e.g. (state) => renderTimeGridView). Each page calls it
-//                with a fresh state-like wrapper limited to that page's
-//                activeRange / viewDates.
+// viewFactory  — renderTimeGridView (or any (container, pageState) => teardown)
 // onDateChange — bridge to setOption('date', d). Fires (debounced) when
-//                the snap-centred week changes.
+//                the day at the viewport-centre changes.
 export function createWeekScroller(container, state, viewFactory, { onDateChange }) {
-  const root = createElement('div', 'ec-week-scroller');
-  const track = createElement('div', 'ec-week-scroller-track');
-  root.append(track);
+  // Wrapper that establishes the horizontal-scroll context + carries
+  // the continuous-mode CSS class. Sets --ec-col-w at the top of the
+  // cascade so the continuous CSS rules on header / all-day / body all
+  // see the fixed-width tracks (TimeGrid only sets --ec-col-w on the
+  // .ec-days child, which doesn't reach the parent rows).
+  const root = document.createElement('div');
+  root.className = 'ec-continuous-time-grid';
+  root.style.setProperty('--ec-col-w', `${140}px`);
   container.replaceChildren(root);
 
-  // Pages are keyed by the week-start UTC-midnight date.
-  // Each page: { weekStart, el, render, teardown }
-  const pages = new Map();
-  let pageWidth = 0;
+  const firstDay = state.get('options').firstDay ?? 0;
+  let rangeStart = weekStartFor(state.get('options').date, firstDay);
+  addDay(rangeStart, -Math.floor(INITIAL_WEEKS / 2) * 7);
+  let rangeEnd = cloneDate(rangeStart);
+  addDay(rangeEnd, INITIAL_WEEKS * 7);
 
-  const anchor = weekStartFor(state.get('options').date, state.get('options').firstDay ?? 0);
-  for (let i = -PAGES_BACK; i <= PAGES_AHEAD; ++i) appendPageForOffset(i);
-
-  // Re-measure after the first frame so we can snap to the anchor week.
-  requestAnimationFrame(() => {
-    pageWidth = root.clientWidth || track.firstElementChild?.clientWidth || 0;
-    if (!pageWidth) return;
-    const anchorPage = pages.get(keyOf(anchor));
-    if (!anchorPage) return;
-    suppressScroll = true;
-    const prevBehavior = root.style.scrollBehavior;
-    root.style.scrollBehavior = 'auto';
-    root.scrollLeft = anchorPage.el.offsetLeft;
-    root.style.scrollBehavior = prevBehavior || '';
-    requestAnimationFrame(() => {
-      suppressScroll = false;
-      syncCurrentPageMarker();
-    });
-  });
-
-  // Snap-detect + lazy extend on scroll.
+  let teardown = null;
   let suppressScroll = false;
   let settleTimer = null;
+  let columnWidth = 140;
+
+  function renderRange() {
+    teardown?.();
+    root.style.setProperty('--ec-col-w', `${columnWidth}px`);
+    const pageState = makePageState(state, rangeStart, rangeEnd, columnWidth);
+    teardown = viewFactory(root, pageState);
+  }
+
+  renderRange();
+
+  // Centre the anchor day in the viewport on first render.
+  requestAnimationFrame(() => {
+    const anchor = setMidnight(createDate(state.get('options').date));
+    centreDay(anchor);
+  });
+
+  function centreDay(date) {
+    const dayIdx = dayIndexOf(date);
+    if (dayIdx < 0) return;
+    const sidebarPx = sidebarWidth();
+    const targetScroll = Math.max(
+      0,
+      dayIdx * columnWidth + sidebarPx - (root.clientWidth - columnWidth) / 2,
+    );
+    suppressScroll = true;
+    root.scrollLeft = targetScroll;
+    requestAnimationFrame(() => { suppressScroll = false; });
+  }
+
+  function dayIndexOf(date) {
+    const target = setMidnight(cloneDate(date));
+    let i = 0;
+    const cursor = cloneDate(rangeStart);
+    while (cursor < rangeEnd) {
+      if (datesEqual(cursor, target)) return i;
+      addDay(cursor);
+      ++i;
+    }
+    return -1;
+  }
+
+  function sidebarWidth() {
+    const sb = root.querySelector('.ec-time-grid .ec-sidebar');
+    return sb?.getBoundingClientRect().width || 64;
+  }
+
   const onScroll = () => {
     if (suppressScroll) return;
-    // Extend forward / backward when the user nears the edges.
-    if (root.scrollWidth - (root.scrollLeft + root.clientWidth) < EXTEND_THRESHOLD_PX) {
-      for (let i = 0; i < EXTEND_PAGES; ++i) {
-        const last = lastPage();
-        if (!last) break;
-        appendPageForOffset(offsetOf(last.weekStart) + 1);
-      }
-    }
-    if (root.scrollLeft < EXTEND_THRESHOLD_PX) {
-      const oldWidth = root.scrollWidth;
-      const oldScrollLeft = root.scrollLeft;
-      for (let i = 0; i < EXTEND_PAGES; ++i) {
-        const first = firstPage();
-        if (!first) break;
-        prependPageForOffset(offsetOf(first.weekStart) - 1);
-      }
-      // Compensate scrollLeft for the prepended widths so the visible
-      // page doesn't jump.
-      suppressScroll = true;
-      const grew = root.scrollWidth - oldWidth;
-      root.scrollLeft = oldScrollLeft + grew;
-      requestAnimationFrame(() => { suppressScroll = false; });
-    }
-    syncCurrentPageMarker();
+    maybeExtend();
     clearTimeout(settleTimer);
     settleTimer = setTimeout(onSettled, SCROLL_SETTLE_MS);
   };
   root.addEventListener('scroll', onScroll, { passive: true });
 
-  // Mark the page that owns the viewport-left edge as "current". The
-  // CSS rule `.ec-week-scroller-page:not(.ec-week-scroller-page-current)
-  // .ec-sidebar { visibility: hidden }` then guarantees that only one
-  // time-of-day gutter ever paints — the current page's sticky-left
-  // sidebar pins to the WeekScroller's left edge and adjacent pages'
-  // sidebars stay invisible even mid-scroll.
-  function syncCurrentPageMarker() {
+  function maybeExtend() {
     const scrollLeft = root.scrollLeft;
-    let current = null;
-    for (const p of pages.values()) {
-      if (p.el.offsetLeft <= scrollLeft + 1) {
-        if (!current || p.el.offsetLeft > current.el.offsetLeft) current = p;
-      }
+    const viewW = root.clientWidth;
+    const scrollW = root.scrollWidth;
+
+    if (scrollW - (scrollLeft + viewW) < EXTEND_THRESHOLD_PX) {
+      // Extend forward (right): rangeEnd += EXTEND_WEEKS weeks. Existing
+      // DOM stays put, no scrollLeft adjustment needed.
+      const oldEnd = cloneDate(rangeEnd);
+      addDay(rangeEnd, EXTEND_WEEKS * 7);
+      suppressScroll = true;
+      renderRange();
+      requestAnimationFrame(() => { suppressScroll = false; });
+      void oldEnd;
+      return;
     }
-    for (const p of pages.values()) {
-      p.el.classList.toggle('ec-week-scroller-page-current', p === current);
+    if (scrollLeft < EXTEND_THRESHOLD_PX) {
+      // Extend backward (left): rangeStart -= EXTEND_WEEKS weeks. The
+      // existing day cols shift right by (EXTEND_WEEKS*7 * columnWidth);
+      // bump scrollLeft by the same delta so the user's view stays
+      // anchored on the same day.
+      addDay(rangeStart, -EXTEND_WEEKS * 7);
+      const oldScroll = scrollLeft;
+      const oldWidth = scrollW;
+      suppressScroll = true;
+      renderRange();
+      requestAnimationFrame(() => {
+        const grew = root.scrollWidth - oldWidth;
+        root.scrollLeft = oldScroll + grew;
+        suppressScroll = false;
+      });
     }
   }
 
   function onSettled() {
-    if (suppressScroll || !pageWidth) return;
-    // The page nearest the centre of the viewport wins.
-    const centre = root.scrollLeft + root.clientWidth / 2;
-    let best = null, bestDist = Infinity;
-    for (const p of pages.values()) {
-      const pageCentre = p.el.offsetLeft + p.el.offsetWidth / 2;
-      const d = Math.abs(pageCentre - centre);
-      if (d < bestDist) { bestDist = d; best = p; }
-    }
-    if (!best) return;
+    if (suppressScroll) return;
+    // The day under the viewport-centre wins.
+    const sidebarPx = sidebarWidth();
+    const centreX = root.scrollLeft + root.clientWidth / 2;
+    const dayOffset = Math.floor((centreX - sidebarPx) / columnWidth);
+    if (dayOffset < 0) return;
+    const centred = cloneDate(rangeStart);
+    addDay(centred, dayOffset);
     const currentOpt = state.get('options').date;
-    const currentWeekStart = weekStartFor(currentOpt, state.get('options').firstDay ?? 0);
-    if (datesEqualUTC(best.weekStart, currentWeekStart)) return;
+    const currentMid = setMidnight(createDate(currentOpt));
+    if (datesEqual(centred, currentMid)) return;
     suppressScroll = true;
-    // Mid-week (Wednesday) so a user landing on a partial-week view
-    // gets a stable anchor regardless of firstDay.
-    const mid = cloneDate(best.weekStart);
-    addDay(mid, 3);
-    const localMid = new Date(mid.getUTCFullYear(), mid.getUTCMonth(), mid.getUTCDate());
+    const localMid = new Date(centred.getUTCFullYear(), centred.getUTCMonth(), centred.getUTCDate());
     onDateChange?.(localMid);
     requestAnimationFrame(() => { suppressScroll = false; });
   }
 
-  // Re-render every page's events when filteredEvents change. The
-  // page's internal renderer already subscribes to its state-wrapper —
-  // so we just rebuild the wrapper to point at the live shared state.
-  const off = state.onAny(({ key }) => {
-    if (key !== 'filteredEvents') return;
-    for (const p of pages.values()) p.render?.();
+  // External date change (Today / gotoDate / toolbar prev-next) →
+  // jump the scroll to centre the new date. If the date is outside
+  // the current range, re-anchor and render fresh.
+  const dateSub = state.on('change:options', () => {
+    if (suppressScroll) return;
+    const newDate = setMidnight(createDate(state.get('options').date));
+    if (newDate < rangeStart || newDate >= rangeEnd) {
+      rangeStart = weekStartFor(newDate, firstDay);
+      addDay(rangeStart, -Math.floor(INITIAL_WEEKS / 2) * 7);
+      rangeEnd = cloneDate(rangeStart);
+      addDay(rangeEnd, INITIAL_WEEKS * 7);
+      renderRange();
+      requestAnimationFrame(() => centreDay(newDate));
+    } else {
+      centreDay(newDate);
+    }
   });
 
-  // -- helpers ----------------------------------------------------------
-
-  function weekStartFor(date, firstDay) {
-    const d = setMidnight(createDate(date));
-    const dow = d.getUTCDay();
-    const back = (dow - firstDay + 7) % 7;
-    addDay(d, -back);
-    return d;
-  }
-  function keyOf(date) { return date.toISOString().substring(0, 10); }
-  function offsetOf(weekStart) {
-    return Math.round((weekStart.getTime() - anchor.getTime()) / (7 * 86400000));
-  }
-  function datesEqualUTC(a, b) { return a?.getTime?.() === b?.getTime?.(); }
-  function firstPage() {
-    let first = null;
-    for (const p of pages.values()) if (!first || p.weekStart < first.weekStart) first = p;
-    return first;
-  }
-  function lastPage() {
-    let last = null;
-    for (const p of pages.values()) if (!last || p.weekStart > last.weekStart) last = p;
-    return last;
-  }
-
-  function buildPage(weekStart) {
-    const slot = createElement('div', 'ec-week-scroller-page');
-    slot.style.scrollSnapAlign = 'start';
-    slot.dataset.weekStart = keyOf(weekStart);
-
-    // Build a derived state that fakes a single-week activeRange around
-    // weekStart for this page. The view factory reads activeRange /
-    // viewDates / filteredEvents and renders into the slot.
-    let teardown = null;
-    const renderPage = () => {
-      const pageState = makePageState(state, weekStart);
-      teardown?.();
-      teardown = viewFactory?.(slot, pageState) ?? null;
-    };
-    renderPage();
-    return { weekStart, el: slot, render: renderPage, teardown: () => teardown?.() };
-  }
-
-  function appendPageForOffset(off) {
-    const ws = cloneDate(anchor);
-    addDay(ws, off * 7);
-    const k = keyOf(ws);
-    if (pages.has(k)) return;
-    const page = buildPage(ws);
-    track.append(page.el);
-    pages.set(k, page);
-  }
-  function prependPageForOffset(off) {
-    const ws = cloneDate(anchor);
-    addDay(ws, off * 7);
-    const k = keyOf(ws);
-    if (pages.has(k)) return;
-    const page = buildPage(ws);
-    track.insertBefore(page.el, track.firstChild);
-    pages.set(k, page);
-  }
+  // Re-render when filteredEvents change.
+  const off = state.onAny(({ key }) => {
+    if (key === 'filteredEvents') {
+      // Preserve scroll position across the re-render.
+      const sl = root.scrollLeft;
+      const st = root.scrollTop;
+      suppressScroll = true;
+      renderRange();
+      requestAnimationFrame(() => {
+        root.scrollLeft = sl;
+        root.scrollTop = st;
+        suppressScroll = false;
+      });
+    }
+  });
 
   return {
     destroy() {
       off?.();
+      dateSub?.();
       clearTimeout(settleTimer);
-      for (const p of pages.values()) p.teardown?.();
-      pages.clear();
+      teardown?.();
       container.replaceChildren();
     },
   };
 }
 
+// ---- helpers ---------------------------------------------------------
+
+function weekStartFor(date, firstDay) {
+  const d = setMidnight(createDate(date));
+  const dow = d.getUTCDay();
+  const back = (dow - firstDay + 7) % 7;
+  addDay(d, -back);
+  return d;
+}
+
 // Wrap the live state with a derived activeRange / currentRange /
-// viewDates that target a single week. Mutations on this state-wrap
-// are SCOPED to the page's renderer — they don't leak back into the
-// shared store. Listeners on the shared store are forwarded though, so
-// upstream changes (options, events) repaint the page.
-function makePageState(state, weekStart) {
-  const wsClone = cloneDate(weekStart);
-  const end = cloneDate(weekStart); addDay(end, 7);
+// viewDates that target the wide [rangeStart, rangeEnd) span. Mutations
+// scoped to the renderer; upstream listeners still bubble through for
+// option / event changes.
+function makePageState(state, rangeStart, rangeEnd, colWidth) {
+  const rs = cloneDate(rangeStart);
+  const re = cloneDate(rangeEnd);
+  const days = [];
+  const cursor = cloneDate(rs);
+  while (cursor < re) { days.push(cloneDate(cursor)); addDay(cursor); }
 
-  const pageOverrides = new Map();
-  pageOverrides.set('activeRange',  { start: wsClone, end });
-  pageOverrides.set('currentRange', { start: wsClone, end });
-  pageOverrides.set('viewDates',    enumerateWeek(wsClone));
+  const overrides = new Map();
+  overrides.set('activeRange',  { start: rs, end: re });
+  overrides.set('currentRange', { start: rs, end: re });
+  overrides.set('viewDates',    days);
 
-  const listeners = new Map(); // key -> Set<fn>
+  // Wider columnWidth via a derived options object — TimeGrid reads
+  // options.columnWidth to set --ec-col-w on the cols wrap, which the
+  // continuous CSS uses for fixed-width tracks.
+  const baseOpts = state.get('options');
+  const optOverride = { ...baseOpts, columnWidth: colWidth };
+  overrides.set('options', optOverride);
 
+  const listeners = new Map();
   const wrap = {
     get(key) {
-      if (pageOverrides.has(key)) return pageOverrides.get(key);
+      if (overrides.has(key)) return overrides.get(key);
       return state.get(key);
     },
     set(key, value) {
-      pageOverrides.set(key, value);
+      overrides.set(key, value);
       const set = listeners.get(`change:${key}`);
       if (set) for (const fn of set) fn({ key, value });
     },
@@ -251,30 +256,17 @@ function makePageState(state, weekStart) {
       if (!set) { set = new Set(); listeners.set(eventName, set); }
       set.add(fn);
       const upstream = state.on?.(eventName, (ev) => {
-        // Don't shadow the page's local activeRange/currentRange/viewDates
-        // when upstream broadcasts changes to them — the page is locked
-        // to its week.
-        const key = ev.key;
-        if (['activeRange','currentRange','viewDates'].includes(key)) return;
+        if (['activeRange', 'currentRange', 'viewDates', 'options'].includes(ev.key)) return;
         fn(ev);
       });
       return () => { set.delete(fn); upstream?.(); };
     },
     onAny(fn) {
-      // Upstream subscription that filters out the page-local overrides.
-      const upstream = state.onAny?.((ev) => {
-        if (['activeRange','currentRange','viewDates'].includes(ev.key)) return;
+      return state.onAny?.((ev) => {
+        if (['activeRange', 'currentRange', 'viewDates', 'options'].includes(ev.key)) return;
         fn(ev);
       });
-      return upstream;
     },
   };
   return wrap;
-}
-
-function enumerateWeek(weekStart) {
-  const out = [];
-  const d = cloneDate(weekStart);
-  for (let i = 0; i < 7; ++i) { out.push(cloneDate(d)); addDay(d); }
-  return out;
 }
