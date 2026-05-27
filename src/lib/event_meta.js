@@ -139,6 +139,37 @@ function normaliseDataAttrKey(rawKey) {
   return key;
 }
 
+// S12 — one-shot "appear" class for newly-added events.
+//
+// The first time an event's id passes through this helper, we mark it
+// as seen and return `ec-event-appear-{name}` where {name} comes from
+// either `event.extendedProps.appearAnimation` (per-event override)
+// or `options.eventAppearAnimation` (calendar-wide default). Every
+// subsequent call for the same id returns null — the class is
+// applied exactly once over the event's lifetime.
+//
+// The `seenSet` parameter is a `Set` instance owned by the caller;
+// the controller hangs one off state under `_appearedEventIds` and
+// trims it when events are removed so the marker fires again if the
+// same id is re-added later.
+//
+// Returns `null` when no animation is configured (off by default),
+// when the event has no id, or when the event has already appeared.
+// In all those cases the caller skips appending a class.
+export function eventMetaAppearClass(event, options, seenSet) {
+  if (!event || !seenSet) return null;
+  const id = event.id;
+  if (id == null || id === '') return null;
+  if (seenSet.has(id)) return null;
+  const name = event.extendedProps?.appearAnimation ?? options?.eventAppearAnimation;
+  if (typeof name !== 'string' || name.length === 0) return null;
+  // Reject anything that wouldn't survive serialisation into a CSS
+  // class — the same `[a-z0-9-]+` shape we use for type slugs.
+  if (!/^[a-z0-9-]+$/i.test(name)) return null;
+  seenSet.add(id);
+  return `ec-event-appear-${name}`;
+}
+
 // Series introspection — exposes the per-event facts the recurrence-aware
 // change hook needs without having to crack open the same extendedProps
 // in every consumer.

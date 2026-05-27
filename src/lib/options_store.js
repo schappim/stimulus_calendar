@@ -308,6 +308,20 @@ function baseDefaults() {
     // natural href fire — so the same template works in a desktop
     // browser and inside Hotwire Native without forking.
     bridgeActions: false,
+    // S12 — first-render visual cue for newly-added events. When set
+    // to a non-empty string, every event whose id has not been
+    // rendered before picks up an `ec-event-appear-{name}` class on
+    // the first render after add. Subsequent renders (re-layouts,
+    // drag commits) don't re-apply the class. Host CSS owns the
+    // animation — the library only stamps the marker.
+    //
+    // Per-event override: \`event.extendedProps.appearAnimation\`
+    // wins over the calendar-level default. Set the per-event flag
+    // when only AI-created events should announce themselves while
+    // the human-added ones land silently.
+    //
+    // Off by default (no class emitted).
+    eventAppearAnimation: undefined,
     filterEventsWithResources: false,
     firstDay: 0,
     headerToolbar: { start: 'title', center: '', end: 'today prev,next' },

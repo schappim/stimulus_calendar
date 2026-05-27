@@ -5,6 +5,7 @@ import {
   eventMetaDataAttrs,
   resolveEventType,
   eventMetaSeriesInfo,
+  eventMetaAppearClass,
   buildRecurringBadge,
 } from '../../src/lib/event_meta.js';
 
@@ -189,6 +190,44 @@ describe('resolveEventType', () => {
       { eventTypes: { job: { classNames: ['ec-event-type-job', 'extra'] } } },
     );
     expect(out.classNames).toEqual(['ec-event-type-job', 'extra']);
+  });
+});
+
+describe('eventMetaAppearClass', () => {
+  it('returns null when no animation is configured', () => {
+    const seen = new Set();
+    expect(eventMetaAppearClass({ id: '1' }, {}, seen)).toBeNull();
+  });
+
+  it('returns the appear class on first encounter, then null thereafter', () => {
+    const seen = new Set();
+    const event = { id: '1' };
+    const opts = { eventAppearAnimation: 'fly-in' };
+    expect(eventMetaAppearClass(event, opts, seen)).toBe('ec-event-appear-fly-in');
+    // Second call — already seen.
+    expect(eventMetaAppearClass(event, opts, seen)).toBeNull();
+    // Sanity — the seen set carries the id.
+    expect(seen.has('1')).toBe(true);
+  });
+
+  it('extendedProps.appearAnimation overrides the calendar-wide default', () => {
+    const seen = new Set();
+    const event = { id: '1', extendedProps: { appearAnimation: 'highlight-pulse' } };
+    const opts = { eventAppearAnimation: 'fly-in' };
+    expect(eventMetaAppearClass(event, opts, seen)).toBe('ec-event-appear-highlight-pulse');
+  });
+
+  it('rejects names containing characters that would corrupt CSS class serialisation', () => {
+    const seen = new Set();
+    const opts = { eventAppearAnimation: 'fly in" />' };
+    expect(eventMetaAppearClass({ id: '1' }, opts, seen)).toBeNull();
+    expect(seen.has('1')).toBe(false);
+  });
+
+  it('survives missing event, seenSet, or id without throwing', () => {
+    expect(eventMetaAppearClass(null, {}, new Set())).toBeNull();
+    expect(eventMetaAppearClass({ id: '1' }, {}, null)).toBeNull();
+    expect(eventMetaAppearClass({}, { eventAppearAnimation: 'fly-in' }, new Set())).toBeNull();
   });
 });
 
