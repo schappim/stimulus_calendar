@@ -1555,12 +1555,45 @@ function fmtMins(totalMins) {
 }
 
 function attachDateClickHandler(rootEl, state) {
+  // Touch-only gesture-gate state. Captured at pointerdown so the
+  // subsequent synthesised `click` can compare against the body's
+  // scroll position and the pager's swipe state.
+  //
+  // The bug we're closing: on touch, after the user has scrolled the
+  // time-grid body OR swiped the pager, the browser fires a `click`
+  // on whatever cell ends up under the lift-off point. Without this
+  // gate, dateClick fires with that incidental cell and the host opens
+  // a "new event" sheet the user never asked for.
+  //
+  // Mouse / pen input is unaffected — those clicks are intentional and
+  // pass straight through. The 4-px scrollTop delta tolerates the
+  // sub-pixel jitter iOS scroll inertia can leave behind.
+  let lastDown = null;
+  const pointerDownGate = (jsEvent) => {
+    const body = rootEl.querySelector('.ec-time-grid [data-row="body"]');
+    lastDown = {
+      pointerType: jsEvent.pointerType,
+      scrollTop: body?.scrollTop ?? null,
+    };
+  };
+
   const handler = (jsEvent) => {
     const cell = jsEvent.target.closest('[data-date]');
     if (!cell) return;
     // Skip clicks that land on events (those fire eventClick), on a
     // resize handle, or on the more-link / popover controls.
     if (jsEvent.target.closest('[data-event-id], .ec-resizer, [data-more-link], [data-popover-action]')) return;
+    // Touch-aware gating — see lastDown above.
+    if (lastDown?.pointerType === 'touch') {
+      const body = rootEl.querySelector('.ec-time-grid [data-row="body"]');
+      if (body && lastDown.scrollTop != null
+          && Math.abs(body.scrollTop - lastDown.scrollTop) > 4) {
+        return;
+      }
+      if (rootEl.querySelector('.ec-pager.ec-pager-dragging')) {
+        return;
+      }
+    }
     const dateStr = cell.getAttribute('data-date');
     const fire = state.get('fire');
     // TimeGrid: derive time-of-day from the click's y-offset within the
@@ -1592,8 +1625,12 @@ function attachDateClickHandler(rootEl, state) {
       view: state.get('view'),
     });
   };
+  rootEl.addEventListener('pointerdown', pointerDownGate, true);
   rootEl.addEventListener('click', handler);
-  return () => rootEl.removeEventListener('click', handler);
+  return () => {
+    rootEl.removeEventListener('pointerdown', pointerDownGate, true);
+    rootEl.removeEventListener('click', handler);
+  };
 }
 
 // Phase A5/A6 — ResourceTimeline bar drag + resize + drag-to-reassign.
