@@ -56,6 +56,10 @@
   --ec-sidebar-width:            64px;
   --ec-slot-height:              22px;
 
+  /* position:relative so absolutely-positioned overlays (the back-to-
+   * today pill from Phase E2, the suggested-slot indicators, etc.)
+   * anchor inside the calendar root rather than the document body. */
+  position: relative;
   box-sizing: border-box;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   font-size: 14px;
@@ -937,6 +941,38 @@
 @keyframes ec-suggested-slot-pulse {
   0%, 100% { opacity: 0.7; }
   50%      { opacity: 1; }
+}
+
+/* Back-to-today pill (Phase E2). Anchored to the bottom of the
+ * calendar root, centred horizontally, with a soft drop shadow.
+ * Painted only when options.backToTodayPill is true AND the view is
+ * off-period (state.now outside activeRange). Hosts that own their
+ * own UI skip the option and listen for calendar:offPeriodChange. */
+.ec-back-to-today-pill {
+  position: absolute;
+  bottom: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--ec-active-bg-color);
+  color: var(--ec-active-text-color);
+  border: none;
+  border-radius: 999px;
+  padding: 0.5rem 1.1rem;
+  font: 600 0.85rem/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  z-index: 6;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18), 0 2px 6px rgba(15, 23, 42, 0.10);
+  animation: ec-back-to-today-pill-in 200ms ease-out;
+}
+
+.ec-back-to-today-pill:hover {
+  background: color-mix(in srgb, var(--ec-active-bg-color) 90%, white);
+}
+
+@keyframes ec-back-to-today-pill-in {
+  from { opacity: 0; transform: translate(-50%, 12px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
 }
 
 /* -------------------------------------------------------------------------

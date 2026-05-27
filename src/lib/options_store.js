@@ -211,6 +211,12 @@ function baseDefaults() {
     // Opt-in macOS-Calendar-style continuous vertical scroll for the
     // dayGridMonth view (see components/month_scroller.js).
     continuousMonthScroll: false,
+    // Phase E2 — opt-in built-in "↩ Back to today" pill rendered by
+    // the controller into the calendar root when the view is
+    // off-period. Hosts that own their own UI keep this false and
+    // listen for calendar:offPeriodChange instead.
+    backToTodayPill: false,
+    offPeriodChange: undefined,
     customButtons: {},
     customScrollbars: false,
     date: new Date(),

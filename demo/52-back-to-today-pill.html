@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>stimulus_calendar — Off-period + back-to-today (Phase E)</title>
+  <link rel="stylesheet" href="../src/styles/calendar.css">
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; margin: 2rem; }
+    .ec { width: 920px; height: 520px; }
+    h1 { font-size: 1.25rem; }
+    .note { color: #475569; font-size: 0.875rem; max-width: 65ch; margin-bottom: 1rem; }
+    .log { font: 12px/1.5 ui-monospace, monospace; background: #f1f5f9;
+           padding: 0.5rem 0.75rem; border-radius: 4px; margin-top: 1rem; }
+  </style>
+</head>
+<body>
+  <h1>Off-period detection + built-in back-to-today pill</h1>
+  <p class="note">
+    Phase E. Click prev/next to leave today's range. The
+    <code>↩ Back to today</code> pill appears, anchored to the bottom of
+    the calendar root. Tap it to call <code>calendarApi.today()</code>.
+    Host apps that prefer their own UI can listen to
+    <code>calendar:offPeriodChange</code> instead — toggle the option to
+    see the pill come and go.
+  </p>
+  <div data-controller="calendar"
+       data-calendar-plugins-value='["DayGrid"]'
+       data-calendar-view-value="dayGridMonth"
+       data-calendar-back-to-today-pill-value="true"
+       data-calendar-options-value='{"nowIndicator":true}'>
+  </div>
+  <div class="log" id="log">Off-period status will show here.</div>
+  <script type="module">
+    import { Application } from '/node_modules/@hotwired/stimulus/dist/stimulus.js';
+    import CalendarController from '/src/controllers/calendar_controller.js';
+    const app = Application.start();
+    app.register('calendar', CalendarController);
+    await new Promise((r) => setTimeout(r, 80));
+    const el = document.querySelector('[data-controller="calendar"]');
+    const log = document.getElementById('log');
+    const sync = () => {
+      log.textContent = `isOffPeriod() = ${el.calendarApi.isOffPeriod()}`;
+    };
+    el.addEventListener('calendar:offPeriodChange', (e) => {
+      log.textContent = `offPeriodChange → ${e.detail.offPeriod}`;
+    });
+    sync();
+  </script>
+</body>
+</html>

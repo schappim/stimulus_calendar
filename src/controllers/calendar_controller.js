@@ -96,11 +96,11 @@ export default class CalendarController extends Controller {
     continuousWeekScroll: { type: Boolean, default: false },
     // Phase C2 — density dots beneath the dayHeader weekday label.
     dayHeaderDensity: { type: Boolean, default: false },
-    // Phase D — declarative mode flag. Setting
-    // data-calendar-mode-value="scheduling-x" before connect lights up
-    // the mode immediately; subsequent attribute changes are picked up
-    // via modeValueChanged() and round-trip through setMode.
+    // Phase D — declarative mode flag.
     mode: String,
+    // Phase E2 — built-in "↩ Back to today" pill rendered into the
+    // calendar root when off-period.
+    backToTodayPill: { type: Boolean, default: false },
     // Broadcast / live-sync options
     broadcast: String,
     broadcastChannel: String,
@@ -145,15 +145,69 @@ export default class CalendarController extends Controller {
     this._exposeApi();
     this._installEventPopoverDefault();
     this._installBackgroundDeselect();
+    this._installOffPeriodTracking();
+    this._installBackToTodayPill();
 
-    // Honour the declarative mode value if present at connect time so
-    // server-rendered initial state lights up scheduling-x (or any
-    // host-defined mode) without an extra JS round-trip.
     if (this.hasModeValue && this.modeValue) {
       this.element.calendarApi.setMode(this.modeValue, null);
     }
 
     this.dispatch('ready', { detail: { api: this.element.calendarApi } });
+  }
+
+  // Phase E1 — re-evaluate isOffPeriod() whenever activeRange or
+  // state.now changes; fire calendar:offPeriodChange when it flips.
+  _installOffPeriodTracking() {
+    let last = this.element.calendarApi.isOffPeriod();
+    this._state.set('offPeriod', last);
+    const recheck = () => {
+      const next = this.element.calendarApi.isOffPeriod();
+      if (next !== last) {
+        last = next;
+        this._state.set('offPeriod', next);
+        this.dispatch('offPeriodChange', { detail: { offPeriod: next } });
+      }
+    };
+    this._teardowns.push(this._state.on('change:activeRange', recheck));
+    this._teardowns.push(this._state.on('change:now', recheck));
+  }
+
+  // Phase E2 — optional built-in "↩ Back to today" pill rendered into
+  // the calendar root when off-period. Anchored bottom-centre with a
+  // soft drop shadow. Opt-in via options.backToTodayPill: true. Host
+  // apps that own their own UI ignore the option and listen for
+  // calendar:offPeriodChange instead.
+  _installBackToTodayPill() {
+    const sync = () => {
+      const opts = this._state.get('options') ?? {};
+      if (!opts.backToTodayPill) {
+        this._removeBackToTodayPill();
+        return;
+      }
+      if (this._state.get('offPeriod')) this._renderBackToTodayPill();
+      else this._removeBackToTodayPill();
+    };
+    sync();
+    this._teardowns.push(this._state.on('change:offPeriod', sync));
+    this._teardowns.push(this._state.on('change:options', sync));
+  }
+
+  _renderBackToTodayPill() {
+    if (this._backToTodayPillEl) return;
+    const el = document.createElement('button');
+    el.type = 'button';
+    el.className = 'ec-back-to-today-pill';
+    el.dataset.action = 'back-to-today';
+    el.textContent = '↩  Back to today';
+    el.addEventListener('click', () => this.element.calendarApi.today());
+    this._root?.appendChild(el);
+    this._backToTodayPillEl = el;
+  }
+
+  _removeBackToTodayPill() {
+    if (!this._backToTodayPillEl) return;
+    this._backToTodayPillEl.remove();
+    this._backToTodayPillEl = null;
   }
 
   modeValueChanged() {
@@ -544,6 +598,18 @@ export default class CalendarController extends Controller {
       clearSuggestedSlot: () => this._state.set('suggestedSlot', null),
       getSuggestedSlot: () => this._state.get('suggestedSlot') ?? null,
 
+      // Phase E — off-period check. Returns true when state.now is
+      // outside the current view's activeRange (the user has navigated
+      // away from "today"). Host UI can hook this to show a back-to-
+      // today pill / banner.
+      isOffPeriod: () => {
+        const ar = this._state.get('activeRange');
+        const now = this._state.get('now') ?? new Date();
+        if (!ar?.start || !ar?.end) return false;
+        const nowMs = now instanceof Date ? now.getTime() : new Date(now).getTime();
+        return nowMs < ar.start.getTime() || nowMs >= ar.end.getTime();
+      },
+
       // Navigation
       next: () => this._navigate(+1),
       prev: () => this._navigate(-1),
@@ -857,6 +923,7 @@ CalendarController.OPTION_KEYS = [
   'monthHeaderFormat', 'slotWidth', 'resourceExpand',
   'resourceGroups', 'resourceGroupField', 'emptyCellAddButton',
   'continuousWeekScroll', 'dayHeaderDensity',
+  'mode', 'backToTodayPill',
   'broadcast', 'broadcastChannel',
 ];
 
