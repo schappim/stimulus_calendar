@@ -1718,9 +1718,12 @@
 }
 
 /* Tail/arrow pointing back at the event chip. A small rotated square
-   peeking out from the side of the popover — solid colour (the
-   translucent material doesn't carry through a separate stacking
-   context), positioned by the --popover-arrow-top variable set in JS. */
+   peeking out from the side of the popover, positioned by the
+   --popover-arrow-top variable set in JS. Matches the popover's
+   own translucent fill + blur so a chip in front of the arrow
+   doesn't show through as a hard-edged solid block — previously
+   the arrow was a flat #f4f4f7 square that read as a distinct
+   diamond against any coloured event chip behind it. */
 .ec-event-popover::before {
   content: '';
   position: absolute;
@@ -1728,7 +1731,9 @@
   width: 16px;
   height: 16px;
   margin-top: -8px;
-  background: #f4f4f7;
+  background: inherit;
+  -webkit-backdrop-filter: inherit;
+  backdrop-filter: inherit;
   border: 1px solid rgba(0, 0, 0, 0.08);
   transform: rotate(45deg);
   pointer-events: none;
