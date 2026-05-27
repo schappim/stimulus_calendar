@@ -62,7 +62,8 @@ export const InteractionPlugin = {
         const offDrag     = attachEventDragHandler(rootEl, state);
         const offResize   = attachEventResizeHandler(rootEl, state);
         const offCreate   = attachTimeGridCreateHandler(rootEl, state);
-        return () => { offClick(); offDrag(); offResize(); offCreate(); };
+        const offTimeline = attachTimelineBarHandler(rootEl, state);
+        return () => { offClick(); offDrag(); offResize(); offCreate(); offTimeline(); };
       },
     });
   },
@@ -1584,4 +1585,238 @@ function attachDateClickHandler(rootEl, state) {
   };
   rootEl.addEventListener('click', handler);
   return () => rootEl.removeEventListener('click', handler);
+}
+
+// Phase A5/A6 — ResourceTimeline bar drag + resize + drag-to-reassign.
+//
+// ResourceTimeline bars live inside .ec-timeline-ribbon, an absolutely-
+// positioned block one per resource row. Each ribbon contains a grid of
+// .ec-timeline-cell[data-date] tap targets (one per visible day) sitting
+// under the bars. We hit-test:
+//   • pointerdown on a bar      → start a horizontal drag-to-reschedule
+//   • pointerdown on a resizer  → start a horizontal resize (start or end)
+//   • pointermove                → translate ghost / preview by snapped
+//                                  day offsets
+//   • pointerup                  → commit through calendarApi.updateEvent
+//                                  with the new start/end and (if the
+//                                  pointer crossed onto a different row's
+//                                  ribbon) the new resourceIds.
+//
+// Bar geometry is in day-fractions: dayWidth = slotWidth, dayDelta =
+// round((dx) / dayWidth). The renderer paints bars at `left = idx *
+// dayWidth` / `width = days * dayWidth`, so the snap math is uniform.
+function attachTimelineBarHandler(rootEl, state) {
+  let drag = null;
+  // { kind: 'move'|'resize', side?: 'start'|'end', chip, event, dayWidth,
+  //   startX, startY, originalLeft, originalWidth, ribbon, ribbonRect,
+  //   sourceResourceId, lastDayDelta, lastResourceId, ghost, lastX, lastY,
+  //   pointerId }
+
+  const findChip = (target) => {
+    const chip = target.closest?.('[data-event-id]');
+    if (!chip) return null;
+    if (!chip.closest('.ec-timeline-ribbon')) return null;
+    return chip;
+  };
+
+  const ribbonAtPoint = (x, y) => {
+    const els = (typeof document !== 'undefined' && document.elementsFromPoint)
+      ? document.elementsFromPoint(x, y) : [];
+    for (const el of els) {
+      const r = el.closest?.('.ec-timeline-ribbon');
+      if (r && rootEl.contains(r)) return r;
+    }
+    return null;
+  };
+
+  const rowOf = (ribbon) => ribbon?.closest?.('.ec-timeline-row');
+  const resourceIdOf = (ribbon) => rowOf(ribbon)?.getAttribute('data-resource-id') ?? null;
+
+  const onPointerDown = (jsEvent) => {
+    const options = state.get('options');
+    if (jsEvent.button !== undefined && jsEvent.button !== 0) return;
+    const chip = findChip(jsEvent.target);
+    if (!chip) return;
+
+    const ribbon = chip.closest('.ec-timeline-ribbon');
+    const ribbonRect = ribbon.getBoundingClientRect();
+    // slotWidth lives on the renderer; the ribbon's width = days *
+    // slotWidth. We derive dayWidth from the chip's siblings rather than
+    // re-reading options so a tested-only slotWidth override still works.
+    const cells = ribbon.querySelectorAll(':scope > .ec-timeline-cells > .ec-timeline-cell');
+    const dayWidth = cells.length ? (ribbonRect.width / cells.length) : (options.slotWidth ?? 32);
+    const event = (state.get('filteredEvents') ?? []).find((e) => e.id === chip.getAttribute('data-event-id'));
+    if (!event) return;
+
+    const resizer = jsEvent.target.closest?.('.ec-resizer');
+    const isResize = !!resizer && resizer.getAttribute('data-resize-axis') === 'x';
+    if (isResize && !(options.editable && options.eventDurationEditable !== false)) return;
+    if (!isResize && !(options.editable || options.eventStartEditable)) return;
+
+    drag = {
+      kind: isResize ? 'resize' : 'move',
+      side: isResize ? (resizer.getAttribute('data-resizer') === 'start' ? 'start' : 'end') : null,
+      chip,
+      event,
+      ribbon,
+      ribbonRect,
+      dayWidth,
+      sourceResourceId: resourceIdOf(ribbon),
+      lastResourceId: resourceIdOf(ribbon),
+      originalLeft: parseFloat(chip.style.left || '0') || 0,
+      originalWidth: parseFloat(chip.style.width || '0') || chip.getBoundingClientRect().width,
+      startX: jsEvent.clientX,
+      startY: jsEvent.clientY,
+      lastX: jsEvent.clientX,
+      lastY: jsEvent.clientY,
+      moved: false,
+      lastDayDelta: 0,
+      pointerId: jsEvent.pointerId,
+    };
+
+    if (resizer && resizer.setPointerCapture && jsEvent.pointerId !== undefined) {
+      try { resizer.setPointerCapture(jsEvent.pointerId); } catch { /* ignore */ }
+    } else if (chip.setPointerCapture && jsEvent.pointerId !== undefined) {
+      try { chip.setPointerCapture(jsEvent.pointerId); } catch { /* ignore */ }
+    }
+    if (jsEvent.cancelable) jsEvent.preventDefault();
+    jsEvent.stopPropagation?.();
+  };
+
+  const onPointerMove = (jsEvent) => {
+    if (!drag) return;
+    drag.lastX = jsEvent.clientX;
+    drag.lastY = jsEvent.clientY;
+    const dx = jsEvent.clientX - drag.startX;
+    const dy = jsEvent.clientY - drag.startY;
+    const options = state.get('options');
+    const minDist = options.eventDragMinDistance ?? 5;
+    if (!drag.moved && (dx * dx + dy * dy) < minDist * minDist) return;
+    if (!drag.moved) {
+      drag.moved = true;
+      drag.chip.classList.add(drag.kind === 'resize' ? 'ec-resizing-x' : 'ec-dragging');
+      drag.chip.style.zIndex = '50';
+      state.get('fire')?.(drag.kind === 'resize' ? 'eventResizeStart' : 'eventDragStart', {
+        event: drag.event, jsEvent, view: state.get('view'),
+      });
+    }
+    const dayDelta = Math.round(dx / drag.dayWidth);
+    drag.lastDayDelta = dayDelta;
+    if (drag.kind === 'move') {
+      drag.chip.style.left  = `${drag.originalLeft + dayDelta * drag.dayWidth}px`;
+    } else if (drag.side === 'end') {
+      const minW = drag.dayWidth;
+      drag.chip.style.width = `${Math.max(minW, drag.originalWidth + dayDelta * drag.dayWidth)}px`;
+    } else { // resize from start
+      const shift = Math.max(
+        -drag.originalLeft,
+        Math.min(drag.originalWidth - drag.dayWidth, dayDelta * drag.dayWidth),
+      );
+      drag.chip.style.left  = `${drag.originalLeft + shift}px`;
+      drag.chip.style.width = `${drag.originalWidth - shift}px`;
+    }
+
+    // Phase A6 — drag-to-reassign. Detect the ribbon under the pointer
+    // (move-mode only). Only updates the drag's lastResourceId for now;
+    // the actual chip-row transfer happens on commit so the in-flight
+    // ghost stays visually stable.
+    if (drag.kind === 'move') {
+      const r = ribbonAtPoint(jsEvent.clientX, jsEvent.clientY);
+      const rid = r ? resourceIdOf(r) : null;
+      drag.lastResourceId = rid ?? drag.sourceResourceId;
+      rootEl.querySelectorAll('.ec-timeline-row[data-row-drop="true"]')
+        .forEach((n) => n.removeAttribute('data-row-drop'));
+      if (r && rid !== drag.sourceResourceId) {
+        rowOf(r)?.setAttribute('data-row-drop', 'true');
+      }
+    }
+    if (jsEvent.cancelable) jsEvent.preventDefault();
+  };
+
+  const onPointerUp = (jsEvent) => {
+    if (!drag) return;
+    const d = drag; drag = null;
+    rootEl.querySelectorAll('.ec-timeline-row[data-row-drop="true"]')
+      .forEach((n) => n.removeAttribute('data-row-drop'));
+    d.chip.classList.remove('ec-resizing-x');
+    d.chip.classList.remove('ec-dragging');
+    d.chip.style.zIndex = '';
+    if (!d.moved) return;
+
+    state.get('fire')?.(d.kind === 'resize' ? 'eventResizeStop' : 'eventDragStop', {
+      event: d.event, jsEvent, view: state.get('view'),
+    });
+
+    const dayMs = 86400000;
+    let newStart = new Date(d.event.start.getTime());
+    let newEnd   = new Date(d.event.end.getTime());
+    let newResourceIds = d.event.resourceIds;
+    let resourceChanged = false;
+
+    if (d.kind === 'move') {
+      newStart = new Date(newStart.getTime() + d.lastDayDelta * dayMs);
+      newEnd   = new Date(newEnd.getTime()   + d.lastDayDelta * dayMs);
+      if (d.lastResourceId && d.lastResourceId !== d.sourceResourceId) {
+        // Replace only the dragged-from resource id with the target's;
+        // keep any other resources on the event intact (matches Open
+        // Question #3 in the gap plan).
+        const set = (d.event.resourceIds ?? []).slice();
+        const i = set.indexOf(d.sourceResourceId);
+        if (i >= 0) set[i] = d.lastResourceId; else set.push(d.lastResourceId);
+        newResourceIds = set;
+        resourceChanged = true;
+      }
+    } else if (d.side === 'end') {
+      newEnd = new Date(newEnd.getTime() + d.lastDayDelta * dayMs);
+      if (newEnd.getTime() <= newStart.getTime()) newEnd = new Date(newStart.getTime() + dayMs);
+    } else {
+      newStart = new Date(newStart.getTime() + d.lastDayDelta * dayMs);
+      if (newStart.getTime() >= newEnd.getTime()) newStart = new Date(newEnd.getTime() - dayMs);
+    }
+
+    let reverted = false;
+    const oldEvent = { ...d.event, start: d.event.start, end: d.event.end };
+    const fireName = d.kind === 'resize' ? 'eventResize' : 'eventDrop';
+    const detail = {
+      event: d.event,
+      oldEvent,
+      jsEvent,
+      view: state.get('view'),
+      revert: () => { reverted = true; },
+    };
+    if (d.kind === 'move') {
+      detail.delta = { days: d.lastDayDelta, milliseconds: d.lastDayDelta * dayMs };
+      if (resourceChanged) {
+        detail.oldResource = d.sourceResourceId;
+        detail.newResource = d.lastResourceId;
+        detail.newResourceIds = newResourceIds;
+      }
+    } else {
+      const ms = d.lastDayDelta * dayMs;
+      detail.endDelta   = d.side === 'end'   ? { milliseconds: ms, days: d.lastDayDelta } : { milliseconds: 0, days: 0 };
+      detail.startDelta = d.side === 'start' ? { milliseconds: ms, days: d.lastDayDelta } : { milliseconds: 0, days: 0 };
+    }
+    state.get('fire')?.(fireName, detail);
+    if (reverted) return;
+
+    const payload = {
+      id: d.event.id,
+      start: newStart.toISOString(),
+      end:   newEnd.toISOString(),
+    };
+    if (resourceChanged) payload.resourceIds = newResourceIds;
+    state.get('hostEl')?.calendarApi?.updateEvent(payload);
+  };
+
+  rootEl.addEventListener('pointerdown', onPointerDown);
+  document.addEventListener('pointermove', onPointerMove, { passive: false });
+  document.addEventListener('pointerup',   onPointerUp);
+  document.addEventListener('pointercancel', onPointerUp);
+
+  return () => {
+    rootEl.removeEventListener('pointerdown', onPointerDown);
+    document.removeEventListener('pointermove', onPointerMove);
+    document.removeEventListener('pointerup',   onPointerUp);
+    document.removeEventListener('pointercancel', onPointerUp);
+  };
 }

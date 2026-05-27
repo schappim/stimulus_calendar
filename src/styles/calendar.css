@@ -979,6 +979,46 @@
   pointer-events: none;
 }
 
+/* Horizontal resize handles for ResourceTimeline bars (Phase A5). Each
+ * handle is a thin column at the bar's edge — opacity is bumped on
+ * hover so it reads as an affordance only when the user is looking
+ * for it. cursor:ew-resize signals the drag direction. */
+.ec-timeline .ec-event .ec-resizer-x {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: ew-resize;
+  background: transparent;
+  z-index: 2;
+}
+
+.ec-timeline .ec-event .ec-resizer-x-end   { right: 0; }
+.ec-timeline .ec-event .ec-resizer-x-start { left:  0; }
+
+.ec-timeline .ec-event:hover .ec-resizer-x,
+.ec-timeline .ec-event.ec-resizing-x .ec-resizer-x {
+  background: color-mix(in srgb, var(--ec-event-accent) 55%, transparent);
+  border-radius: 4px;
+}
+
+.ec-timeline .ec-event.ec-dragging {
+  cursor: grabbing;
+  opacity: 0.92;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.15);
+}
+
+/* Drop-target row highlight while drag-to-reassign is in flight
+ * (Phase A6). The handler tags the row with data-row-drop="true"
+ * during pointermove; the next pointerup clears it. */
+.ec-timeline-row[data-row-drop="true"] {
+  background: color-mix(in srgb, var(--ec-highlight-color) 60%, transparent);
+}
+
+.ec-timeline-row[data-row-drop="true"] .ec-row-head {
+  background: color-mix(in srgb, var(--ec-highlight-color) 80%, white);
+}
+
 /* -------------------------------------------------------------------------
  * List view
  * ----------------------------------------------------------------------- */

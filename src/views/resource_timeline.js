@@ -332,6 +332,30 @@ export function renderResourceTimelineView(container, state) {
         chip.style.left = `${Math.max(0, startDayIdx) * dayWidth}px`;
         chip.style.width = `${Math.max(endIdx - Math.max(0, startDayIdx), 1) * dayWidth}px`;
         if (event.backgroundColor) chip.style.setProperty('--ec-event-color', event.backgroundColor);
+
+        // Phase A5 — left / right resize handles. Mirrors the TimeGrid
+        // chip's resizer convention: data-resizer="start" / "end" with
+        // the same class name so the Interaction plugin's pointerdown
+        // handler can pick them up. Surfaces only when editable AND
+        // eventDurationEditable hasn't been turned off (start handle is
+        // additionally gated on eventResizableFromStart).
+        if (options.editable && options.eventDurationEditable !== false) {
+          const endHandle = createElement('div',
+            `${options.theme.resizer ?? 'ec-resizer'} ec-resizer-x ec-resizer-x-end`, '', [
+            ['data-resizer', 'end'],
+            ['data-resize-axis', 'x'],
+          ]);
+          chip.append(endHandle);
+          if (options.eventResizableFromStart) {
+            const startHandle = createElement('div',
+              `${options.theme.resizer ?? 'ec-resizer'} ec-resizer-x ec-resizer-x-start`, '', [
+              ['data-resizer', 'start'],
+              ['data-resize-axis', 'x'],
+            ]);
+            chip.append(startHandle);
+          }
+        }
+
         const fire = state.get('fire');
         chip.addEventListener('click',     (jsEvent) => fire?.('eventClick',      { event, jsEvent, view: state.get('view'), resource }));
         chip.addEventListener('dblclick',  (jsEvent) => fire?.('eventDoubleClick',{ event, jsEvent, view: state.get('view'), resource, el: chip }));
