@@ -23,6 +23,7 @@ import { createMonthScroller } from '../components/month_scroller.js';
 import { createWeekScroller } from '../components/week_scroller.js';
 import { resolvePluginNames } from '../plugins/index.js';
 import { BroadcastBus, resolveAdapter } from '../lib/broadcast/index.js';
+import { consumeChipClickSuppression } from '../lib/click_suppression.js';
 
 // Stimulus calendar controller. One Stimulus controller per calendar; each
 // owns its own MainState, plugin set, and DOM tree. The HTML attribute
@@ -145,6 +146,7 @@ export default class CalendarController extends Controller {
     this._exposeApi();
     this._installEventPopoverDefault();
     this._installBackgroundDeselect();
+    this._installPostGestureClickSuppression();
     this._installOffPeriodTracking();
     this._installBackToTodayPill();
 
@@ -693,6 +695,31 @@ export default class CalendarController extends Controller {
     };
     this.element.addEventListener('click', handler);
     this._teardowns.push(() => this.element.removeEventListener('click', handler));
+  }
+
+  // Swallow the post-gesture synthesised click on event chips.
+  //
+  // After a drag/resize ends (commit OR abort), the Interaction plugin
+  // calls armChipClickSuppression(state). The browser then synthesises
+  // a `click` on the original pointer target — usually the chip.
+  // Single-tap-opens-popover hosts wire that click and fire eventClick,
+  // which would open a popover after every commit. Bad.
+  //
+  // We install a CAPTURE-phase listener at the calendar root so we
+  // intercept the click before any chip handler runs. If the flag is
+  // armed AND the click landed on a chip, stopImmediatePropagation
+  // swallows it (the chip's own click handler never fires, eventClick
+  // never reaches the host). Clicks elsewhere on the calendar (toolbar,
+  // background, day cell) pass through unaffected.
+  _installPostGestureClickSuppression() {
+    const handler = (jsEvent) => {
+      const chip = jsEvent.target?.closest?.('[data-event-id]');
+      if (!chip) return;
+      if (!consumeChipClickSuppression(this._state)) return;
+      jsEvent.stopImmediatePropagation();
+    };
+    this.element.addEventListener('click', handler, true);
+    this._teardowns.push(() => this.element.removeEventListener('click', handler, true));
   }
 
   _installEventPopoverDefault() {

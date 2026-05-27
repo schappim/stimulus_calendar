@@ -5,6 +5,8 @@
 // emit drag/resize). Selection rendering is minimal (highlight class
 // on selected cells).
 
+import { armChipClickSuppression } from '../lib/click_suppression.js';
+
 export const InteractionPlugin = {
   createOptions(options) {
     Object.assign(options, {
@@ -464,6 +466,10 @@ function attachEventDragHandler(rootEl, state) {
     state.get('fire')?.('eventDragStop', {
       event: d.event, jsEvent, view: state.get('view'),
     });
+    // Browser synthesises a click on the chip after pointerup; suppress
+    // it so single-tap-opens-popover hosts don't see a phantom popover
+    // after every drag commit/abort. See lib/click_suppression.js.
+    armChipClickSuppression(state);
     if (!targetDateStr) return;
 
     // Decide between a day-grid (whole-day) shift and a TimeGrid (sub-day
@@ -1205,6 +1211,7 @@ function attachEventResizeHandler(rootEl, state) {
         seg.el.style.height = `${seg.originalHeight}px`;
       }
       state.get('fire')?.('eventResizeStop', { event: r.event, jsEvent, view: state.get('view') });
+      armChipClickSuppression(state);
       return;
     }
     const dy = clientY - r.startY;
@@ -1257,6 +1264,7 @@ function attachEventResizeHandler(rootEl, state) {
 
     let reverted = false;
     state.get('fire')?.('eventResizeStop', { event: r.event, jsEvent, view: state.get('view') });
+    armChipClickSuppression(state);
     state.get('fire')?.('eventResize', {
       event: r.event,
       oldEvent: { ...r.event, start: r.event.start, end: r.event.end },
@@ -1747,6 +1755,7 @@ function attachTimelineBarHandler(rootEl, state) {
     state.get('fire')?.(d.kind === 'resize' ? 'eventResizeStop' : 'eventDragStop', {
       event: d.event, jsEvent, view: state.get('view'),
     });
+    armChipClickSuppression(state);
 
     const dayMs = 86400000;
     let newStart = new Date(d.event.start.getTime());
