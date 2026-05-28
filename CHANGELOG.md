@@ -6,6 +6,37 @@ All notable changes to `@ninjaai/stimulus_calendar` (npm) and the matching
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **`options.height` now reaches pager-wrapped views.** The fixed-height
+  flex chain only ran `view → grid`, but the Pager inserts
+  `view → .ec-pager → .ec-pager-track → .ec-pager-page-current → grid`. The
+  track + current page were `display:block` and sized to content, so the
+  grid grew past the configured height and the pager's `overflow:hidden`
+  clipped it with no scroll (week/day/staff couldn't scroll to
+  afternoon/evening hours). The has-height CSS now flexes through the pager
+  so each view's own scroll region (time-grid body, list) engages —
+  Calendar.app / Google Calendar style internal vertical scroll. Swiping is
+  unaffected.
+
+### Changed
+
+- **Per-view height strategy.** With `options.height` set, day-grid (month)
+  views now GROW to fit their content — the configured height becomes a
+  min-height floor so a tall month is never clipped (the page scrolls).
+  Time-axis views (time-grid, resource time-grid, list, resource timeline)
+  keep the fixed height and scroll internally. `data-calendar-has-height`
+  is now set per-view (fixed mode only) rather than once at mount.
+- **Event coverage cache.** `_refetchEvents` now pulls a buffered window
+  (the months the active range touches, padded a week each side) and
+  records it; `loadEventsEffect` skips the network round-trip while the
+  active range stays inside that window. Switching VIEW
+  (month → week → day → agenda → staff) or paging a step reuses the
+  already-loaded events instead of refetching. Explicit
+  `calendarApi.refetchEvents()` still forces a fresh fetch.
+
 ## [0.1.0] — 2026-05-25
 
 First public release. **JS package** + **Rails companion gem** both ship together.

@@ -134,7 +134,7 @@ export function viewDidMountEffect() {
 // no-op; only a genuine prev/next/view-switch/gotoDate triggers a new
 // fetch. Direct `calendarApi.refetchEvents()` calls bypass this effect
 // (they call _refetchEvents directly) so explicit refetches always run.
-export function loadEventsEffect(refetch) {
+export function loadEventsEffect(refetch, getLoadedRange) {
   let lastKey = null;
   return {
     deps: ['activeRange'],
@@ -150,6 +150,22 @@ export function loadEventsEffect(refetch) {
       const hasUrlSource = Array.isArray(options.eventSources) && options.eventSources.length > 0;
       const hasFnEvents = typeof options.events === 'function';
       if (!hasUrlSource && !hasFnEvents) return;
+      // Coverage cache. _refetchEvents pulls a BUFFERED window (wider than
+      // the bare active range — see _eventFetchRange) and records it via
+      // getLoadedRange(). When the user only switches VIEW (month → week →
+      // day → agenda → staff) or pages within that window, the new active
+      // range already sits inside the loaded window — skip the network
+      // round-trip and re-render from the events we already hold. Only a
+      // navigation that lands OUTSIDE the window (a distant month, a
+      // prev/next past the buffer) fetches again. Explicit
+      // calendarApi.refetchEvents() bypasses this effect entirely (it calls
+      // _refetchEvents directly), so a forced refresh always runs.
+      const loaded = getLoadedRange?.();
+      if (loaded &&
+          ar.start.getTime() >= loaded.start &&
+          ar.end.getTime() <= loaded.end) {
+        return;
+      }
       // Fire-and-forget; refetch returns a Promise but the effect runner
       // doesn't await it.
       refetch();

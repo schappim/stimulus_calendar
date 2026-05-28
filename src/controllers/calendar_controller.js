@@ -10,7 +10,7 @@ import {
   currentRange, activeRange, viewDates, viewTitle,
   filteredEvents, offset, view as makeView, intlRange,
 } from '../lib/derived.js';
-import { createDate, addDuration, subtractDuration, cloneDate, setMidnight, toISOString, getOffset } from '../lib/date.js';
+import { createDate, addDuration, subtractDuration, addDay, cloneDate, setMidnight, toISOString, getOffset } from '../lib/date.js';
 import { createEvents } from '../lib/events.js';
 import { createDuration } from '../lib/duration.js';
 import { isArray, isFunction, isPlainObject } from '../lib/utils.js';
@@ -547,7 +547,7 @@ export default class CalendarController extends Controller {
       // every genuine range change (prev / next / today / view switch /
       // gotoDate). Dedupes by activeRange content so the post-fetch
       // recompute doesn't trigger another fetch.
-      loadEventsEffect(() => this._refetchEvents()),
+      loadEventsEffect(() => this._refetchEvents(), () => this._loadedEventRange),
       timeZoneChangeEffect((k, v) => this.setOption(k, v)),
       nowAndTodayEffect(),
     ]);
@@ -567,15 +567,6 @@ export default class CalendarController extends Controller {
     main.className = options.theme.main;
     main.dataset.calendarSlot = 'view';
     root.append(toolbar, main);
-    if (options.height) {
-      root.style.height =
-        typeof options.height === 'number' ? `${options.height}px` : options.height;
-      // Opt the root into the flex-fill layout below. Hosts that don't
-      // set options.height keep the legacy auto-sized layout (where the
-      // time-grid body's hardcoded max-height: 540px caps the visible
-      // window) so existing demos / fixtures don't shift.
-      root.dataset.calendarHasHeight = '';
-    }
     this.element.replaceChildren(root);
     this._root = root;
     this._toolbarEl = toolbar;
@@ -621,8 +612,55 @@ export default class CalendarController extends Controller {
     }
   }
 
+  // Apply options.height according to the ACTIVE VIEW. Two strategies:
+  //
+  //   Day-grid views (the month overview) GROW to fit their content — the
+  //   configured height becomes a min-height floor and the calendar
+  //   expands past it on a tall month, so no week row is ever clipped; the
+  //   page scrolls if the month is taller than the viewport. This is the
+  //   Calendar.app / Google Calendar month behaviour (the whole month is
+  //   visible, the page scrolls).
+  //
+  //   Time-axis views (time-grid week/day, resource time-grid, list,
+  //   resource timeline) keep the FIXED height and scroll INTERNALLY so the
+  //   24-hour body never pushes the page down — Calendar.app / Google
+  //   Calendar week/day behaviour (the time grid scrolls inside a fixed
+  //   frame).
+  //
+  // data-calendar-has-height drives the flex-fill + internal-scroll CSS and
+  // is only set in fixed mode. Hosts that don't configure options.height
+  // keep the legacy auto-sized layout regardless of view.
+  _applyHeightMode() {
+    const root = this._root;
+    if (!root) return;
+    const options = this._state.get('options');
+    const height = options?.height;
+    if (!height) {
+      delete root.dataset.calendarHasHeight;
+      root.style.height = '';
+      root.style.minHeight = '';
+      return;
+    }
+    const h = typeof height === 'number' ? `${height}px` : height;
+    const grow = String(options.view || '').startsWith('dayGrid');
+    if (grow) {
+      root.style.height = 'auto';
+      root.style.minHeight = h;
+      delete root.dataset.calendarHasHeight;
+    } else {
+      root.style.height = h;
+      root.style.minHeight = '';
+      root.dataset.calendarHasHeight = '';
+    }
+  }
+
   _mountView() {
     if (this._viewTeardown) this._viewTeardown();
+    // Re-evaluate the height strategy for the view we're about to mount —
+    // day-grid (month) grows to fit its content, time-axis views keep the
+    // fixed height + internal scroll. Runs here so it re-applies on every
+    // view switch, not just the first mount.
+    this._applyHeightMode();
     const factory = this._state.get('viewComponent');
     const options = this._state.get('options');
     const viewName = options?.view;
@@ -1013,10 +1051,16 @@ export default class CalendarController extends Controller {
     if (options.events !== undefined && !hasUrlSources) sources.push(options.events);
     if (hasUrlSources) sources.push(...options.eventSources);
 
+    // Fetch a BUFFERED window around the active range (see
+    // _eventFetchRange) — wide enough that switching VIEW
+    // (month/week/day/agenda/staff) or paging by a step stays inside it.
+    // loadEventsEffect skips the redundant round-trips while the active
+    // range is covered by the window recorded below.
     const ar = this._state.get('activeRange');
-    const params = ar ? {
-      start: toISOString(ar.start, 10),
-      end:   toISOString(ar.end,   10),
+    const fetchRange = this._eventFetchRange(ar);
+    const params = fetchRange ? {
+      start: toISOString(fetchRange.start, 10),
+      end:   toISOString(fetchRange.end,   10),
     } : {};
 
     const out = [];
@@ -1033,10 +1077,37 @@ export default class CalendarController extends Controller {
     if (out.length || sources.length) {
       const parsed = createEvents(out, this._state.get('offset'));
       this._state.set('events', parsed);
+      // Record coverage BEFORE _recompute(): the recompute rebuilds
+      // activeRange (a fresh object each time), which re-fires
+      // loadEventsEffect; with the window already recorded that re-fire is
+      // a covered no-op instead of a second fetch.
+      if (fetchRange) {
+        this._loadedEventRange = { start: fetchRange.start.getTime(), end: fetchRange.end.getTime() };
+      }
       this._recompute();
       this.dispatch('eventSourceSuccess', { detail: { events: parsed } });
     }
     return out;
+  }
+
+  // Buffered date window to fetch events for, given the active range. Snaps
+  // out to the month boundaries the range touches and pads a week on each
+  // side, so ONE fetch covers every view anchored in this window — the
+  // month grid, the weeks/days inside it, the agenda week, the resource day
+  // — plus a prev/next step. View switches and short navigation then reuse
+  // the cached events instead of refetching (see loadEventsEffect). Returns
+  // null when there's no active range yet (the initial tick before the
+  // first recompute).
+  _eventFetchRange(ar) {
+    if (!ar?.start || !ar?.end) return null;
+    const start = setMidnight(cloneDate(ar.start));
+    start.setUTCDate(1);                      // first of the start month …
+    addDay(start, -7);                        // … padded a week earlier
+    const end = setMidnight(cloneDate(ar.end));
+    end.setUTCDate(1);
+    end.setUTCMonth(end.getUTCMonth() + 1);   // first of the month after the end month …
+    addDay(end, 7);                           // … padded a week later
+    return { start, end };
   }
 
   async _refetchResources() {

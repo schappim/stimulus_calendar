@@ -509,6 +509,47 @@
   min-height: 0;
 }
 
+/* The Pager wraps month / week / day / agenda / staff. It inserts
+ *   view > .ec-pager > .ec-pager-track > .ec-pager-page-current > .ec-grid
+ * between the view slot and the grid. The track + current page are
+ * display:block and size to their content, which SEVERS the flex
+ * height-chain above: the grid grows to its natural height and the pager's
+ * overflow:hidden then clips it with NO scroll (afternoon/evening hours are
+ * unreachable in week/day, the last week is cut off in month). Re-establish
+ * the flex chain THROUGH the pager so the live page's grid is constrained to
+ * the calendar's fixed height and each view's own scroll region engages
+ * (the time-grid body's overflow-y:auto, the resource-time-grid body, the
+ * list below) — Calendar.app / Google Calendar style internal scroll.
+ *
+ * Transform-based swiping is unaffected: prev/next pages stay absolutely
+ * positioned (top:0/bottom:0 stretch to the track) and the track's
+ * translateX is layout-independent. */
+.ec[data-calendar-has-height] .ec-pager {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.ec[data-calendar-has-height] .ec-pager-track {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.ec[data-calendar-has-height] .ec-pager-page-current {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* The list (agenda) view has no inner scroll container of its own — let the
+ * whole list scroll within the fixed height instead of clipping when a week
+ * has more events than fit. */
+.ec[data-calendar-has-height] .ec-list {
+  overflow-y: auto;
+}
+
 .ec-time-grid .ec-sidebar {
   display: flex;
   flex-direction: column;
