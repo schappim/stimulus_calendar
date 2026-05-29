@@ -1445,6 +1445,11 @@ function totalSecondsOfDuration(duration) {
 // the range touches.
 function attachTimeGridCreateHandler(rootEl, state) {
   let drag = null;
+  // The preview chips for the LAST committed drag are kept on screen as a
+  // tentative selection block (macOS-Calendar style) so the host can anchor
+  // its create popover next to them. Cleared when the host clears the
+  // selection (api.unselect → state.selection becomes null).
+  let committedPreview = [];
 
   function colsContainer(col) {
     return col.parentElement;
@@ -1606,8 +1611,9 @@ function attachTimeGridCreateHandler(rootEl, state) {
     document.removeEventListener('pointermove', onPointerMove);
     document.removeEventListener('pointerup', onPointerUp);
     document.removeEventListener('pointercancel', onPointerUp);
-    clearPreview(d);
-    if (!d.moved) return;
+    // A press without a meaningful drag isn't a range create — drop the
+    // preview and let attachDateClickHandler emit the plain dateClick.
+    if (!d.moved) { clearPreview(d); return; }
 
     const p = pointerAt(jsEvent, d);
     const sameCol = p.col === d.sourceCol;
@@ -1628,15 +1634,32 @@ function attachTimeGridCreateHandler(rootEl, state) {
     } else if (start > end) {
       [start, end] = [end, start];
     }
-    state.get('fire')?.('dateClick', {
-      date: start,
-      dateStr: start.toISOString().substring(0, 10),
-      allDay: false,
-      end,
-      jsEvent,
-      view: state.get('view'),
+    // A timed drag-create is a range SELECTION (allDay: false), not a click.
+    // Fire `select` (matching attachRangeSelectHandler's contract) so hosts
+    // get one consistent create event carrying the real start/end TIMES, and
+    // keep the preview block on screen as the tentative event the host's
+    // popover anchors to — cleared when the host clears the selection.
+    const resourceId = d.sourceCol.closest?.('[data-resource-id]')?.getAttribute('data-resource-id');
+    for (const p2 of committedPreview) p2.remove();
+    committedPreview = d.previewChips;
+    for (const chip of committedPreview) chip.classList.add('ec-event-preview-committed');
+    state.set('selection', { start, end, resource: resourceId ?? null });
+    state.get('fire')?.('select', {
+      start, end, allDay: false, resource: resourceId ?? null,
+      jsEvent, view: state.get('view'),
     });
   }
+
+  // Drop the tentative block when the host clears the selection
+  // (api.unselect on cancel / after a successful save), or whenever the
+  // selection is replaced by another gesture.
+  const clearCommitted = () => {
+    for (const p of committedPreview) p.remove();
+    committedPreview = [];
+  };
+  const offSelection = state.on?.('change:selection', () => {
+    if (!state.get('selection')) clearCommitted();
+  });
 
   rootEl.addEventListener('pointerdown', onPointerDown);
   return () => {
@@ -1644,6 +1667,8 @@ function attachTimeGridCreateHandler(rootEl, state) {
     document.removeEventListener('pointermove', onPointerMove);
     document.removeEventListener('pointerup', onPointerUp);
     document.removeEventListener('pointercancel', onPointerUp);
+    offSelection?.();
+    clearCommitted();
   };
 }
 
@@ -2019,6 +2044,14 @@ function attachRangeSelectHandler(rootEl, state) {
       if (el.closest?.('[data-event-id], .ec-resizer, .ec-button, button, [data-more-link], [data-popover-action]')) {
         return null;
       }
+      // Time-grid time columns belong to attachTimeGridCreateHandler (timed
+      // drag-create, which paints a block and fires `select` with the real
+      // start/end TIMES). This day-cell range selector only owns day-grid
+      // cells and the all-day row — both of which are `allDay`. Without this
+      // guard a time-grid drag would fire on BOTH handlers: this one paints
+      // the whole day column and fires an `allDay: true` select that
+      // clobbers the timed one. Defer to the time-grid handler here.
+      if (el.closest?.('.ec-time-col')) return null;
       const cell = el.closest?.('[data-date]');
       if (cell && rootEl.contains(cell)) return cell;
     }
@@ -2033,7 +2066,10 @@ function attachRangeSelectHandler(rootEl, state) {
   const paintRange = (a, b) => {
     clearHighlights();
     if (!a || !b) return;
-    const allCells = Array.from(rootEl.querySelectorAll('[data-date]'));
+    // Time columns are excluded — they're the time-grid create handler's
+    // territory; only day-grid + all-day-row cells participate here.
+    const allCells = Array.from(rootEl.querySelectorAll('[data-date]'))
+      .filter((c) => !c.classList.contains('ec-time-col'));
     const ai = allCells.indexOf(a);
     const bi = allCells.indexOf(b);
     if (ai < 0 || bi < 0) return;
